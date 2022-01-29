@@ -12,25 +12,31 @@ fi
 set -euxo pipefail
 
 bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
-    --rust-target 1.21 \
+    --verbose \
+    --rust-target nightly \
     --use-core \
     --distrust-clang-mangling \
     --no-doc-comments \
     --no-derive-debug \
     --no-layout-tests \
-    --no-rustfmt-bindings \
     --ctypes-prefix "::libc" \
     --no-prepend-enum-name \
     --generate "functions,types,vars" \
-    --blacklist-type "__builtin_va_list" \
-    --blacklist-type "__va_list" \
-    --no-recursive-whitelist \
-    --whitelist-type "C3D_.*" \
-    --whitelist-function "C3D_.*" \
-    --whitelist-var "C3D_.*" \
-    --whitelist-function 'AttrInfo_(Init|AddLoader|AddFixed)' \
-    --whitelist-function 'BufInfo_(Init|Add)' \
-    --whitelist-function 'Mtx_.*' \
+    --blocklist-type "u(8|16|32|64)" \
+    --blocklist-type "__builtin_va_list" \
+    --blocklist-type "__va_list" \
+    --blocklist-type "GPU_.*" \
+    --blocklist-type "GFX_.*" \
+    --blocklist-type "gfx.*_t" \
+    --blocklist-type "DVL.*" \
+    --blocklist-type "shader.*" \
+    --blocklist-type "float24Uniform_s" \
+    --allowlist-type "C3D_.*" \
+    --allowlist-function "C3D_.*" \
+    --allowlist-var "C3D_.*" \
+    --allowlist-function 'AttrInfo_(Init|AddLoader|AddFixed)' \
+    --allowlist-function 'BufInfo_(Init|Add)' \
+    --allowlist-function 'Mtx_.*' \
     --raw-line "use ctru_sys::*;" \
     -- \
     --target=arm-none-eabi \
@@ -46,5 +52,3 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     -D_3DS \
     -D__3DS__ \
 > src/bindings.rs
-
-rustfmt src/bindings.rs

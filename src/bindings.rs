@@ -9,7 +9,7 @@ pub struct __BindgenBitfieldUnit<Storage> {
 }
 impl<Storage> __BindgenBitfieldUnit<Storage> {
     #[inline]
-    pub fn new(storage: Storage) -> Self {
+    pub const fn new(storage: Storage) -> Self {
         Self { storage }
     }
 }
@@ -86,7 +86,7 @@ where
 pub struct __BindgenUnionField<T>(::core::marker::PhantomData<T>);
 impl<T> __BindgenUnionField<T> {
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         __BindgenUnionField(::core::marker::PhantomData)
     }
     #[inline]
@@ -131,6 +131,15 @@ pub const C3D_MTXSTACK_SIZE: u32 = 8;
 pub const C3D_FVUNIF_COUNT: u32 = 96;
 pub const C3D_IVUNIF_COUNT: u32 = 4;
 pub const C3D_DEFAULT_CMDBUF_SIZE: u32 = 262144;
+pub type __uint8_t = ::libc::c_uchar;
+pub type __uint16_t = ::libc::c_ushort;
+pub type __uint32_t = ::libc::c_uint;
+pub type __uint64_t = ::libc::c_ulonglong;
+pub type size_t = ::libc::c_uint;
+pub type u8_ = u8;
+pub type u16_ = u16;
+pub type u32_ = u32;
+pub type u64_ = u64;
 pub type C3D_IVec = u32_;
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -276,6 +285,7 @@ extern "C" {
     );
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_MtxStack {
     pub m: [C3D_Mtx; 8usize],
     pub pos: ::libc::c_int,
@@ -306,6 +316,7 @@ extern "C" {
     pub fn C3D_UpdateUniforms(type_: GPU_SHADER_TYPE);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_AttrInfo {
     pub flags: [u32_; 2usize],
     pub permutation: u64_,
@@ -332,11 +343,13 @@ extern "C" {
     pub fn C3D_SetAttrInfo(info: *mut C3D_AttrInfo);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_BufCfg {
     pub offset: u32_,
     pub flags: [u32_; 2usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_BufInfo {
     pub base_paddr: u32_,
     pub bufCount: ::libc::c_int,
@@ -405,6 +418,7 @@ extern "C" {
     pub fn C3D_FixedAttribGetWritePtr(id: ::libc::c_int) -> *mut C3D_FVec;
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_TexEnv {
     pub srcRgb: u16_,
     pub srcAlpha: u16_,
@@ -416,16 +430,17 @@ pub struct C3D_TexEnv {
     pub scaleAlpha: u16_,
 }
 #[repr(C)]
-pub struct C3D_TexEnv__bindgen_ty_1 {
-    pub opAll: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_TexEnv__bindgen_ty_1__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_TexEnv__bindgen_ty_1 {
+    pub opAll: u32_,
+    pub __bindgen_anon_1: C3D_TexEnv__bindgen_ty_1__bindgen_ty_1,
 }
 #[repr(C)]
+#[repr(align(4))]
+#[derive(Copy, Clone)]
 pub struct C3D_TexEnv__bindgen_ty_1__bindgen_ty_1 {
     pub _bitfield_align_1: [u16; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 3usize]>,
-    pub __bindgen_align: [u32; 0usize],
 }
 impl C3D_TexEnv__bindgen_ty_1__bindgen_ty_1 {
     #[inline]
@@ -554,23 +569,25 @@ pub union C3D_Tex__bindgen_ty_1 {
     pub cube: *mut C3D_TexCube,
 }
 #[repr(C)]
-pub struct C3D_Tex__bindgen_ty_2 {
-    pub dim: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_Tex__bindgen_ty_2__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_Tex__bindgen_ty_2 {
+    pub dim: u32_,
+    pub __bindgen_anon_1: C3D_Tex__bindgen_ty_2__bindgen_ty_1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_Tex__bindgen_ty_2__bindgen_ty_1 {
     pub height: u16_,
     pub width: u16_,
 }
 #[repr(C)]
-pub struct C3D_Tex__bindgen_ty_3 {
-    pub lodParam: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_Tex__bindgen_ty_3__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_Tex__bindgen_ty_3 {
+    pub lodParam: u32_,
+    pub __bindgen_anon_1: C3D_Tex__bindgen_ty_3__bindgen_ty_1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_Tex__bindgen_ty_3__bindgen_ty_1 {
     pub lodBias: u16_,
     pub maxLevel: u8_,
@@ -614,13 +631,13 @@ impl C3D_Tex {
     }
 }
 #[repr(C)]
+#[repr(align(8))]
 pub struct C3D_TexInitParams {
     pub width: u16_,
     pub height: u16_,
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 2usize]>,
     pub __bindgen_padding_0: u16,
-    pub __bindgen_align: [u64; 0usize],
 }
 impl C3D_TexInitParams {
     #[inline]
@@ -725,11 +742,13 @@ extern "C" {
     pub fn C3D_TexShadowParams(perspective: bool, bias: f32);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTexColorLut {
     pub color: [u32_; 256usize],
     pub diff: [u32_; 256usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex {
     pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_1,
     pub __bindgen_anon_2: C3D_ProcTex__bindgen_ty_2,
@@ -739,16 +758,17 @@ pub struct C3D_ProcTex {
     pub __bindgen_anon_6: C3D_ProcTex__bindgen_ty_6,
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_1 {
-    pub proctex0: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_1__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_1 {
+    pub proctex0: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_1__bindgen_ty_1,
 }
 #[repr(C)]
+#[repr(align(4))]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_1__bindgen_ty_1 {
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
-    pub __bindgen_align: [u32; 0usize],
 }
 impl C3D_ProcTex__bindgen_ty_1__bindgen_ty_1 {
     #[inline]
@@ -903,49 +923,53 @@ impl C3D_ProcTex__bindgen_ty_1__bindgen_ty_1 {
     }
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_2 {
-    pub proctex1: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_2__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_2 {
+    pub proctex1: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_2__bindgen_ty_1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_2__bindgen_ty_1 {
     pub uNoiseAmpl: u16_,
     pub uNoisePhase: u16_,
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_3 {
-    pub proctex2: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_3__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_3 {
+    pub proctex2: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_3__bindgen_ty_1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_3__bindgen_ty_1 {
     pub vNoiseAmpl: u16_,
     pub vNoisePhase: u16_,
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_4 {
-    pub proctex3: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_4__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_4 {
+    pub proctex3: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_4__bindgen_ty_1,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_4__bindgen_ty_1 {
     pub uNoiseFreq: u16_,
     pub vNoiseFreq: u16_,
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_5 {
-    pub proctex4: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_5__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_5 {
+    pub proctex4: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_5__bindgen_ty_1,
 }
 #[repr(C)]
+#[repr(align(4))]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_5__bindgen_ty_1 {
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
-    pub __bindgen_align: [u32; 0usize],
 }
 impl C3D_ProcTex__bindgen_ty_5__bindgen_ty_1 {
     #[inline]
@@ -1020,16 +1044,17 @@ impl C3D_ProcTex__bindgen_ty_5__bindgen_ty_1 {
     }
 }
 #[repr(C)]
-pub struct C3D_ProcTex__bindgen_ty_6 {
-    pub proctex5: __BindgenUnionField<u32_>,
-    pub __bindgen_anon_1: __BindgenUnionField<C3D_ProcTex__bindgen_ty_6__bindgen_ty_1>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_ProcTex__bindgen_ty_6 {
+    pub proctex5: u32_,
+    pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_6__bindgen_ty_1,
 }
 #[repr(C)]
+#[repr(align(4))]
+#[derive(Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_6__bindgen_ty_1 {
     pub _bitfield_align_1: [u32; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
-    pub __bindgen_align: [u32; 0usize],
 }
 impl C3D_ProcTex__bindgen_ty_6__bindgen_ty_1 {
     #[inline]
@@ -1098,10 +1123,12 @@ extern "C" {
     pub fn C3D_ProcTexColorLutBind(lut: *mut C3D_ProcTexColorLut);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightLut {
     pub data: [u32_; 256usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightLutDA {
     pub lut: C3D_LightLut,
     pub bias: f32,
@@ -1122,12 +1149,14 @@ pub struct C3D_Material {
 pub type C3D_Light = C3D_Light_t;
 pub type C3D_LightEnv = C3D_LightEnv_t;
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightLutInputConf {
     pub abs: u32_,
     pub select: u32_,
     pub scale: u32_,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightEnvConf {
     pub ambient: u32_,
     pub numLights: u32_,
@@ -1136,6 +1165,7 @@ pub struct C3D_LightEnvConf {
     pub permutation: u32_,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightEnv_t {
     pub flags: u32_,
     pub luts: [*mut C3D_LightLut; 6usize],
@@ -1184,6 +1214,7 @@ extern "C" {
     pub fn C3D_LightEnvClampHighlights(env: *mut C3D_LightEnv, clamp: bool);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightMatConf {
     pub specular0: u32_,
     pub specular1: u32_,
@@ -1191,6 +1222,7 @@ pub struct C3D_LightMatConf {
     pub ambient: u32_,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_LightConf {
     pub material: C3D_LightMatConf,
     pub position: [u16_; 3usize],
@@ -1203,6 +1235,7 @@ pub struct C3D_LightConf {
     pub distAttnScale: u32_,
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_Light_t {
     pub flags: u16_,
     pub id: u16_,
@@ -1261,10 +1294,12 @@ extern "C" {
     pub fn C3D_LightDistAttn(light: *mut C3D_Light, lut: *mut C3D_LightLutDA);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_FogLut {
     pub data: [u32_; 128usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_GasLut {
     pub diff: [u32_; 8usize],
     pub color: [u32_; 8usize],
