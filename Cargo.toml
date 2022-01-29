@@ -2,7 +2,8 @@
 name = "citro3d-sys"
 version = "0.1.0"
 authors = ["panicbit <panicbit.dev@gmail.com>"]
+edition = "2021"
 
 [dependencies]
-libc = "0.2.26"
-ctru-sys = { git = "https://github.com/rust3ds/ctru-rs" }
+libc = "0.2.116"
+ctru-sys = { path = "../ctru-rs/ctru-sys" }

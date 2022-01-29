@@ -22,7 +22,6 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --ctypes-prefix "::libc" \
     --no-prepend-enum-name \
     --generate "functions,types,vars" \
-    --blacklist-type "u(8|16|32|64)" \
     --blacklist-type "__builtin_va_list" \
     --blacklist-type "__va_list" \
     --no-recursive-whitelist \
@@ -32,7 +31,7 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --whitelist-function 'AttrInfo_(Init|AddLoader|AddFixed)' \
     --whitelist-function 'BufInfo_(Init|Add)' \
     --whitelist-function 'Mtx_.*' \
-    --raw-line "use libctru::*;" \
+    --raw-line "use ctru_sys::*;" \
     -- \
     --target=arm-none-eabi \
     --sysroot=$DEVKITARM/arm-none-eabi \
@@ -45,4 +44,7 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     -mfpu=vfp \
     -DARM11 \
     -D_3DS \
-> src/bindgen.rs
+    -D__3DS__ \
+> src/bindings.rs
+
+rustfmt src/bindings.rs

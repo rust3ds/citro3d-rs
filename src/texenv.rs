@@ -1,8 +1,8 @@
-#![allow(non_snake_case)]
-// c3d/texenv.h
+#![cfg(todo = "gpu_tev_macros")]
+//! `<c3d/texenv.h>`
 
-use libc::c_int;
 use super::*;
+use libc::c_int;
 
 pub unsafe fn C3D_TexEnvSrc(env: *mut C3D_TexEnv, mode: c_int, s1: c_int, s2: c_int, s3: c_int) {
     let param = gpu_tevsources!(s1, s2, s3);
