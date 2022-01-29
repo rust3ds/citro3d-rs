@@ -82,49 +82,6 @@ where
         }
     }
 }
-#[repr(C)]
-pub struct __BindgenUnionField<T>(::core::marker::PhantomData<T>);
-impl<T> __BindgenUnionField<T> {
-    #[inline]
-    pub const fn new() -> Self {
-        __BindgenUnionField(::core::marker::PhantomData)
-    }
-    #[inline]
-    pub unsafe fn as_ref(&self) -> &T {
-        ::core::mem::transmute(self)
-    }
-    #[inline]
-    pub unsafe fn as_mut(&mut self) -> &mut T {
-        ::core::mem::transmute(self)
-    }
-}
-impl<T> ::core::default::Default for __BindgenUnionField<T> {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl<T> ::core::clone::Clone for __BindgenUnionField<T> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self::new()
-    }
-}
-impl<T> ::core::marker::Copy for __BindgenUnionField<T> {}
-impl<T> ::core::fmt::Debug for __BindgenUnionField<T> {
-    fn fmt(&self, fmt: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-        fmt.write_str("__BindgenUnionField")
-    }
-}
-impl<T> ::core::hash::Hash for __BindgenUnionField<T> {
-    fn hash<H: ::core::hash::Hasher>(&self, _state: &mut H) {}
-}
-impl<T> ::core::cmp::PartialEq for __BindgenUnionField<T> {
-    fn eq(&self, _other: &__BindgenUnionField<T>) -> bool {
-        true
-    }
-}
-impl<T> ::core::cmp::Eq for __BindgenUnionField<T> {}
 pub const C3D_AspectRatioTop: f64 = 1.6666666666666667;
 pub const C3D_AspectRatioBot: f64 = 1.3333333333333333;
 pub const C3D_MTXSTACK_SIZE: u32 = 8;
@@ -553,6 +510,7 @@ pub struct C3D_TexCube {
     pub data: [*mut ::libc::c_void; 6usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_Tex {
     pub __bindgen_anon_1: C3D_Tex__bindgen_ty_1,
     pub _bitfield_align_1: [u32; 0],
@@ -632,6 +590,7 @@ impl C3D_Tex {
 }
 #[repr(C)]
 #[repr(align(8))]
+#[derive(Copy, Clone)]
 pub struct C3D_TexInitParams {
     pub width: u16_,
     pub height: u16_,
@@ -1341,6 +1300,7 @@ extern "C" {
     pub fn C3D_GasLutBind(lut: *mut C3D_GasLut);
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_FrameBuf {
     pub colorBuf: *mut ::libc::c_void,
     pub depthBuf: *mut ::libc::c_void,
@@ -1432,6 +1392,7 @@ extern "C" {
 }
 pub type C3D_RenderTarget = C3D_RenderTarget_tag;
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct C3D_RenderTarget_tag {
     pub next: *mut C3D_RenderTarget,
     pub prev: *mut C3D_RenderTarget,
@@ -1481,10 +1442,10 @@ extern "C" {
     pub fn C3D_GetProcessingTime() -> f32;
 }
 #[repr(C)]
-pub struct C3D_DEPTHTYPE {
-    pub __i: __BindgenUnionField<::libc::c_int>,
-    pub __e: __BindgenUnionField<GPU_DEPTHBUF>,
-    pub bindgen_union_field: u32,
+#[derive(Copy, Clone)]
+pub union C3D_DEPTHTYPE {
+    pub __i: ::libc::c_int,
+    pub __e: GPU_DEPTHBUF,
 }
 extern "C" {
     pub fn C3D_RenderTargetCreate(

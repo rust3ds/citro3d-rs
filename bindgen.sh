@@ -12,7 +12,6 @@ fi
 set -euxo pipefail
 
 bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
-    --verbose \
     --rust-target nightly \
     --use-core \
     --distrust-clang-mangling \
@@ -25,12 +24,12 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --blocklist-type "u(8|16|32|64)" \
     --blocklist-type "__builtin_va_list" \
     --blocklist-type "__va_list" \
-    --blocklist-type "GPU_.*" \
-    --blocklist-type "GFX_.*" \
-    --blocklist-type "gfx.*_t" \
-    --blocklist-type "DVL.*" \
-    --blocklist-type "shader.*" \
-    --blocklist-type "float24Uniform_s" \
+    --opaque-type "GPU_.*" \
+    --opaque-type "GFX_.*" \
+    --opaque-type "gfx.*_t" \
+    --opaque-type "DVL.*" \
+    --opaque-type "shader.*" \
+    --opaque-type "float24Uniform_s" \
     --allowlist-type "C3D_.*" \
     --allowlist-function "C3D_.*" \
     --allowlist-var "C3D_.*" \
