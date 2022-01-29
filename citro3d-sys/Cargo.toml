@@ -1,0 +1,9 @@
+[package]
+name = "citro3d-sys"
+version = "0.1.0"
+authors = ["panicbit <panicbit.dev@gmail.com>"] # TODO update author?
+edition = "2021"
+
+[dependencies]
+libc = "0.2.116"
+ctru-sys = { path = "../../ctru-rs/ctru-sys" }
