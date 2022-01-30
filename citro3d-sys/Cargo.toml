@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 libc = "0.2.116"
-ctru-sys = { path = "../../ctru-rs/ctru-sys" }
+ctru-sys = { git = "https://github.com/Meziu/ctru-rs.git" }
