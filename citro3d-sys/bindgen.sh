@@ -11,21 +11,23 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --no-prepend-enum-name \
     --generate "functions,types,vars" \
     --blocklist-type "u(8|16|32|64)" \
-    --blocklist-type "__builtin_va_list" \
-    --blocklist-type "__va_list" \
     --opaque-type "GPU_.*" \
     --opaque-type "GFX_.*" \
-    --opaque-type "gfx.*_t" \
-    --opaque-type "DVL.*" \
-    --opaque-type "shader.*" \
     --opaque-type "float24Uniform_s" \
     --allowlist-type "C3D_.*" \
+    --allowlist-type "DVLB_.*" \
+    --allowlist-type "shader.*" \
+    --allowlist-type "float24Uniform_s" \
     --allowlist-function "C3D_.*" \
+    --allowlist-function "shader.*" \
+    --allowlist-function "DVLB_.*" \
+    --allowlist-function "linear.*" \
     --allowlist-var "C3D_.*" \
+    --allowlist-type "GPU_.*" \
+    --allowlist-type "GX_.*" \
     --allowlist-function 'AttrInfo_(Init|AddLoader|AddFixed)' \
     --allowlist-function 'BufInfo_(Init|Add)' \
     --allowlist-function 'Mtx_.*' \
-    --raw-line "use ctru_sys::*;" \
     -- \
     --target=arm-none-eabi \
     --sysroot=$DEVKITARM/arm-none-eabi \
