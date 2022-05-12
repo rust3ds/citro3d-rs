@@ -91,25 +91,18 @@ impl Vertex {
     }
 }
 
+static SHBIN_BYTES: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
+
 fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
-        // To compile the shader:
-        // ```sh
-        // picasso assets/vshader.v.pica -o assets/vshader.shbin
-        // ```
-        // TODO: can we do this in a build script?
+        let mut shader_bytes = SHBIN_BYTES.to_owned();
 
-        // boo, this way we have to specify the length. Alternative seems to be allocating a
-        // slice first, then copying into it with a transmute...
-        const SHBIN_BYTES: &[u8; 280] = include_bytes!("assets/vshader.shbin");
         // Assume the data is aligned properly...
-        let mut shbin_data: [u32; SHBIN_BYTES.len() / 4] = std::mem::transmute_copy(SHBIN_BYTES);
-
         let vshader_dvlb = citro3d_sys::DVLB_ParseFile(
-            shbin_data.as_mut_ptr(),
-            shbin_data
-                .len()
+            shader_bytes.as_mut_ptr() as _,
+            (shader_bytes.len() / 4)
                 .try_into()
                 .expect("shader len fits in a u32"),
         );
