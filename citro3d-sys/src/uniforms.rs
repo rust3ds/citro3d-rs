@@ -2,7 +2,6 @@
 
 use super::*;
 
-use ctru_sys::GPU_SHADER_TYPE;
 use libc::c_int;
 
 #[inline]

@@ -57,7 +57,7 @@ fn main() {
             break;
         }
 
-        const CLEAR_COLOR: u32 = 0x68B0D8FF;
+        const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
 
         unsafe {
             citro3d_sys::C3D_FrameBegin(citro3d_sys::C3D_FRAME_SYNCDRAW as u8);
@@ -77,6 +77,8 @@ fn main() {
         citro3d_sys::C3D_Fini();
     }
 }
+
+#[repr(C)]
 struct Vertex {
     x: f32,
     y: f32,
@@ -156,7 +158,7 @@ fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s
         let vbo_data =
             citro3d_sys::linearAlloc(vertices_len.try_into().expect("size does not fit in u32"));
 
-        vbo_data.copy_from(VERTICES.as_ptr() as _, vertices_len);
+        vbo_data.copy_from(VERTICES.as_ptr().cast(), vertices_len);
 
         // Configure buffers
         let buf_info = citro3d_sys::C3D_GetBufInfo();

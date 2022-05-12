@@ -9,6 +9,7 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --no-layout-tests \
     --ctypes-prefix "::libc" \
     --no-prepend-enum-name \
+    --fit-macro-constant-types \
     --generate "functions,types,vars" \
     --blocklist-type "u(8|16|32|64)" \
     --opaque-type "GPU_.*" \

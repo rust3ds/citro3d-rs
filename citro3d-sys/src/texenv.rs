@@ -26,14 +26,14 @@ where
 }
 
 pub unsafe fn C3D_TexEnvInit(env: *mut C3D_TexEnv) {
-    (*env).srcRgb = gpu_tevsources(ctru_sys::GPU_PREVIOUS, 0, 0) as u16;
+    (*env).srcRgb = gpu_tevsources(GPU_PREVIOUS, 0, 0) as u16;
     (*env).srcAlpha = (*env).srcRgb;
     (*env).__bindgen_anon_1.opAll = 0;
-    (*env).funcRgb = ctru_sys::GPU_REPLACE as u16;
+    (*env).funcRgb = GPU_REPLACE as u16;
     (*env).funcAlpha = (*env).funcRgb;
     (*env).color = 0xFFFFFFFF;
-    (*env).scaleRgb = ctru_sys::GPU_TEVSCALE_1 as u16;
-    (*env).scaleAlpha = ctru_sys::GPU_TEVSCALE_1 as u16;
+    (*env).scaleRgb = GPU_TEVSCALE_1 as u16;
+    (*env).scaleAlpha = GPU_TEVSCALE_1 as u16;
 }
 
 // TODO: maybe

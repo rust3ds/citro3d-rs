@@ -82,9 +82,9 @@ where
 }
 pub const C3D_AspectRatioTop: f64 = 1.6666666666666667;
 pub const C3D_AspectRatioBot: f64 = 1.3333333333333333;
-pub const C3D_MTXSTACK_SIZE: u32 = 8;
-pub const C3D_FVUNIF_COUNT: u32 = 96;
-pub const C3D_IVUNIF_COUNT: u32 = 4;
+pub const C3D_MTXSTACK_SIZE: u8 = 8;
+pub const C3D_FVUNIF_COUNT: u8 = 96;
+pub const C3D_IVUNIF_COUNT: u8 = 4;
 pub const C3D_DEFAULT_CMDBUF_SIZE: u32 = 262144;
 pub type __int8_t = ::libc::c_schar;
 pub type __uint8_t = ::libc::c_uchar;
