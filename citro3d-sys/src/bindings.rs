@@ -98,73 +98,155 @@ pub type u16_ = u16;
 pub type u32_ = u32;
 pub type u64_ = u64;
 pub type C3D_IVec = u32_;
+#[doc = " @struct C3D_FVec"]
+#[doc = " @brief Float vector"]
+#[doc = ""]
+#[doc = " Matches PICA layout"]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union C3D_FVec {
     pub __bindgen_anon_1: C3D_FVec__bindgen_ty_1,
     pub __bindgen_anon_2: C3D_FVec__bindgen_ty_2,
+    #[doc = " @brief Raw access"]
     pub c: [f32; 4usize],
 }
+#[doc = " @brief Vector access"]
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_FVec__bindgen_ty_1 {
+    #[doc = "< W-component"]
     pub w: f32,
+    #[doc = "< Z-component"]
     pub z: f32,
+    #[doc = "< Y-component"]
     pub y: f32,
+    #[doc = "< X-component"]
     pub x: f32,
 }
+#[doc = " @brief Quaternion access"]
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_FVec__bindgen_ty_2 {
+    #[doc = "< Real component"]
     pub r: f32,
+    #[doc = "< K-component"]
     pub k: f32,
+    #[doc = "< J-component"]
     pub j: f32,
+    #[doc = "< I-component"]
     pub i: f32,
 }
+#[doc = " @struct C3D_FVec"]
+#[doc = " @brief Float vector"]
+#[doc = ""]
+#[doc = " Matches PICA layout"]
 pub type C3D_FQuat = C3D_FVec;
+#[doc = " @struct C3D_Mtx"]
+#[doc = " @brief Row-major 4x4 matrix"]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union C3D_Mtx {
+    #[doc = "< Rows are vectors"]
     pub r: [C3D_FVec; 4usize],
+    #[doc = "< Raw access"]
     pub m: [f32; 16usize],
 }
 extern "C" {
+    #[doc = "@brief Transposes the matrix. Row => Column, and vice versa."]
+    #[doc = "@param[in,out] out     Output matrix."]
     pub fn Mtx_Transpose(out: *mut C3D_Mtx);
 }
 extern "C" {
+    #[doc = " @brief Multiply two matrices"]
+    #[doc = " @param[out] out Output matrix"]
+    #[doc = " @param[in]  a   Multiplicand"]
+    #[doc = " @param[in]  b   Multiplier"]
     pub fn Mtx_Multiply(out: *mut C3D_Mtx, a: *const C3D_Mtx, b: *const C3D_Mtx);
 }
 extern "C" {
+    #[doc = " @brief Inverse a matrix"]
+    #[doc = " @param[in,out] out Matrix to inverse"]
+    #[doc = " @retval 0.0f Degenerate matrix (no inverse)"]
+    #[doc = " @return determinant"]
     pub fn Mtx_Inverse(out: *mut C3D_Mtx) -> f32;
 }
 extern "C" {
+    #[doc = " @brief Multiply 3x3 matrix by a FVec3"]
+    #[doc = " @param[in] mtx Matrix"]
+    #[doc = " @param[in] v   Vector"]
+    #[doc = " @return mtx*v (product)"]
     pub fn Mtx_MultiplyFVec3(mtx: *const C3D_Mtx, v: C3D_FVec) -> C3D_FVec;
 }
 extern "C" {
+    #[doc = " @brief Multiply 4x4 matrix by a FVec4"]
+    #[doc = " @param[in] mtx Matrix"]
+    #[doc = " @param[in] v   Vector"]
+    #[doc = " @return mtx*v (product)"]
     pub fn Mtx_MultiplyFVec4(mtx: *const C3D_Mtx, v: C3D_FVec) -> C3D_FVec;
 }
 extern "C" {
+    #[doc = " @brief Get 4x4 matrix equivalent to Quaternion"]
+    #[doc = " @param[out] m Output matrix"]
+    #[doc = " @param[in]  q Input Quaternion"]
     pub fn Mtx_FromQuat(m: *mut C3D_Mtx, q: C3D_FQuat);
 }
 extern "C" {
+    #[doc = " @brief 3D translation"]
+    #[doc = " @param[in,out] mtx Matrix to translate"]
+    #[doc = " @param[in]     x            X component to translate"]
+    #[doc = " @param[in]     y            Y component to translate"]
+    #[doc = " @param[in]     z            Z component to translate"]
+    #[doc = " @param[in]     bRightSide   Whether to transform from the right side"]
     pub fn Mtx_Translate(mtx: *mut C3D_Mtx, x: f32, y: f32, z: f32, bRightSide: bool);
 }
 extern "C" {
+    #[doc = " @brief 3D Scale"]
+    #[doc = " @param[in,out] mtx Matrix to scale"]
+    #[doc = " @param[in]     x   X component to scale"]
+    #[doc = " @param[in]     y   Y component to scale"]
+    #[doc = " @param[in]     z   Z component to scale"]
     pub fn Mtx_Scale(mtx: *mut C3D_Mtx, x: f32, y: f32, z: f32);
 }
 extern "C" {
+    #[doc = " @brief 3D Rotation"]
+    #[doc = " @param[in,out] mtx        Matrix to rotate"]
+    #[doc = " @param[in]     axis       Axis about which to rotate"]
+    #[doc = " @param[in]     angle      Radians to rotate"]
+    #[doc = " @param[in]     bRightSide Whether to transform from the right side"]
     pub fn Mtx_Rotate(mtx: *mut C3D_Mtx, axis: C3D_FVec, angle: f32, bRightSide: bool);
 }
 extern "C" {
+    #[doc = " @brief 3D Rotation about the X axis"]
+    #[doc = " @param[in,out] mtx        Matrix to rotate"]
+    #[doc = " @param[in]     angle      Radians to rotate"]
+    #[doc = " @param[in]     bRightSide Whether to transform from the right side"]
     pub fn Mtx_RotateX(mtx: *mut C3D_Mtx, angle: f32, bRightSide: bool);
 }
 extern "C" {
+    #[doc = " @brief 3D Rotation about the Y axis"]
+    #[doc = " @param[in,out] mtx        Matrix to rotate"]
+    #[doc = " @param[in]     angle      Radians to rotate"]
+    #[doc = " @param[in]     bRightSide Whether to transform from the right side"]
     pub fn Mtx_RotateY(mtx: *mut C3D_Mtx, angle: f32, bRightSide: bool);
 }
 extern "C" {
+    #[doc = " @brief 3D Rotation about the Z axis"]
+    #[doc = " @param[in,out] mtx        Matrix to rotate"]
+    #[doc = " @param[in]     angle      Radians to rotate"]
+    #[doc = " @param[in]     bRightSide Whether to transform from the right side"]
     pub fn Mtx_RotateZ(mtx: *mut C3D_Mtx, angle: f32, bRightSide: bool);
 }
 extern "C" {
+    #[doc = " @brief Orthogonal projection"]
+    #[doc = " @param[out] mtx Output matrix"]
+    #[doc = " @param[in]  left         Left clip plane (X=left)"]
+    #[doc = " @param[in]  right        Right clip plane (X=right)"]
+    #[doc = " @param[in]  bottom       Bottom clip plane (Y=bottom)"]
+    #[doc = " @param[in]  top          Top clip plane (Y=top)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_OrthoTilt"]
     pub fn Mtx_Ortho(
         mtx: *mut C3D_Mtx,
         left: f32,
@@ -177,6 +259,16 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Perspective projection"]
+    #[doc = " @param[out] mtx          Output matrix"]
+    #[doc = " @param[in]  fovy         Vertical field of view in radians"]
+    #[doc = " @param[in]  aspect       Aspect ration of projection plane (width/height)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_PerspTilt"]
+    #[doc = " @sa Mtx_PerspStereo"]
+    #[doc = " @sa Mtx_PerspStereoTilt"]
     pub fn Mtx_Persp(
         mtx: *mut C3D_Mtx,
         fovy: f32,
@@ -187,6 +279,24 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Stereo perspective projection"]
+    #[doc = " @note Typically you will use iod to mean the distance between the eyes. Plug"]
+    #[doc = "       in -iod for the left eye and iod for the right eye."]
+    #[doc = " @note The focal length is defined by screen. If objects are further than this,"]
+    #[doc = "       they will appear to be inside the screen. If objects are closer than this,"]
+    #[doc = "       they will appear to pop out of the screen. Objects at this distance appear"]
+    #[doc = "       to be at the screen."]
+    #[doc = " @param[out] mtx          Output matrix"]
+    #[doc = " @param[in]  fovy         Vertical field of view in radians"]
+    #[doc = " @param[in]  aspect       Aspect ration of projection plane (width/height)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  iod          Interocular distance"]
+    #[doc = " @param[in]  screen       Focal length"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_Persp"]
+    #[doc = " @sa Mtx_PerspTilt"]
+    #[doc = " @sa Mtx_PerspStereoTilt"]
     pub fn Mtx_PerspStereo(
         mtx: *mut C3D_Mtx,
         fovy: f32,
@@ -199,6 +309,16 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Orthogonal projection, tilted to account for the 3DS screen rotation"]
+    #[doc = " @param[out] mtx          Output matrix"]
+    #[doc = " @param[in]  left         Left clip plane (X=left)"]
+    #[doc = " @param[in]  right        Right clip plane (X=right)"]
+    #[doc = " @param[in]  bottom       Bottom clip plane (Y=bottom)"]
+    #[doc = " @param[in]  top          Top clip plane (Y=top)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_Ortho"]
     pub fn Mtx_OrthoTilt(
         mtx: *mut C3D_Mtx,
         left: f32,
@@ -211,6 +331,16 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Perspective projection, tilted to account for the 3DS screen rotation"]
+    #[doc = " @param[out] mtx          Output matrix"]
+    #[doc = " @param[in]  fovy         Vertical field of view in radians"]
+    #[doc = " @param[in]  aspect       Aspect ration of projection plane (width/height)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_Persp"]
+    #[doc = " @sa Mtx_PerspStereo"]
+    #[doc = " @sa Mtx_PerspStereoTilt"]
     pub fn Mtx_PerspTilt(
         mtx: *mut C3D_Mtx,
         fovy: f32,
@@ -221,6 +351,19 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Stereo perspective projection, tilted to account for the 3DS screen rotation"]
+    #[doc = " @note See the notes for @ref Mtx_PerspStereo"]
+    #[doc = " @param[out] mtx          Output matrix"]
+    #[doc = " @param[in]  fovy         Vertical field of view in radians"]
+    #[doc = " @param[in]  aspect       Aspect ration of projection plane (width/height)"]
+    #[doc = " @param[in]  near         Near clip plane (Z=near)"]
+    #[doc = " @param[in]  far          Far clip plane (Z=far)"]
+    #[doc = " @param[in]  iod          Interocular distance"]
+    #[doc = " @param[in]  screen       Focal length"]
+    #[doc = " @param[in]  isLeftHanded Whether to build a LH projection"]
+    #[doc = " @sa Mtx_Persp"]
+    #[doc = " @sa Mtx_PerspTilt"]
+    #[doc = " @sa Mtx_PerspStereo"]
     pub fn Mtx_PerspStereoTilt(
         mtx: *mut C3D_Mtx,
         fovy: f32,
@@ -233,6 +376,13 @@ extern "C" {
     );
 }
 extern "C" {
+    #[doc = " @brief Look-At matrix, based on DirectX implementation"]
+    #[doc = " @note See https://msdn.microsoft.com/en-us/library/windows/desktop/bb205342"]
+    #[doc = " @param[out] out            Output matrix."]
+    #[doc = " @param[in]  cameraPosition Position of the intended camera in 3D space."]
+    #[doc = " @param[in]  cameraTarget   Position of the intended target the camera is supposed to face in 3D space."]
+    #[doc = " @param[in]  cameraUpVector The vector that points straight up depending on the camera's \"Up\" direction."]
+    #[doc = " @param[in]  isLeftHanded   Whether to build a LH projection"]
     pub fn Mtx_LookAt(
         out: *mut C3D_Mtx,
         cameraPosition: C3D_FVec,
@@ -273,7 +423,7 @@ extern "C" {
     pub fn C3D_UpdateUniforms(type_: GPU_SHADER_TYPE);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_AttrInfo {
     pub flags: [u32_; 2usize],
     pub permutation: u64_,
@@ -300,13 +450,13 @@ extern "C" {
     pub fn C3D_SetAttrInfo(info: *mut C3D_AttrInfo);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_BufCfg {
     pub offset: u32_,
     pub flags: [u32_; 2usize],
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_BufInfo {
     pub base_paddr: u32_,
     pub bufCount: ::libc::c_int,
@@ -394,7 +544,7 @@ pub union C3D_TexEnv__bindgen_ty_1 {
 }
 #[repr(C)]
 #[repr(align(4))]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_TexEnv__bindgen_ty_1__bindgen_ty_1 {
     pub _bitfield_align_1: [u16; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 3usize]>,
@@ -505,7 +655,7 @@ extern "C" {
     pub fn C3D_FragOpShadow(scale: f32, bias: f32);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_TexCube {
     pub data: [*mut ::libc::c_void; 6usize],
 }
@@ -533,7 +683,7 @@ pub union C3D_Tex__bindgen_ty_2 {
     pub __bindgen_anon_1: C3D_Tex__bindgen_ty_2__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_Tex__bindgen_ty_2__bindgen_ty_1 {
     pub height: u16_,
     pub width: u16_,
@@ -545,7 +695,7 @@ pub union C3D_Tex__bindgen_ty_3 {
     pub __bindgen_anon_1: C3D_Tex__bindgen_ty_3__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_Tex__bindgen_ty_3__bindgen_ty_1 {
     pub lodBias: u16_,
     pub maxLevel: u8_,
@@ -590,7 +740,7 @@ impl C3D_Tex {
 }
 #[repr(C)]
 #[repr(align(8))]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_TexInitParams {
     pub width: u16_,
     pub height: u16_,
@@ -701,7 +851,7 @@ extern "C" {
     pub fn C3D_TexShadowParams(perspective: bool, bias: f32);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTexColorLut {
     pub color: [u32_; 256usize],
     pub diff: [u32_; 256usize],
@@ -724,7 +874,7 @@ pub union C3D_ProcTex__bindgen_ty_1 {
 }
 #[repr(C)]
 #[repr(align(4))]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_1__bindgen_ty_1 {
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
@@ -888,7 +1038,7 @@ pub union C3D_ProcTex__bindgen_ty_2 {
     pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_2__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_2__bindgen_ty_1 {
     pub uNoiseAmpl: u16_,
     pub uNoisePhase: u16_,
@@ -900,7 +1050,7 @@ pub union C3D_ProcTex__bindgen_ty_3 {
     pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_3__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_3__bindgen_ty_1 {
     pub vNoiseAmpl: u16_,
     pub vNoisePhase: u16_,
@@ -912,7 +1062,7 @@ pub union C3D_ProcTex__bindgen_ty_4 {
     pub __bindgen_anon_1: C3D_ProcTex__bindgen_ty_4__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_4__bindgen_ty_1 {
     pub uNoiseFreq: u16_,
     pub vNoiseFreq: u16_,
@@ -925,7 +1075,7 @@ pub union C3D_ProcTex__bindgen_ty_5 {
 }
 #[repr(C)]
 #[repr(align(4))]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_5__bindgen_ty_1 {
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
@@ -1010,7 +1160,7 @@ pub union C3D_ProcTex__bindgen_ty_6 {
 }
 #[repr(C)]
 #[repr(align(4))]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_ProcTex__bindgen_ty_6__bindgen_ty_1 {
     pub _bitfield_align_1: [u32; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 4usize]>,
@@ -1082,12 +1232,12 @@ extern "C" {
     pub fn C3D_ProcTexColorLutBind(lut: *mut C3D_ProcTexColorLut);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightLut {
     pub data: [u32_; 256usize],
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightLutDA {
     pub lut: C3D_LightLut,
     pub bias: f32,
@@ -1097,7 +1247,7 @@ pub type C3D_LightLutFunc = ::core::option::Option<unsafe extern "C" fn(x: f32, 
 pub type C3D_LightLutFuncDA =
     ::core::option::Option<unsafe extern "C" fn(dist: f32, arg0: f32, arg1: f32) -> f32>;
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_Material {
     pub ambient: [f32; 3usize],
     pub diffuse: [f32; 3usize],
@@ -1108,14 +1258,14 @@ pub struct C3D_Material {
 pub type C3D_Light = C3D_Light_t;
 pub type C3D_LightEnv = C3D_LightEnv_t;
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightLutInputConf {
     pub abs: u32_,
     pub select: u32_,
     pub scale: u32_,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightEnvConf {
     pub ambient: u32_,
     pub numLights: u32_,
@@ -1124,7 +1274,7 @@ pub struct C3D_LightEnvConf {
     pub permutation: u32_,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightEnv_t {
     pub flags: u32_,
     pub luts: [*mut C3D_LightLut; 6usize],
@@ -1173,7 +1323,7 @@ extern "C" {
     pub fn C3D_LightEnvClampHighlights(env: *mut C3D_LightEnv, clamp: bool);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightMatConf {
     pub specular0: u32_,
     pub specular1: u32_,
@@ -1181,7 +1331,7 @@ pub struct C3D_LightMatConf {
     pub ambient: u32_,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_LightConf {
     pub material: C3D_LightMatConf,
     pub position: [u16_; 3usize],
@@ -1194,7 +1344,7 @@ pub struct C3D_LightConf {
     pub distAttnScale: u32_,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_Light_t {
     pub flags: u16_,
     pub id: u16_,
@@ -1253,12 +1403,12 @@ extern "C" {
     pub fn C3D_LightDistAttn(light: *mut C3D_Light, lut: *mut C3D_LightLutDA);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_FogLut {
     pub data: [u32_; 128usize],
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_GasLut {
     pub diff: [u32_; 8usize],
     pub color: [u32_; 8usize],
@@ -1300,7 +1450,7 @@ extern "C" {
     pub fn C3D_GasLutBind(lut: *mut C3D_GasLut);
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_FrameBuf {
     pub colorBuf: *mut ::libc::c_void,
     pub depthBuf: *mut ::libc::c_void,
@@ -1392,7 +1542,7 @@ extern "C" {
 }
 pub type C3D_RenderTarget = C3D_RenderTarget_tag;
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct C3D_RenderTarget_tag {
     pub next: *mut C3D_RenderTarget,
     pub prev: *mut C3D_RenderTarget,

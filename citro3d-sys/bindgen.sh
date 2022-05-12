@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
 
-clang_version=$1
-
-if [ -z "$clang_version" ]; then
-    echo "  usage: ./bindgen.sh <clang_version>"
-    echo "example: ./bindgen.sh 5.0.0"
-    echo "Check your current version with \`clang -v\`."
-    exit 1
-fi
-
 set -euxo pipefail
 
 bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --rust-target nightly \
     --use-core \
     --distrust-clang-mangling \
-    --no-doc-comments \
-    --no-derive-debug \
     --no-layout-tests \
     --ctypes-prefix "::libc" \
     --no-prepend-enum-name \
@@ -41,7 +30,6 @@ bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
     --target=arm-none-eabi \
     --sysroot=$DEVKITARM/arm-none-eabi \
     -isystem$DEVKITARM/arm-none-eabi/include \
-    -isystem/usr/lib/clang/$clang_version/include \
     -I$DEVKITPRO/libctru/include \
     -mfloat-abi=hard \
     -march=armv6k \
