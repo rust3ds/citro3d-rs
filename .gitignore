@@ -16,3 +16,4 @@ Cargo.lock
 # Can be used for local development to set a custom toolchain
 rust-toolchain
 rust-toolchain.toml
+.cargo/

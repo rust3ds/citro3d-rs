@@ -3,14 +3,43 @@ use citro3d_sys::{shaderProgram_s, DVLB_s};
 use ctru::gfx::{Gfx, Screen, Side};
 use ctru::services::apt::Apt;
 use ctru::services::hid::{Hid, KeyPad};
+use ctru::services::soc::Soc;
 
-use std::ffi::CString;
+use std::ffi::CStr;
 use std::mem::MaybeUninit;
 
+#[repr(C)]
+struct Vec3 {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+impl Vec3 {
+    const fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { x, y, z }
+    }
+}
+
+#[repr(C)]
+struct Vertex {
+    pos: Vec3,
+    color: Vec3,
+}
+
 const VERTICES: [Vertex; 3] = [
-    Vertex::new(200.0, 200.0, 0.5),
-    Vertex::new(100.0, 40.0, 0.5),
-    Vertex::new(300.0, 40.0, 0.5),
+    Vertex {
+        pos: Vec3::new(0.0, 0.5, 0.5),
+        color: Vec3::new(1.0, 0.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(-0.5, -0.5, 0.5),
+        color: Vec3::new(0.0, 1.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(0.5, -0.5, 0.5),
+        color: Vec3::new(0.0, 0.0, 1.0),
+    },
 ];
 
 fn main() {
@@ -19,6 +48,8 @@ fn main() {
     let gfx = Gfx::init().expect("Couldn't obtain GFX controller");
     let hid = Hid::init().expect("Couldn't obtain HID controller");
     let apt = Apt::init().expect("Couldn't obtain APT controller");
+    let mut soc = Soc::init().expect("failed to get SOC");
+    drop(soc.redirect_to_3dslink(true, true));
 
     let top_screen = gfx.top_screen.borrow_mut();
 
@@ -48,21 +79,23 @@ fn main() {
 
     let (program, uloc_projection, projection, vbo_data, vshader_dvlb) = scene_init();
 
-    // Main loop
     while apt.main_loop() {
-        //Scan all the inputs. This should be done once for each frame
         hid.scan_input();
 
         if hid.keys_down().contains(KeyPad::KEY_START) {
             break;
         }
 
-        const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
+        let clear_color: u32 = 0x7F_7F_7F_FF;
 
         unsafe {
-            citro3d_sys::C3D_FrameBegin(citro3d_sys::C3D_FRAME_SYNCDRAW as u8);
+            citro3d_sys::C3D_FrameBegin(
+                citro3d_sys::C3D_FRAME_SYNCDRAW
+                    .try_into()
+                    .expect("const is valid u8"),
+            );
 
-            citro3d_sys::C3D_RenderTargetClear(target, citro3d_sys::C3D_CLEAR_ALL, CLEAR_COLOR, 0);
+            citro3d_sys::C3D_RenderTargetClear(target, citro3d_sys::C3D_CLEAR_ALL, clear_color, 0);
             citro3d_sys::C3D_FrameDrawOn(target);
         }
         scene_render(uloc_projection.into(), &projection);
@@ -78,19 +111,6 @@ fn main() {
     }
 }
 
-#[repr(C)]
-struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-impl Vertex {
-    const fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
-    }
-}
-
 static SHBIN_BYTES: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
 
@@ -101,22 +121,22 @@ fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s
 
         // Assume the data is aligned properly...
         let vshader_dvlb = citro3d_sys::DVLB_ParseFile(
-            shader_bytes.as_mut_ptr() as _,
+            shader_bytes.as_mut_ptr().cast(),
             (shader_bytes.len() / 4)
                 .try_into()
                 .expect("shader len fits in a u32"),
         );
-        let mut program = MaybeUninit::<citro3d_sys::shaderProgram_s>::uninit();
+        let mut program = {
+            let mut program = MaybeUninit::uninit();
+            citro3d_sys::shaderProgramInit(program.as_mut_ptr());
+            program.assume_init()
+        };
 
-        citro3d_sys::shaderProgramInit(program.as_mut_ptr());
-        citro3d_sys::shaderProgramSetVsh(program.as_mut_ptr(), (*vshader_dvlb).DVLE);
-
-        let mut program = program.assume_init();
-
+        citro3d_sys::shaderProgramSetVsh(&mut program, (*vshader_dvlb).DVLE);
         citro3d_sys::C3D_BindProgram(&mut program);
 
         // Get the location of the uniforms
-        let projection_name = CString::new("projection").unwrap();
+        let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
         let uloc_projection = citro3d_sys::shaderInstanceGetUniformLocation(
             program.vertexShader,
             projection_name.as_ptr(),
@@ -126,44 +146,46 @@ fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s
         let attr_info = citro3d_sys::C3D_GetAttrInfo();
         citro3d_sys::AttrInfo_Init(attr_info);
         citro3d_sys::AttrInfo_AddLoader(attr_info, 0, citro3d_sys::GPU_FLOAT, 3); // v0=position
-        citro3d_sys::AttrInfo_AddFixed(attr_info, 1); // v1=color
+        citro3d_sys::AttrInfo_AddLoader(attr_info, 1, citro3d_sys::GPU_FLOAT, 3); // v1=color
 
-        // Set the fixed attribute (color) to solid white
-        citro3d_sys::C3D_FixedAttribSet(1, 1.0, 1.0, 1.0, 1.0);
-
-        let mut projection = MaybeUninit::<citro3d_sys::C3D_Mtx>::uninit();
         // Compute the projection matrix
-        citro3d_sys::Mtx_OrthoTilt(
-            projection.as_mut_ptr(),
-            0.0,
-            400.0,
-            0.0,
-            240.0,
-            0.0,
-            1.0,
-            true,
-        );
-        let projection = projection.assume_init();
+        let projection = {
+            let mut projection = MaybeUninit::uninit();
+            citro3d_sys::Mtx_OrthoTilt(
+                projection.as_mut_ptr(),
+                // The 3ds top screen is a 5:3 ratio
+                -1.66,
+                1.66,
+                -1.0,
+                1.0,
+                0.0,
+                1.0,
+                true,
+            );
+            projection.assume_init()
+        };
 
-        let vertices_len = std::mem::size_of_val(&VERTICES);
+        // Create the vertex buffer object
+        let vbo_data: *mut Vertex = citro3d_sys::linearAlloc(
+            std::mem::size_of_val(&VERTICES)
+                .try_into()
+                .expect("size fits in u32"),
+        )
+        .cast();
 
-        // Create the VBO (vertex buffer object)
-        let vbo_data =
-            citro3d_sys::linearAlloc(vertices_len.try_into().expect("size does not fit in u32"));
-
-        vbo_data.copy_from(VERTICES.as_ptr().cast(), vertices_len);
+        vbo_data.copy_from(VERTICES.as_ptr(), VERTICES.len());
 
         // Configure buffers
         let buf_info = citro3d_sys::C3D_GetBufInfo();
         citro3d_sys::BufInfo_Init(buf_info);
         citro3d_sys::BufInfo_Add(
             buf_info,
-            vbo_data,
+            vbo_data.cast(),
             std::mem::size_of::<Vertex>()
                 .try_into()
-                .expect("size of vertex fits in u32"),
-            1,
-            0x0,
+                .expect("size of vec3 fits in u32"),
+            2,    // Each vertex has two attributes
+            0x10, // v0 = position, v1 = color, in LSB->MSB nibble order
         );
 
         // Configure the first fragment shading substage to just pass through the vertex color
@@ -172,18 +194,20 @@ fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s
         citro3d_sys::C3D_TexEnvInit(env);
         citro3d_sys::C3D_TexEnvSrc(
             env,
-            citro3d_sys::C3D_Both as i32,
-            citro3d_sys::GPU_PRIMARY_COLOR as i32,
+            citro3d_sys::C3D_Both,
+            citro3d_sys::GPU_PRIMARY_COLOR,
             0,
             0,
         );
-        citro3d_sys::C3D_TexEnvFunc(
-            env,
-            citro3d_sys::C3D_Both as i32,
-            citro3d_sys::GPU_REPLACE as i32,
-        );
+        citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, citro3d_sys::GPU_REPLACE);
 
-        (program, uloc_projection, projection, vbo_data, vshader_dvlb)
+        (
+            program,
+            uloc_projection,
+            projection,
+            vbo_data.cast(),
+            vshader_dvlb,
+        )
     }
 }
 
@@ -193,7 +217,14 @@ fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
         citro3d_sys::C3D_FVUnifMtx4x4(citro3d_sys::GPU_VERTEX_SHADER, uloc_projection, projection);
 
         // Draw the VBO
-        citro3d_sys::C3D_DrawArrays(citro3d_sys::GPU_TRIANGLES, 0, VERTICES.len() as i32);
+        citro3d_sys::C3D_DrawArrays(
+            citro3d_sys::GPU_TRIANGLES,
+            0,
+            VERTICES
+                .len()
+                .try_into()
+                .expect("VERTICES.len() fits in i32"),
+        );
     }
 }
 
