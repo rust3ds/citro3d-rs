@@ -1,11 +1,10 @@
-; Example PICA200 vertex shader
+; Basic PICA200 vertex shader
 
 ; Uniforms
 .fvec projection[4]
 
 ; Constants
-.constf myconst(0.0, 1.0, -1.0, 0.1)
-.alias  ones  myconst.yyyy ; Vector full of ones
+.constf ones(1.0, 1.0, 1.0, 1.0)
 
 ; Outputs
 .out outpos position

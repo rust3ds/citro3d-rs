@@ -5,8 +5,9 @@ edition = "2021"
 authors = [""]
 
 [dependencies]
+bitflags = "1.3.2"
 citro3d-sys = { git = "https://github.com/ian-h-chamberlain/citro3d-rs.git" }
+ctru-rs = { git = "https://github.com/Meziu/ctru-rs.git" }
 libc = "0.2.125"
 
 [dev-dependencies]
-ctru-rs = { git = "https://github.com/Meziu/ctru-rs.git" }

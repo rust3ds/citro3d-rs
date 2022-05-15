@@ -1,9 +1,13 @@
 use citro3d_sys::C3D_Mtx;
 use citro3d_sys::{shaderProgram_s, DVLB_s};
-use ctru::gfx::{Gfx, Screen, Side};
+use ctru::gfx::{Gfx, Side};
 use ctru::services::apt::Apt;
+use ctru::services::gspgpu::FramebufferFormat;
 use ctru::services::hid::{Hid, KeyPad};
 use ctru::services::soc::Soc;
+
+use citro3d::render::{ClearFlags, DepthFormat, TransferFormat};
+use citro3d::C3DContext;
 
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -27,7 +31,7 @@ struct Vertex {
     color: Vec3,
 }
 
-const VERTICES: [Vertex; 3] = [
+const VERTICES: &[Vertex] = &[
     Vertex {
         pos: Vec3::new(0.0, 0.5, 0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
@@ -45,37 +49,30 @@ const VERTICES: [Vertex; 3] = [
 fn main() {
     ctru::init();
 
-    let gfx = Gfx::init().expect("Couldn't obtain GFX controller");
-    let hid = Hid::init().expect("Couldn't obtain HID controller");
-    let apt = Apt::init().expect("Couldn't obtain APT controller");
     let mut soc = Soc::init().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
-    let top_screen = gfx.top_screen.borrow_mut();
+    let gfx = Gfx::init().expect("Couldn't obtain GFX controller");
+    let hid = Hid::init().expect("Couldn't obtain HID controller");
+    let apt = Apt::init().expect("Couldn't obtain APT controller");
 
-    let target = unsafe {
-        citro3d_sys::C3D_Init(citro3d_sys::C3D_DEFAULT_CMDBUF_SIZE);
+    let mut top_screen = gfx.top_screen.borrow_mut();
+    let frame_buffer = top_screen.get_raw_framebuffer(Side::Left);
 
-        let depth_fmt = citro3d_sys::C3D_DEPTHTYPE {
-            __e: citro3d_sys::GPU_RB_DEPTH24_STENCIL8,
-        };
+    let ctx = C3DContext::new().expect("failed to initialize Citro3D");
+    let mut render_target = ctx
+        .render_target_for_screen(
+            &frame_buffer,
+            // TODO: why doesn't getting this from the screen work?
+            FramebufferFormat::Rgba8.into(),
+            DepthFormat::Depth24Stencil8,
+        )
+        .expect("failed to create render target");
 
-        let target =
-            citro3d_sys::C3D_RenderTargetCreate(240, 400, citro3d_sys::GPU_RB_RGBA8, depth_fmt);
+    // TODO: easier construction of flags, see macros in <3ds/gpu/gx.h>
+    let transfer_flags = (TransferFormat::RGBA8 as u32) << 8 | (TransferFormat::RGB8 as u32) << 12;
 
-        // TODO: easier construction of flags
-        let transfer_flags =
-            citro3d_sys::GX_TRANSFER_FMT_RGBA8 << 8 | citro3d_sys::GX_TRANSFER_FMT_RGB8 << 12;
-
-        citro3d_sys::C3D_RenderTargetSetOutput(
-            target,
-            top_screen.as_raw(),
-            Side::Left.into(),
-            transfer_flags,
-        );
-
-        target
-    };
+    render_target.set_output(&*top_screen, Side::Left, transfer_flags);
 
     let (program, uloc_projection, projection, vbo_data, vshader_dvlb) = scene_init();
 
@@ -86,18 +83,19 @@ fn main() {
             break;
         }
 
-        let clear_color: u32 = 0x7F_7F_7F_FF;
-
         unsafe {
             citro3d_sys::C3D_FrameBegin(
                 citro3d_sys::C3D_FRAME_SYNCDRAW
                     .try_into()
                     .expect("const is valid u8"),
             );
-
-            citro3d_sys::C3D_RenderTargetClear(target, citro3d_sys::C3D_CLEAR_ALL, clear_color, 0);
-            citro3d_sys::C3D_FrameDrawOn(target);
         }
+
+        // Is this format-dependent? because we used RGBA8 for transfer?
+        let clear_color: u32 = 0x7F_7F_7F_FF;
+        render_target.clear(ClearFlags::ALL, clear_color, 0);
+        render_target.set_for_draw();
+
         scene_render(uloc_projection.into(), &projection);
         unsafe {
             citro3d_sys::C3D_FrameEnd(0);
