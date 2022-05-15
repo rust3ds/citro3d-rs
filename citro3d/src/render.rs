@@ -1,15 +1,30 @@
+//! This module provides render target types and options for controlling transfer
+//! of data to the GPU, including the format of color and depth data to be rendered.
+
 use citro3d_sys::{
-    C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF, GPU_DEPTHBUF,
+    C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF,
+    GPU_DEPTHBUF,
 };
 use ctru::gfx;
-use ctru::services::gspgpu;
+use ctru::services::gspgpu::FramebufferFormat;
 
 use crate::{Error, Result};
 
-/// A render target for `citro3d`. This is the data structure which handles sending
-/// data to the GPU
+mod transfer;
+
+/// A render target for `citro3d`. Frame data will be written to this target
+/// to be rendered on the GPU and displayed on the screen.
 pub struct Target {
-    tag: *mut citro3d_sys::C3D_RenderTarget_tag,
+    raw: *mut citro3d_sys::C3D_RenderTarget,
+    color_format: ColorFormat,
+}
+
+impl Drop for Target {
+    fn drop(&mut self) {
+        unsafe {
+            C3D_RenderTargetDelete(self.raw);
+        }
+    }
 }
 
 impl Target {
@@ -26,7 +41,7 @@ impl Target {
         color_format: ColorFormat,
         depth_format: DepthFormat,
     ) -> Result<Self> {
-        let tag = unsafe {
+        let raw = unsafe {
             C3D_RenderTargetCreate(
                 width.try_into()?,
                 height.try_into()?,
@@ -35,70 +50,51 @@ impl Target {
             )
         };
 
-        if tag.is_null() {
+        if raw.is_null() {
             Err(Error::FailedToInitialize)
         } else {
-            Ok(Self { tag })
+            Ok(Self { raw, color_format })
         }
     }
 
     /// Sets the screen to actually display the output of this render target.
-    pub fn set_output(&mut self, screen: &impl gfx::Screen, side: gfx::Side, transfer_flags: u32) {
+    pub fn set_output(&mut self, screen: &impl gfx::Screen, side: gfx::Side) {
+        let framebuf_format = screen.get_framebuffer_format();
+
+        let flags = transfer::Flags::default()
+            .in_format(self.color_format.into())
+            .out_format(ColorFormat::from(framebuf_format).into());
+
         unsafe {
             citro3d_sys::C3D_RenderTargetSetOutput(
-                self.tag,
+                self.raw,
                 screen.as_raw(),
                 side.into(),
-                transfer_flags,
+                flags.bits(),
             );
         }
     }
 
-    pub fn clear(&mut self, flags: ClearFlags, color: u32, depth: u32) {
+    /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
+    /// Use `flags` to specify whether color and/or depth should be overwritten.
+    pub fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
         unsafe {
-            citro3d_sys::C3D_RenderTargetClear(self.tag, flags.bits(), color, depth);
+            citro3d_sys::C3D_RenderTargetClear(self.raw, flags.bits(), rgba_color, depth);
         }
     }
 
-    // TODO: this should maybe be a method on C3DContext instead?
-    pub fn set_for_draw(&mut self) {
-        unsafe {
-            citro3d_sys::C3D_FrameDrawOn(self.tag);
-        }
-    }
-}
-
-#[repr(u32)]
-pub enum TransferFormat {
-    RGBA8 = citro3d_sys::GX_TRANSFER_FMT_RGBA8,
-    RGB8 = citro3d_sys::GX_TRANSFER_FMT_RGB8,
-    RGB565 = citro3d_sys::GX_TRANSFER_FMT_RGB565,
-    RGB5A1 = citro3d_sys::GX_TRANSFER_FMT_RGB5A1,
-    RGBA4 = citro3d_sys::GX_TRANSFER_FMT_RGBA4,
-}
-
-// TODO: more flags
-bitflags::bitflags! {
-    pub struct TransferFlags: u32 {
-        const SCALE_NO = citro3d_sys::GX_TRANSFER_SCALE_NO;
-        const SCALE_X = citro3d_sys::GX_TRANSFER_SCALE_X;
-        const SCALE_XY = citro3d_sys::GX_TRANSFER_SCALE_XY;
+    /// Return the underlying `citro3d` render target for this target.
+    pub(crate) fn as_raw(&self) -> *mut C3D_RenderTarget {
+        self.raw
     }
 }
 
 bitflags::bitflags! {
+    /// Indicate whether color, depth buffer, or both values should be cleared.
     pub struct ClearFlags: u32 {
         const COLOR = citro3d_sys::C3D_CLEAR_COLOR;
         const DEPTH = citro3d_sys::C3D_CLEAR_DEPTH;
         const ALL = citro3d_sys::C3D_CLEAR_ALL;
-    }
-}
-
-impl Drop for Target {
-    fn drop(&mut self) {
-        unsafe {
-            C3D_RenderTargetDelete(self.tag);
-        }
     }
 }
 
@@ -118,23 +114,28 @@ pub enum ColorFormat {
     RGBA4 = citro3d_sys::GPU_RB_RGBA4,
 }
 
-impl From<gspgpu::FramebufferFormat> for ColorFormat {
-    fn from(format: gspgpu::FramebufferFormat) -> Self {
+impl From<FramebufferFormat> for ColorFormat {
+    fn from(format: FramebufferFormat) -> Self {
         match format {
-            gspgpu::FramebufferFormat::Rgba8 => Self::RGBA8,
-            gspgpu::FramebufferFormat::Rgb565 => Self::RGB565,
-            gspgpu::FramebufferFormat::Rgb5A1 => Self::RGBA5551,
-            gspgpu::FramebufferFormat::Rgba4 => Self::RGBA4,
-            fmt => panic!("Unsupported frame buffer format {fmt:?}"),
+            FramebufferFormat::Rgba8 => Self::RGBA8,
+            FramebufferFormat::Rgb565 => Self::RGB565,
+            FramebufferFormat::Rgb5A1 => Self::RGBA5551,
+            FramebufferFormat::Rgba4 => Self::RGBA4,
+            // this one seems unusual, but it appears to work fine:
+            FramebufferFormat::Bgr8 => Self::RGB8,
         }
     }
 }
 
+/// The depth buffer format to use when rendering.
 #[repr(u32)]
 #[derive(Clone, Copy, Debug)]
 pub enum DepthFormat {
+    /// 16-bit depth.
     Depth16 = citro3d_sys::GPU_RB_DEPTH16,
+    /// 24-bit depth.
     Depth24 = citro3d_sys::GPU_RB_DEPTH24,
+    /// 24-bit depth + 8-bit Stencil.
     Depth24Stencil8 = citro3d_sys::GPU_RB_DEPTH24_STENCIL8,
 }
 

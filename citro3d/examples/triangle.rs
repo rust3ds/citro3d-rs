@@ -2,12 +2,10 @@ use citro3d_sys::C3D_Mtx;
 use citro3d_sys::{shaderProgram_s, DVLB_s};
 use ctru::gfx::{Gfx, Side};
 use ctru::services::apt::Apt;
-use ctru::services::gspgpu::FramebufferFormat;
 use ctru::services::hid::{Hid, KeyPad};
 use ctru::services::soc::Soc;
 
-use citro3d::render::{ClearFlags, DepthFormat, TransferFormat};
-use citro3d::C3DContext;
+use citro3d::render::{ClearFlags, ColorFormat, DepthFormat};
 
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -59,20 +57,17 @@ fn main() {
     let mut top_screen = gfx.top_screen.borrow_mut();
     let frame_buffer = top_screen.get_raw_framebuffer(Side::Left);
 
-    let ctx = C3DContext::new().expect("failed to initialize Citro3D");
-    let mut render_target = ctx
+    let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
+
+    let mut render_target = instance
         .render_target_for_screen(
             &frame_buffer,
-            // TODO: why doesn't getting this from the screen work?
-            FramebufferFormat::Rgba8.into(),
+            ColorFormat::RGBA8,
             DepthFormat::Depth24Stencil8,
         )
         .expect("failed to create render target");
 
-    // TODO: easier construction of flags, see macros in <3ds/gpu/gx.h>
-    let transfer_flags = (TransferFormat::RGBA8 as u32) << 8 | (TransferFormat::RGB8 as u32) << 12;
-
-    render_target.set_output(&*top_screen, Side::Left, transfer_flags);
+    render_target.set_output(&*top_screen, Side::Left);
 
     let (program, uloc_projection, projection, vbo_data, vshader_dvlb) = scene_init();
 
@@ -91,22 +86,21 @@ fn main() {
             );
         }
 
-        // Is this format-dependent? because we used RGBA8 for transfer?
         let clear_color: u32 = 0x7F_7F_7F_FF;
         render_target.clear(ClearFlags::ALL, clear_color, 0);
-        render_target.set_for_draw();
+
+        instance
+            .select_render_target(&render_target)
+            .expect("failed to set render target");
 
         scene_render(uloc_projection.into(), &projection);
+
         unsafe {
             citro3d_sys::C3D_FrameEnd(0);
         }
     }
 
     scene_exit(vbo_data, program, vshader_dvlb);
-
-    unsafe {
-        citro3d_sys::C3D_Fini();
-    }
 }
 
 static SHBIN_BYTES: &[u8] =

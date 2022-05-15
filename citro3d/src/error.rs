@@ -13,6 +13,8 @@ pub enum Error {
     FailedToInitialize,
     /// A size parameter was specified that cannot be converted to the proper type.
     InvalidSize,
+    /// Failed to select the given render target for drawing to.
+    InvalidRenderTarget,
 }
 
 impl From<TryFromIntError> for Error {

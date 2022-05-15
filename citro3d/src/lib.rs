@@ -6,32 +6,34 @@ pub mod shader;
 pub mod texture;
 pub mod vbo;
 
+use citro3d_sys::C3D_FrameDrawOn;
 use ctru::gfx::RawFrameBuffer;
 pub use error::{Error, Result};
 
 use render::Target;
 
-/// The base context for using `citro3d`. This type must be used for
+/// The single instance for using `citro3d`. This is the base type that an application
+/// should instantiate to use this library.
 #[non_exhaustive]
 #[derive(Debug)]
-pub struct C3DContext;
+pub struct Instance;
 
-impl C3DContext {
-    /// Initialize the default context.
+impl Instance {
+    /// Initialize the default `citro3d` instance.
     ///
     /// # Errors
     ///
-    /// Fails if the `citro3d` library cannot be initialized.
+    /// Fails if `citro3d` cannot be initialized.
     pub fn new() -> Result<Self> {
-        Self::with_command_buffer_size(citro3d_sys::C3D_DEFAULT_CMDBUF_SIZE)
+        Self::with_cmdbuf_size(citro3d_sys::C3D_DEFAULT_CMDBUF_SIZE)
     }
 
-    /// Initialize the context with a specified command buffer
+    /// Initialize the instance with a specified command buffer size.
     ///
     /// # Errors
     ///
-    /// Fails if the `citro3d` library cannot be initialized.
-    pub fn with_command_buffer_size(size: u32) -> Result<Self> {
+    /// Fails if `citro3d` cannot be initialized.
+    pub fn with_cmdbuf_size(size: u32) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
             Ok(Self)
         } else {
@@ -50,6 +52,7 @@ impl C3DContext {
         color_format: render::ColorFormat,
         depth_format: render::DepthFormat,
     ) -> Result<Target> {
+        let _ = self;
         Target::new(
             frame_buffer.width.into(),
             frame_buffer.height.into(),
@@ -57,9 +60,23 @@ impl C3DContext {
             depth_format,
         )
     }
+
+    /// Select the given render target for drawing the frame.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the given target cannot be used for drawing.
+    pub fn select_render_target(&mut self, target: &render::Target) -> Result<()> {
+        let _ = self;
+        if unsafe { C3D_FrameDrawOn(target.as_raw()) } {
+            Ok(())
+        } else {
+            Err(Error::InvalidRenderTarget)
+        }
+    }
 }
 
-impl Drop for C3DContext {
+impl Drop for Instance {
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_Fini();
