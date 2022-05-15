@@ -1,5 +1,6 @@
-//! `<c3d/renderqueue.h>`
+//! Definitions from `<c3d/renderqueue.h>`
 
+#[inline]
 pub unsafe fn C3D_RenderTargetClear(
     target: *mut crate::C3D_RenderTarget,
     clearBits: crate::C3D_ClearBits,
