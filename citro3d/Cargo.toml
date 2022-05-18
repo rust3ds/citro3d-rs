@@ -2,7 +2,6 @@
 name = "citro3d"
 version = "0.1.0"
 edition = "2021"
-authors = [""]
 
 [dependencies]
 bitflags = "1.3.2"

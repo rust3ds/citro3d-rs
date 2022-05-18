@@ -74,6 +74,25 @@ impl Instance {
             Err(Error::InvalidRenderTarget)
         }
     }
+
+    /// Render a frame. The passed in function/closure can mutate the instance,
+    /// such as to [select a render target](Self::select_render_target).
+    pub fn render_frame_with(&mut self, f: impl FnOnce(&mut Self)) {
+        unsafe {
+            citro3d_sys::C3D_FrameBegin(
+                // TODO: begin + end flags should be configurable
+                citro3d_sys::C3D_FRAME_SYNCDRAW
+                    .try_into()
+                    .expect("const is valid u8"),
+            );
+        }
+
+        f(self);
+
+        unsafe {
+            citro3d_sys::C3D_FrameEnd(0);
+        }
+    }
 }
 
 impl Drop for Instance {

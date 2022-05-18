@@ -44,6 +44,9 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
+static SHADER_BYTES: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
+
 fn main() {
     ctru::init();
 
@@ -78,38 +81,25 @@ fn main() {
             break;
         }
 
-        unsafe {
-            citro3d_sys::C3D_FrameBegin(
-                citro3d_sys::C3D_FRAME_SYNCDRAW
-                    .try_into()
-                    .expect("const is valid u8"),
-            );
-        }
+        instance.render_frame_with(|instance| {
+            let clear_color: u32 = 0x7F_7F_7F_FF;
+            render_target.clear(ClearFlags::ALL, clear_color, 0);
 
-        let clear_color: u32 = 0x7F_7F_7F_FF;
-        render_target.clear(ClearFlags::ALL, clear_color, 0);
+            instance
+                .select_render_target(&render_target)
+                .expect("failed to set render target");
 
-        instance
-            .select_render_target(&render_target)
-            .expect("failed to set render target");
-
-        scene_render(uloc_projection.into(), &projection);
-
-        unsafe {
-            citro3d_sys::C3D_FrameEnd(0);
-        }
+            scene_render(uloc_projection.into(), &projection);
+        });
     }
 
     scene_exit(vbo_data, program, vshader_dvlb);
 }
 
-static SHBIN_BYTES: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
-
 fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
-        let mut shader_bytes = SHBIN_BYTES.to_owned();
+        let mut shader_bytes = SHADER_BYTES.to_owned();
 
         // Assume the data is aligned properly...
         let vshader_dvlb = citro3d_sys::DVLB_ParseFile(
