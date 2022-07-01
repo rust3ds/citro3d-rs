@@ -1,5 +1,5 @@
+use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
-use citro3d_sys::{shaderProgram_s, DVLB_s};
 use ctru::gfx::{Gfx, Side};
 use ctru::services::apt::Apt;
 use ctru::services::hid::{Hid, KeyPad};
@@ -44,8 +44,8 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
-static SHADER_BYTES: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
+const SHADER_BYTES: &[u8] =
+    include_aligned_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
 
 fn main() {
     ctru::init();
@@ -72,7 +72,12 @@ fn main() {
 
     render_target.set_output(&*top_screen, Side::Left);
 
-    let (program, uloc_projection, projection, vbo_data, vshader_dvlb) = scene_init();
+    let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
+    let vertex_shader = shader.get(0).unwrap();
+
+    let mut program = shader::Program::new(vertex_shader).unwrap();
+
+    let (uloc_projection, projection, vbo_data) = scene_init(&mut program);
 
     while apt.main_loop() {
         hid.scan_input();
@@ -93,34 +98,18 @@ fn main() {
         });
     }
 
-    scene_exit(vbo_data, program, vshader_dvlb);
+    scene_exit(vbo_data);
 }
 
-fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s) {
+fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
-        let mut shader_bytes = SHADER_BYTES.to_owned();
-
-        // Assume the data is aligned properly...
-        let vshader_dvlb = citro3d_sys::DVLB_ParseFile(
-            shader_bytes.as_mut_ptr().cast(),
-            (shader_bytes.len() / 4)
-                .try_into()
-                .expect("shader len fits in a u32"),
-        );
-        let mut program = {
-            let mut program = MaybeUninit::uninit();
-            citro3d_sys::shaderProgramInit(program.as_mut_ptr());
-            program.assume_init()
-        };
-
-        citro3d_sys::shaderProgramSetVsh(&mut program, (*vshader_dvlb).DVLE);
-        citro3d_sys::C3D_BindProgram(&mut program);
+        citro3d_sys::C3D_BindProgram(program.as_raw());
 
         // Get the location of the uniforms
         let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
         let uloc_projection = citro3d_sys::shaderInstanceGetUniformLocation(
-            program.vertexShader,
+            (*program.as_raw()).vertexShader,
             projection_name.as_ptr(),
         );
 
@@ -183,13 +172,7 @@ fn scene_init() -> (shaderProgram_s, i8, C3D_Mtx, *mut libc::c_void, *mut DVLB_s
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, citro3d_sys::GPU_REPLACE);
 
-        (
-            program,
-            uloc_projection,
-            projection,
-            vbo_data.cast(),
-            vshader_dvlb,
-        )
+        (uloc_projection, projection, vbo_data.cast())
     }
 }
 
@@ -210,16 +193,8 @@ fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
     }
 }
 
-fn scene_exit(
-    vbo_data: *mut libc::c_void,
-    mut program: shaderProgram_s,
-    vshader_dvlb: *mut DVLB_s,
-) {
+fn scene_exit(vbo_data: *mut libc::c_void) {
     unsafe {
         citro3d_sys::linearFree(vbo_data);
-
-        citro3d_sys::shaderProgramFree(&mut program);
-
-        citro3d_sys::DVLB_Free(vshader_dvlb);
     }
 }
