@@ -98,22 +98,16 @@ impl Library {
     /// An error is returned if the input data does not have an alignment of 4
     /// (cannot be safely converted to `&[u32]`).
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
-        unsafe {
-            let (prefix, aligned, suffix) = bytes.align_to::<u32>();
-            if !prefix.is_empty() || !suffix.is_empty() {
-                // Align is incorrect, we don't want to drop any data
-                // TODO fill in error details
-                return Err("uh oh".into());
-            }
-
-            Ok(Self(citro3d_sys::DVLB_ParseFile(
+        let aligned: &[u32] = bytemuck::try_cast_slice(bytes)?;
+        Ok(Self(unsafe {
+            citro3d_sys::DVLB_ParseFile(
                 // SAFETY: we're trusting the parse implementation doesn't mutate
                 // the contents of the data. From a quick read it looks like that's
                 // correct and it should just take a const arg in the API.
                 aligned.as_ptr() as *mut _,
                 aligned.len().try_into()?,
-            )))
-        }
+            )
+        }))
     }
 
     #[must_use]
