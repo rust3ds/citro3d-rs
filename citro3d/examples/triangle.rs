@@ -59,18 +59,33 @@ fn main() {
 
     let mut top_screen = gfx.top_screen.borrow_mut();
     let frame_buffer = top_screen.get_raw_framebuffer(Side::Left);
+    let (width, height) = (frame_buffer.width, frame_buffer.height);
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
     let mut render_target = citro3d::render::Target::new(
-        frame_buffer.width,
-        frame_buffer.height,
+        width,
+        height,
         &mut *top_screen,
         DepthFormat::Depth24Stencil8,
     )
     .expect("failed to create render target");
 
     render_target.set_output(Side::Left);
+
+    let mut bottom_screen = gfx.bottom_screen.borrow_mut();
+    let frame_buffer = bottom_screen.get_raw_framebuffer();
+    let (width, height) = (frame_buffer.width, frame_buffer.height);
+
+    let mut bottom_target = citro3d::render::Target::new(
+        width,
+        height,
+        &mut *bottom_screen,
+        DepthFormat::Depth24Stencil8,
+    )
+    .expect("failed to create bottom screen render target");
+
+    bottom_target.set_output(Side::Left);
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();
@@ -87,13 +102,22 @@ fn main() {
         }
 
         instance.render_frame_with(|instance| {
-            let clear_color: u32 = 0x7F_7F_7F_FF;
-            render_target.clear(ClearFlags::ALL, clear_color, 0);
-
             instance
                 .select_render_target(&render_target)
                 .expect("failed to set render target");
 
+            let clear_color: u32 = 0x7F_7F_7F_FF;
+            render_target.clear(ClearFlags::ALL, clear_color, 0);
+            scene_render(uloc_projection.into(), &projection);
+        });
+
+        instance.render_frame_with(|instance| {
+            instance
+                .select_render_target(&bottom_target)
+                .expect("failed to set render target");
+
+            let clear_color: u32 = 0x7F_7F_7F_FF;
+            bottom_target.clear(ClearFlags::ALL, clear_color, 0);
             scene_render(uloc_projection.into(), &projection);
         });
     }
