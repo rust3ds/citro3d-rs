@@ -5,7 +5,7 @@ use ctru::services::apt::Apt;
 use ctru::services::hid::{Hid, KeyPad};
 use ctru::services::soc::Soc;
 
-use citro3d::render::{ClearFlags, ColorFormat, DepthFormat};
+use citro3d::render::{ClearFlags, DepthFormat};
 
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -62,15 +62,15 @@ fn main() {
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
-    let mut render_target = instance
-        .render_target_for_screen(
-            &frame_buffer,
-            ColorFormat::RGBA8,
-            DepthFormat::Depth24Stencil8,
-        )
-        .expect("failed to create render target");
+    let mut render_target = citro3d::render::Target::new(
+        frame_buffer.width,
+        frame_buffer.height,
+        &mut *top_screen,
+        DepthFormat::Depth24Stencil8,
+    )
+    .expect("failed to create render target");
 
-    render_target.set_output(&*top_screen, Side::Left);
+    render_target.set_output(Side::Left);
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();

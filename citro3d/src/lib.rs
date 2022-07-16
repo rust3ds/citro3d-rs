@@ -7,10 +7,8 @@ pub mod texture;
 pub mod vbo;
 
 use citro3d_sys::C3D_FrameDrawOn;
-use ctru::gfx::RawFrameBuffer;
+use ctru::gfx::Screen;
 pub use error::{Error, Result};
-
-use render::Target;
 
 /// The single instance for using `citro3d`. This is the base type that an application
 /// should instantiate to use this library.
@@ -41,32 +39,15 @@ impl Instance {
         }
     }
 
-    /// Create a default render target for the given screen.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the render target could not be created.
-    pub fn render_target_for_screen(
-        &self,
-        frame_buffer: &RawFrameBuffer,
-        color_format: render::ColorFormat,
-        depth_format: render::DepthFormat,
-    ) -> Result<Target> {
-        let _ = self;
-        Target::new(
-            frame_buffer.width.into(),
-            frame_buffer.height.into(),
-            color_format,
-            depth_format,
-        )
-    }
-
     /// Select the given render target for drawing the frame.
     ///
     /// # Errors
     ///
     /// Fails if the given target cannot be used for drawing.
-    pub fn select_render_target(&mut self, target: &render::Target) -> Result<()> {
+    pub fn select_render_target<'s, S: Screen>(
+        &mut self,
+        target: &render::Target<'s, S>,
+    ) -> Result<()> {
         let _ = self;
         if unsafe { C3D_FrameDrawOn(target.as_raw()) } {
             Ok(())

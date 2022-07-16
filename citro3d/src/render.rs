@@ -5,7 +5,7 @@ use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF,
     GPU_DEPTHBUF,
 };
-use ctru::gfx;
+use ctru::gfx::{self, Screen};
 use ctru::services::gspgpu::FramebufferFormat;
 
 use crate::{Error, Result};
@@ -14,12 +14,13 @@ mod transfer;
 
 /// A render target for `citro3d`. Frame data will be written to this target
 /// to be rendered on the GPU and displayed on the screen.
-pub struct Target {
+pub struct Target<'s, S> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
     color_format: ColorFormat,
+    screen: &'s mut S,
 }
 
-impl Drop for Target {
+impl<'s, S> Drop for Target<'s, S> {
     fn drop(&mut self) {
         unsafe {
             C3D_RenderTargetDelete(self.raw);
@@ -27,24 +28,28 @@ impl Drop for Target {
     }
 }
 
-impl Target {
+impl<'s, S> Target<'s, S>
+where
+    S: 's + Screen,
+{
     /// Create a new render target with the specified size, color format,
     /// and depth format.
     ///
     /// # Errors
     ///
-    /// Fails if the specified sizes are invalid, or the target could not be
-    /// created.
+    /// Fails if the target could not be created.
     pub fn new(
-        width: u32,
-        height: u32,
-        color_format: ColorFormat,
+        width: u16,
+        height: u16,
+        screen: &'s mut S,
         depth_format: DepthFormat,
     ) -> Result<Self> {
+        let color_format = screen.get_framebuffer_format().into();
+
         let raw = unsafe {
             C3D_RenderTargetCreate(
-                width.try_into()?,
-                height.try_into()?,
+                width.into(),
+                height.into(),
                 color_format as GPU_COLORBUF,
                 depth_format.as_raw(),
             )
@@ -53,13 +58,18 @@ impl Target {
         if raw.is_null() {
             Err(Error::FailedToInitialize)
         } else {
-            Ok(Self { raw, color_format })
+            Ok(Self {
+                raw,
+                color_format,
+                screen,
+            })
         }
     }
 
-    /// Sets the screen to actually display the output of this render target.
-    pub fn set_output(&mut self, screen: &impl gfx::Screen, side: gfx::Side) {
-        let framebuf_format = screen.get_framebuffer_format();
+    /// Sets the screen to actually display the output of this render target
+    /// on the given [`Side`](gfx::Side).
+    pub fn set_output(&mut self, side: gfx::Side) {
+        let framebuf_format = self.screen.get_framebuffer_format();
 
         let flags = transfer::Flags::default()
             .in_format(self.color_format.into())
@@ -68,7 +78,7 @@ impl Target {
         unsafe {
             citro3d_sys::C3D_RenderTargetSetOutput(
                 self.raw,
-                screen.as_raw(),
+                self.screen.as_raw(),
                 side.into(),
                 flags.bits(),
             );
