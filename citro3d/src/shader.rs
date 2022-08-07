@@ -74,7 +74,7 @@ impl Program {
     }
 }
 
-impl<'vert, 'geom> Drop for Program {
+impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
             let _ = citro3d_sys::shaderProgramFree(self.as_raw());

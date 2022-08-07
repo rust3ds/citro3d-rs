@@ -1,6 +1,8 @@
 //! This module provides render target types and options for controlling transfer
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
+use std::cell::RefMut;
+
 use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF,
     GPU_DEPTHBUF,
@@ -17,7 +19,7 @@ mod transfer;
 pub struct Target<'s, S> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
     color_format: ColorFormat,
-    screen: &'s mut S,
+    screen: RefMut<'s, S>,
 }
 
 impl<'s, S> Drop for Target<'s, S> {
@@ -30,7 +32,7 @@ impl<'s, S> Drop for Target<'s, S> {
 
 impl<'s, S> Target<'s, S>
 where
-    S: 's + Screen,
+    S: Screen,
 {
     /// Create a new render target with the specified size, color format,
     /// and depth format.
@@ -41,8 +43,8 @@ where
     pub fn new(
         width: u16,
         height: u16,
-        screen: &'s mut S,
-        depth_format: DepthFormat,
+        screen: RefMut<'s, S>,
+        depth_format: Option<DepthFormat>,
     ) -> Result<Self> {
         let color_format = screen.get_framebuffer_format().into();
 
@@ -51,7 +53,7 @@ where
                 width.into(),
                 height.into(),
                 color_format as GPU_COLORBUF,
-                depth_format.as_raw(),
+                depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
             )
         };
 
