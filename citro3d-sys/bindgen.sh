@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-bindgen "$DEVKITPRO/libctru/include/citro3d.h" \
+bindgen "$DEVKITPRO/libctru/include/tex3ds.h" \
     --rust-target nightly \
     --use-core \
     --distrust-clang-mangling \
