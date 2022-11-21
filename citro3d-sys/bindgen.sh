@@ -17,10 +17,12 @@ bindgen "$DEVKITPRO/libctru/include/tex3ds.h" \
     --opaque-type "GFX_.*" \
     --opaque-type "float24Uniform_s" \
     --allowlist-type "C3D_.*" \
+    --allowlist-type "Tex3DS_.*" \
     --allowlist-type "DVLB_.*" \
     --allowlist-type "shader.*" \
     --allowlist-type "float24Uniform_s" \
     --allowlist-function "C3D_.*" \
+    --allowlist-function "Tex3DS_.*" \
     --allowlist-function "shader.*" \
     --allowlist-function "DVLB_.*" \
     --allowlist-function "linear.*" \

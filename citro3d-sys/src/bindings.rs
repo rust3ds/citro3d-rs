@@ -86,6 +86,7 @@ pub const C3D_MTXSTACK_SIZE: u8 = 8;
 pub const C3D_FVUNIF_COUNT: u8 = 96;
 pub const C3D_IVUNIF_COUNT: u8 = 4;
 pub const C3D_DEFAULT_CMDBUF_SIZE: u32 = 262144;
+pub type __int64_t = ::libc::c_longlong;
 pub type u8_ = u8;
 pub type u16_ = u16;
 pub type u32_ = u32;
@@ -93,6 +94,15 @@ pub type u64_ = u64;
 pub type s8 = i8;
 pub type s32 = i32;
 pub type Result = s32;
+pub type _LOCK_T = i32;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __lock_t {
+    pub lock: _LOCK_T,
+    pub thread_tag: u32,
+    pub counter: u32,
+}
+pub type _LOCK_RECURSIVE_T = __lock_t;
 #[doc = "< Top screen"]
 pub const GFX_TOP: gfxScreen_t = 0;
 #[doc = "< Bottom screen"]
@@ -108,6 +118,29 @@ pub const GFX_RIGHT: gfx3dSide_t = 1;
 #[doc = " This is only meaningful when stereoscopic 3D is enabled on the top screen."]
 #[doc = " In any other case, use \\ref GFX_LEFT."]
 pub type gfx3dSide_t = ::libc::c_uint;
+pub type _off_t = __int64_t;
+pub type _fpos_t = __int64_t;
+pub type wint_t = ::libc::c_int;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _mbstate_t {
+    pub __count: ::libc::c_int,
+    pub __value: _mbstate_t__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union _mbstate_t__bindgen_ty_1 {
+    pub __wch: wint_t,
+    pub __wchb: [::libc::c_uchar; 4usize],
+}
+#[doc = " @brief Data callback"]
+pub type decompressCallback = ::core::option::Option<
+    unsafe extern "C" fn(
+        userdata: *mut ::libc::c_void,
+        buffer: *mut ::libc::c_void,
+        size: usize,
+    ) -> isize,
+>;
 extern "C" {
     #[doc = " @brief Allocates a 0x80-byte aligned buffer."]
     #[doc = " @param size Size of the buffer to allocate."]
@@ -143,6 +176,186 @@ extern "C" {
     #[doc = " @brief Gets the current linear free space."]
     #[doc = " @return The current linear free space."]
     pub fn linearSpaceFree() -> u32_;
+}
+pub type __ULong = ::libc::c_ulong;
+pub type _flock_t = _LOCK_RECURSIVE_T;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __locale_t {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _Bigint {
+    pub _next: *mut _Bigint,
+    pub _k: ::libc::c_int,
+    pub _maxwds: ::libc::c_int,
+    pub _sign: ::libc::c_int,
+    pub _wds: ::libc::c_int,
+    pub _x: [__ULong; 1usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __tm {
+    pub __tm_sec: ::libc::c_int,
+    pub __tm_min: ::libc::c_int,
+    pub __tm_hour: ::libc::c_int,
+    pub __tm_mday: ::libc::c_int,
+    pub __tm_mon: ::libc::c_int,
+    pub __tm_year: ::libc::c_int,
+    pub __tm_wday: ::libc::c_int,
+    pub __tm_yday: ::libc::c_int,
+    pub __tm_isdst: ::libc::c_int,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _on_exit_args {
+    pub _fnargs: [*mut ::libc::c_void; 32usize],
+    pub _dso_handle: [*mut ::libc::c_void; 32usize],
+    pub _fntypes: __ULong,
+    pub _is_cxa: __ULong,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _atexit {
+    pub _next: *mut _atexit,
+    pub _ind: ::libc::c_int,
+    pub _fns: [::core::option::Option<unsafe extern "C" fn()>; 32usize],
+    pub _on_exit_args: _on_exit_args,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __sbuf {
+    pub _base: *mut ::libc::c_uchar,
+    pub _size: ::libc::c_int,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct __sFILE {
+    pub _p: *mut ::libc::c_uchar,
+    pub _r: ::libc::c_int,
+    pub _w: ::libc::c_int,
+    pub _flags: ::libc::c_short,
+    pub _file: ::libc::c_short,
+    pub _bf: __sbuf,
+    pub _lbfsize: ::libc::c_int,
+    pub _cookie: *mut ::libc::c_void,
+    pub _read: ::core::option::Option<
+        unsafe extern "C" fn(
+            arg1: *mut _reent,
+            arg2: *mut ::libc::c_void,
+            arg3: *mut ::libc::c_char,
+            arg4: ::libc::c_int,
+        ) -> ::libc::c_int,
+    >,
+    pub _write: ::core::option::Option<
+        unsafe extern "C" fn(
+            arg1: *mut _reent,
+            arg2: *mut ::libc::c_void,
+            arg3: *const ::libc::c_char,
+            arg4: ::libc::c_int,
+        ) -> ::libc::c_int,
+    >,
+    pub _seek: ::core::option::Option<
+        unsafe extern "C" fn(
+            arg1: *mut _reent,
+            arg2: *mut ::libc::c_void,
+            arg3: _fpos_t,
+            arg4: ::libc::c_int,
+        ) -> _fpos_t,
+    >,
+    pub _close: ::core::option::Option<
+        unsafe extern "C" fn(arg1: *mut _reent, arg2: *mut ::libc::c_void) -> ::libc::c_int,
+    >,
+    pub _ub: __sbuf,
+    pub _up: *mut ::libc::c_uchar,
+    pub _ur: ::libc::c_int,
+    pub _ubuf: [::libc::c_uchar; 3usize],
+    pub _nbuf: [::libc::c_uchar; 1usize],
+    pub _lb: __sbuf,
+    pub _blksize: ::libc::c_int,
+    pub _offset: _off_t,
+    pub _data: *mut _reent,
+    pub _lock: _flock_t,
+    pub _mbstate: _mbstate_t,
+    pub _flags2: ::libc::c_int,
+}
+pub type __FILE = __sFILE;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _glue {
+    pub _next: *mut _glue,
+    pub _niobs: ::libc::c_int,
+    pub _iobs: *mut __FILE,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _rand48 {
+    pub _seed: [::libc::c_ushort; 3usize],
+    pub _mult: [::libc::c_ushort; 3usize],
+    pub _add: ::libc::c_ushort,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _reent {
+    pub _errno: ::libc::c_int,
+    pub _stdin: *mut __FILE,
+    pub _stdout: *mut __FILE,
+    pub _stderr: *mut __FILE,
+    pub _inc: ::libc::c_int,
+    pub _emergency: [::libc::c_char; 25usize],
+    pub _unspecified_locale_info: ::libc::c_int,
+    pub _locale: *mut __locale_t,
+    pub __sdidinit: ::libc::c_int,
+    pub __cleanup: ::core::option::Option<unsafe extern "C" fn(arg1: *mut _reent)>,
+    pub _result: *mut _Bigint,
+    pub _result_k: ::libc::c_int,
+    pub _p5s: *mut _Bigint,
+    pub _freelist: *mut *mut _Bigint,
+    pub _cvtlen: ::libc::c_int,
+    pub _cvtbuf: *mut ::libc::c_char,
+    pub _new: _reent__bindgen_ty_1,
+    pub _atexit: *mut _atexit,
+    pub _atexit0: _atexit,
+    pub _sig_func: *mut ::core::option::Option<unsafe extern "C" fn(arg1: ::libc::c_int)>,
+    pub __sglue: _glue,
+    pub __sf: [__FILE; 3usize],
+    pub deviceData: *mut ::libc::c_void,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union _reent__bindgen_ty_1 {
+    pub _reent: _reent__bindgen_ty_1__bindgen_ty_1,
+    pub _unused: _reent__bindgen_ty_1__bindgen_ty_2,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct _reent__bindgen_ty_1__bindgen_ty_1 {
+    pub _unused_rand: ::libc::c_uint,
+    pub _strtok_last: *mut ::libc::c_char,
+    pub _asctime_buf: [::libc::c_char; 26usize],
+    pub _localtime_buf: __tm,
+    pub _gamma_signgam: ::libc::c_int,
+    pub _rand_next: ::libc::c_ulonglong,
+    pub _r48: _rand48,
+    pub _mblen_state: _mbstate_t,
+    pub _mbtowc_state: _mbstate_t,
+    pub _wctomb_state: _mbstate_t,
+    pub _l64a_buf: [::libc::c_char; 8usize],
+    pub _signal_buf: [::libc::c_char; 24usize],
+    pub _getdate_err: ::libc::c_int,
+    pub _mbrlen_state: _mbstate_t,
+    pub _mbrtowc_state: _mbstate_t,
+    pub _mbsrtowcs_state: _mbstate_t,
+    pub _wcrtomb_state: _mbstate_t,
+    pub _wcsrtombs_state: _mbstate_t,
+    pub _h_errno: ::libc::c_int,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _reent__bindgen_ty_1__bindgen_ty_2 {
+    pub _nextf: [*mut ::libc::c_uchar; 30usize],
+    pub _nmalloc: [::libc::c_uint; 30usize],
 }
 #[doc = "< 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha"]
 pub const GX_TRANSFER_FMT_RGBA8: GX_TRANSFER_FORMAT = 0;
@@ -2573,4 +2786,123 @@ extern "C" {
         buf1e: *mut u32_,
         control1: u16_,
     );
+}
+pub type FILE = __FILE;
+#[doc = " @brief Subtexture"]
+#[doc = "  @note If top > bottom, the subtexture is rotated 1/4 revolution counter-clockwise"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Tex3DS_SubTexture {
+    #[doc = "< Sub-texture width (pixels)"]
+    pub width: u16_,
+    #[doc = "< Sub-texture height (pixels)"]
+    pub height: u16_,
+    #[doc = "< Left u-coordinate"]
+    pub left: f32,
+    #[doc = "< Top v-coordinate"]
+    pub top: f32,
+    #[doc = "< Right u-coordinate"]
+    pub right: f32,
+    #[doc = "< Bottom v-coordinate"]
+    pub bottom: f32,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Tex3DS_Texture_s {
+    _unused: [u8; 0],
+}
+#[doc = " @brief Texture"]
+pub type Tex3DS_Texture = *mut Tex3DS_Texture_s;
+extern "C" {
+    #[doc = " @brief Import Tex3DS texture"]
+    #[doc = "  @param[in]  input   Input data"]
+    #[doc = "  @param[in]  insize  Size of the input data"]
+    #[doc = "  @param[out] tex     citro3d texture"]
+    #[doc = "  @param[out] texcube citro3d texcube"]
+    #[doc = "  @param[in]  vram    Whether to store textures in VRAM"]
+    #[doc = "  @returns Tex3DS texture"]
+    pub fn Tex3DS_TextureImport(
+        input: *const ::libc::c_void,
+        insize: usize,
+        tex: *mut C3D_Tex,
+        texcube: *mut C3D_TexCube,
+        vram: bool,
+    ) -> Tex3DS_Texture;
+}
+extern "C" {
+    #[doc = " @brief Import Tex3DS texture"]
+    #[doc = ""]
+    #[doc = "  @description"]
+    #[doc = "  For example, use this if you want to import from a large file without"]
+    #[doc = "  pulling the entire file into memory."]
+    #[doc = ""]
+    #[doc = "  @param[out] tex      citro3d texture"]
+    #[doc = "  @param[out] texcube  citro3d texcube"]
+    #[doc = "  @param[in]  vram     Whether to store textures in VRAM"]
+    #[doc = "  @param[in]  callback Data callback"]
+    #[doc = "  @param[in]  userdata User data passed to callback"]
+    #[doc = "  @returns Tex3DS texture"]
+    pub fn Tex3DS_TextureImportCallback(
+        tex: *mut C3D_Tex,
+        texcube: *mut C3D_TexCube,
+        vram: bool,
+        callback: decompressCallback,
+        userdata: *mut ::libc::c_void,
+    ) -> Tex3DS_Texture;
+}
+extern "C" {
+    #[doc = " @brief Import Tex3DS texture"]
+    #[doc = ""]
+    #[doc = "  Starts reading at the current file descriptor's offset. The file"]
+    #[doc = "  descriptor's position is left at the end of the decoded data. On error, the"]
+    #[doc = "  file descriptor's position is indeterminate."]
+    #[doc = ""]
+    #[doc = "  @param[in]  fd       Open file descriptor"]
+    #[doc = "  @param[out] tex      citro3d texture"]
+    #[doc = "  @param[out] texcube  citro3d texcube"]
+    #[doc = "  @param[in]  vram     Whether to store textures in VRAM"]
+    #[doc = "  @returns Tex3DS texture"]
+    pub fn Tex3DS_TextureImportFD(
+        fd: ::libc::c_int,
+        tex: *mut C3D_Tex,
+        texcube: *mut C3D_TexCube,
+        vram: bool,
+    ) -> Tex3DS_Texture;
+}
+extern "C" {
+    #[doc = " @brief Import Tex3DS texture"]
+    #[doc = ""]
+    #[doc = "  Starts reading at the current file stream's offset. The file stream's"]
+    #[doc = "  position is left at the end of the decoded data. On error, the file"]
+    #[doc = "  stream's position is indeterminate."]
+    #[doc = ""]
+    #[doc = "  @param[in]  fp       Open file stream"]
+    #[doc = "  @param[out] tex      citro3d texture"]
+    #[doc = "  @param[out] texcube  citro3d texcube"]
+    #[doc = "  @param[in]  vram     Whether to store textures in VRAM"]
+    #[doc = "  @returns Tex3DS texture"]
+    pub fn Tex3DS_TextureImportStdio(
+        fp: *mut FILE,
+        tex: *mut C3D_Tex,
+        texcube: *mut C3D_TexCube,
+        vram: bool,
+    ) -> Tex3DS_Texture;
+}
+extern "C" {
+    #[doc = " @brief Get number of subtextures"]
+    #[doc = "  @param[in] texture Tex3DS texture"]
+    #[doc = "  @returns Number of subtextures"]
+    pub fn Tex3DS_GetNumSubTextures(texture: Tex3DS_Texture) -> usize;
+}
+extern "C" {
+    #[doc = " @brief Get subtexture"]
+    #[doc = "  @param[in] texture Tex3DS texture"]
+    #[doc = "  @param[in] index   Subtexture index"]
+    #[doc = "  @returns Subtexture info"]
+    pub fn Tex3DS_GetSubTexture(texture: Tex3DS_Texture, index: usize) -> *const Tex3DS_SubTexture;
+}
+extern "C" {
+    #[doc = " @brief Free Tex3DS texture"]
+    #[doc = "  @param[in] texture Tex3DS texture to free"]
+    pub fn Tex3DS_TextureFree(texture: Tex3DS_Texture);
 }
