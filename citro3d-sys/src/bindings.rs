@@ -2378,6 +2378,17 @@ pub struct C3D_LightLutDA {
 pub type C3D_LightLutFunc = ::core::option::Option<unsafe extern "C" fn(x: f32, param: f32) -> f32>;
 pub type C3D_LightLutFuncDA =
     ::core::option::Option<unsafe extern "C" fn(dist: f32, arg0: f32, arg1: f32) -> f32>;
+extern "C" {
+    pub fn LightLut_FromArray(lut: *mut C3D_LightLut, data: *mut f32);
+}
+extern "C" {
+    pub fn LightLut_FromFunc(
+        lut: *mut C3D_LightLut,
+        func: C3D_LightLutFunc,
+        param: f32,
+        negative: bool,
+    );
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct C3D_Material {

@@ -19,9 +19,11 @@ bindgen "$DEVKITPRO/libctru/include/tex3ds.h" \
     --allowlist-type "C3D_.*" \
     --allowlist-type "Tex3DS_.*" \
     --allowlist-type "DVLB_.*" \
+    --allowlist-type "LightLut.*" \
     --allowlist-type "shader.*" \
     --allowlist-type "float24Uniform_s" \
     --allowlist-function "C3D_.*" \
+    --allowlist-function "LightLut_.*" \
     --allowlist-function "Tex3DS_.*" \
     --allowlist-function "shader.*" \
     --allowlist-function "DVLB_.*" \
