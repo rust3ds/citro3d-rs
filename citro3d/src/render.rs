@@ -2,11 +2,11 @@
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
 use citro3d_sys::{
-    C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF,
-    GPU_DEPTHBUF,
+    C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE,
 };
 use ctru::gfx;
 use ctru::services::gspgpu::FramebufferFormat;
+use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
 use crate::{Error, Result};
 
@@ -103,15 +103,15 @@ bitflags::bitflags! {
 #[derive(Clone, Copy, Debug)]
 pub enum ColorFormat {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha.
-    RGBA8 = citro3d_sys::GPU_RB_RGBA8,
+    RGBA8 = ctru_sys::GPU_RB_RGBA8,
     /// 8-bit Red + 8-bit Green + 8-bit Blue.
-    RGB8 = citro3d_sys::GPU_RB_RGB8,
+    RGB8 = ctru_sys::GPU_RB_RGB8,
     /// 5-bit Red + 5-bit Green + 5-bit Blue + 1-bit Alpha.
-    RGBA5551 = citro3d_sys::GPU_RB_RGBA5551,
+    RGBA5551 = ctru_sys::GPU_RB_RGBA5551,
     /// 5-bit Red + 6-bit Green + 5-bit Blue.
-    RGB565 = citro3d_sys::GPU_RB_RGB565,
+    RGB565 = ctru_sys::GPU_RB_RGB565,
     /// 4-bit Red + 4-bit Green + 4-bit Blue + 4-bit Alpha.
-    RGBA4 = citro3d_sys::GPU_RB_RGBA4,
+    RGBA4 = ctru_sys::GPU_RB_RGBA4,
 }
 
 impl From<FramebufferFormat> for ColorFormat {
@@ -132,11 +132,11 @@ impl From<FramebufferFormat> for ColorFormat {
 #[derive(Clone, Copy, Debug)]
 pub enum DepthFormat {
     /// 16-bit depth.
-    Depth16 = citro3d_sys::GPU_RB_DEPTH16,
+    Depth16 = ctru_sys::GPU_RB_DEPTH16,
     /// 24-bit depth.
-    Depth24 = citro3d_sys::GPU_RB_DEPTH24,
+    Depth24 = ctru_sys::GPU_RB_DEPTH24,
     /// 24-bit depth + 8-bit Stencil.
-    Depth24Stencil8 = citro3d_sys::GPU_RB_DEPTH24_STENCIL8,
+    Depth24Stencil8 = ctru_sys::GPU_RB_DEPTH24_STENCIL8,
 }
 
 impl DepthFormat {
