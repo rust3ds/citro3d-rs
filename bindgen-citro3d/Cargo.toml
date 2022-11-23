@@ -1,0 +1,7 @@
+[package]
+name = "bindgen-citro3d"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bindgen = "0.62.0"

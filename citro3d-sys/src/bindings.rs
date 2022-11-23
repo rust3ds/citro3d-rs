@@ -92,10 +92,6 @@ pub const C3D_DEFAULT_CMDBUF_SIZE: u32 = 262144;
 pub const C3DF_LightEnv_IsCP_Any: u32 = 66846720;
 pub const C3DF_LightEnv_LutDirtyAll: u32 = 4227858432;
 pub type __int64_t = ::libc::c_longlong;
-pub type u8_ = u8;
-pub type u16_ = u16;
-pub type u32_ = u32;
-pub type u64_ = u64;
 pub type _LOCK_T = i32;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -105,21 +101,6 @@ pub struct __lock_t {
     pub counter: u32,
 }
 pub type _LOCK_RECURSIVE_T = __lock_t;
-#[doc = "< Top screen"]
-pub const GFX_TOP: gfxScreen_t = 0;
-#[doc = "< Bottom screen"]
-pub const GFX_BOTTOM: gfxScreen_t = 1;
-#[doc = " Screen IDs."]
-pub type gfxScreen_t = ::libc::c_uint;
-#[doc = "< Left eye framebuffer"]
-pub const GFX_LEFT: gfx3dSide_t = 0;
-#[doc = "< Right eye framebuffer"]
-pub const GFX_RIGHT: gfx3dSide_t = 1;
-#[doc = " @brief Top screen framebuffer side."]
-#[doc = ""]
-#[doc = " This is only meaningful when stereoscopic 3D is enabled on the top screen."]
-#[doc = " In any other case, use \\ref GFX_LEFT."]
-pub type gfx3dSide_t = ::libc::c_uint;
 pub type _off_t = __int64_t;
 pub type _fpos_t = __int64_t;
 pub type wint_t = ::libc::c_int;
@@ -135,14 +116,6 @@ pub union _mbstate_t__bindgen_ty_1 {
     pub __wch: wint_t,
     pub __wchb: [::libc::c_uchar; 4usize],
 }
-#[doc = " @brief Data callback"]
-pub type decompressCallback = ::core::option::Option<
-    unsafe extern "C" fn(
-        userdata: *mut ::libc::c_void,
-        buffer: *mut ::libc::c_void,
-        size: usize,
-    ) -> isize,
->;
 pub type __ULong = ::libc::c_ulong;
 pub type _flock_t = _LOCK_RECURSIVE_T;
 #[repr(C)]
@@ -322,145 +295,6 @@ pub struct _reent__bindgen_ty_1__bindgen_ty_1 {
 pub struct _reent__bindgen_ty_1__bindgen_ty_2 {
     pub _nextf: [*mut ::libc::c_uchar; 30usize],
     pub _nmalloc: [::libc::c_uint; 30usize],
-}
-#[doc = "< Vertex shader."]
-pub const VERTEX_SHDR: DVLE_type = 0;
-#[doc = "< Geometry shader."]
-pub const GEOMETRY_SHDR: DVLE_type = 1;
-#[doc = " DVLE type."]
-pub type DVLE_type = ::libc::c_uint;
-#[doc = "< Point processing mode."]
-pub const GSH_POINT: DVLE_geoShaderMode = 0;
-#[doc = "< Variable-size primitive processing mode."]
-pub const GSH_VARIABLE_PRIM: DVLE_geoShaderMode = 1;
-#[doc = "< Fixed-size primitive processing mode."]
-pub const GSH_FIXED_PRIM: DVLE_geoShaderMode = 2;
-#[doc = " Geometry shader operation modes."]
-pub type DVLE_geoShaderMode = ::libc::c_uint;
-#[doc = " DVLP data."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct DVLP_s {
-    #[doc = "< Code size."]
-    pub codeSize: u32_,
-    #[doc = "< Code data."]
-    pub codeData: *mut u32_,
-    #[doc = "< Operand description size."]
-    pub opdescSize: u32_,
-    #[doc = "< Operand description data."]
-    pub opcdescData: *mut u32_,
-}
-#[doc = " DVLE constant entry data."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct DVLE_constEntry_s {
-    #[doc = "< Constant type. See @ref DVLE_constantType"]
-    pub type_: u16_,
-    #[doc = "< Constant ID."]
-    pub id: u16_,
-    #[doc = "< Constant data."]
-    pub data: [u32_; 4usize],
-}
-#[doc = " DVLE output entry data."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct DVLE_outEntry_s {
-    #[doc = "< Output type. See @ref DVLE_outputAttribute_t"]
-    pub type_: u16_,
-    #[doc = "< Output register ID."]
-    pub regID: u16_,
-    #[doc = "< Output mask."]
-    pub mask: u8_,
-    #[doc = "< Unknown."]
-    pub unk: [u8_; 3usize],
-}
-#[doc = " DVLE uniform entry data."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct DVLE_uniformEntry_s {
-    #[doc = "< Symbol offset."]
-    pub symbolOffset: u32_,
-    #[doc = "< Start register."]
-    pub startReg: u16_,
-    #[doc = "< End register."]
-    pub endReg: u16_,
-}
-#[doc = " DVLE data."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct DVLE_s {
-    #[doc = "< DVLE type."]
-    pub type_: DVLE_type,
-    #[doc = "< true = merge vertex/geometry shader outmaps ('dummy' output attribute is present)."]
-    pub mergeOutmaps: bool,
-    #[doc = "< Geometry shader operation mode."]
-    pub gshMode: DVLE_geoShaderMode,
-    #[doc = "< Starting float uniform register number for storing the fixed-size primitive vertex array."]
-    pub gshFixedVtxStart: u8_,
-    #[doc = "< Number of fully-defined vertices in the variable-size primitive vertex array."]
-    pub gshVariableVtxNum: u8_,
-    #[doc = "< Number of vertices in the fixed-size primitive vertex array."]
-    pub gshFixedVtxNum: u8_,
-    #[doc = "< Contained DVLPs."]
-    pub dvlp: *mut DVLP_s,
-    #[doc = "< Offset of the start of the main function."]
-    pub mainOffset: u32_,
-    #[doc = "< Offset of the end of the main function."]
-    pub endmainOffset: u32_,
-    #[doc = "< Constant table size."]
-    pub constTableSize: u32_,
-    #[doc = "< Constant table data."]
-    pub constTableData: *mut DVLE_constEntry_s,
-    #[doc = "< Output table size."]
-    pub outTableSize: u32_,
-    #[doc = "< Output table data."]
-    pub outTableData: *mut DVLE_outEntry_s,
-    #[doc = "< Uniform table size."]
-    pub uniformTableSize: u32_,
-    #[doc = "< Uniform table data."]
-    pub uniformTableData: *mut DVLE_uniformEntry_s,
-    #[doc = "< Symbol table data."]
-    pub symbolTableData: *mut ::libc::c_char,
-    #[doc = "< Output map mask."]
-    pub outmapMask: u8_,
-    #[doc = "< Output map data."]
-    pub outmapData: [u32_; 8usize],
-    #[doc = "< Output map mode."]
-    pub outmapMode: u32_,
-    #[doc = "< Output map attribute clock."]
-    pub outmapClock: u32_,
-}
-#[doc = " Describes an instance of either a vertex or geometry shader."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct shaderInstance_s {
-    #[doc = "< Shader DVLE."]
-    pub dvle: *mut DVLE_s,
-    #[doc = "< Boolean uniforms."]
-    pub boolUniforms: u16_,
-    #[doc = "< Used boolean uniform mask."]
-    pub boolUniformMask: u16_,
-    #[doc = "< Integer uniforms."]
-    pub intUniforms: [u32_; 4usize],
-    #[doc = "< 24-bit float uniforms."]
-    pub float24Uniforms: *mut float24Uniform_s,
-    #[doc = "< Used integer uniform mask."]
-    pub intUniformMask: u8_,
-    #[doc = "< Float uniform count."]
-    pub numFloat24Uniforms: u8_,
-}
-#[doc = " Describes an instance of a full shader program."]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct shaderProgram_s {
-    #[doc = "< Vertex shader."]
-    pub vertexShader: *mut shaderInstance_s,
-    #[doc = "< Geometry shader."]
-    pub geometryShader: *mut shaderInstance_s,
-    #[doc = "< Geometry shader input permutation."]
-    pub geoShaderInputPermutation: [u32_; 2usize],
-    #[doc = "< Geometry shader input stride."]
-    pub geoShaderInputStride: u8_,
 }
 pub type C3D_IVec = u32_;
 #[doc = " @struct C3D_FVec"]
