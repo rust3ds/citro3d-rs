@@ -7,7 +7,7 @@ edition = "2021"
 bitflags = "1.3.2"
 bytemuck = { version = "1.10.0", features = ["extern_crate_std"] }
 citro3d-sys = { git = "https://github.com/ian-h-chamberlain/citro3d-rs.git" }
-ctru-rs = { git = "https://github.com/Meziu/ctru-rs.git" }
+ctru-rs = { git = "https://github.com/rust3ds/ctru-rs.git" }
 libc = "0.2.125"
 
 [dev-dependencies]

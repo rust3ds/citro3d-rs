@@ -7,7 +7,6 @@ pub mod texture;
 pub mod vbo;
 
 use citro3d_sys::C3D_FrameDrawOn;
-use ctru::gfx::Screen;
 pub use error::{Error, Result};
 
 /// The single instance for using `citro3d`. This is the base type that an application
@@ -44,10 +43,7 @@ impl Instance {
     /// # Errors
     ///
     /// Fails if the given target cannot be used for drawing.
-    pub fn select_render_target<'s, S: Screen>(
-        &mut self,
-        target: &render::Target<'s, S>,
-    ) -> Result<()> {
+    pub fn select_render_target(&mut self, target: &render::Target<'_>) -> Result<()> {
         let _ = self;
         if unsafe { C3D_FrameDrawOn(target.as_raw()) } {
             Ok(())

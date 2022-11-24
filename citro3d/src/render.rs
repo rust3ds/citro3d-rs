@@ -7,7 +7,7 @@ use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE, GPU_COLORBUF,
     GPU_DEPTHBUF,
 };
-use ctru::gfx::{self, Screen};
+use ctru::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 
 use crate::{Error, Result};
@@ -16,13 +16,14 @@ mod transfer;
 
 /// A render target for `citro3d`. Frame data will be written to this target
 /// to be rendered on the GPU and displayed on the screen.
-pub struct Target<'s, S> {
+pub struct Target<'screen> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
-    color_format: ColorFormat,
-    screen: RefMut<'s, S>,
+    // This is unused after construction, but ensures unique access to the
+    // screen this target writes to during rendering
+    _screen: RefMut<'screen, dyn Screen>,
 }
 
-impl<'s, S> Drop for Target<'s, S> {
+impl Drop for Target<'_> {
     fn drop(&mut self) {
         unsafe {
             C3D_RenderTargetDelete(self.raw);
@@ -30,10 +31,7 @@ impl<'s, S> Drop for Target<'s, S> {
     }
 }
 
-impl<'s, S> Target<'s, S>
-where
-    S: Screen,
-{
+impl<'screen> Target<'screen> {
     /// Create a new render target with the specified size, color format,
     /// and depth format.
     ///
@@ -43,10 +41,11 @@ where
     pub fn new(
         width: u16,
         height: u16,
-        screen: RefMut<'s, S>,
+        // TODO: is there a use case for a render target that isn't associated with a Screen?
+        screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<DepthFormat>,
     ) -> Result<Self> {
-        let color_format = screen.get_framebuffer_format().into();
+        let color_format: ColorFormat = screen.get_framebuffer_format().into();
 
         let raw = unsafe {
             C3D_RenderTargetCreate(
@@ -58,33 +57,27 @@ where
         };
 
         if raw.is_null() {
-            Err(Error::FailedToInitialize)
-        } else {
-            Ok(Self {
-                raw,
-                color_format,
-                screen,
-            })
+            return Err(Error::FailedToInitialize);
         }
-    }
 
-    /// Sets the screen to actually display the output of this render target
-    /// on the given [`Side`](gfx::Side).
-    pub fn set_output(&mut self, side: gfx::Side) {
-        let framebuf_format = self.screen.get_framebuffer_format();
-
+        // Set the render target to actually output to the given screen
         let flags = transfer::Flags::default()
-            .in_format(self.color_format.into())
-            .out_format(ColorFormat::from(framebuf_format).into());
+            .in_format(color_format.into())
+            .out_format(color_format.into());
 
         unsafe {
             citro3d_sys::C3D_RenderTargetSetOutput(
-                self.raw,
-                self.screen.as_raw(),
-                side.into(),
+                raw,
+                screen.as_raw(),
+                screen.side().into(),
                 flags.bits(),
             );
         }
+
+        Ok(Self {
+            raw,
+            _screen: screen,
+        })
     }
 
     /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
