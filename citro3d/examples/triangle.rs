@@ -1,4 +1,4 @@
-use citro3d::render::ClearFlags;
+use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
 use ctru::gfx::{Gfx, Screen};
@@ -64,7 +64,7 @@ fn main() {
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
-    let mut render_target = citro3d::render::Target::new(width, height, top_screen, None)
+    let mut top_target = citro3d::render::Target::new(width, height, top_screen, None)
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
@@ -88,25 +88,20 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            instance
-                .select_render_target(&render_target)
-                .expect("failed to set render target");
+        let mut render_to = |target: &mut Target| {
+            instance.render_frame_with(|instance| {
+                instance
+                    .select_render_target(target)
+                    .expect("failed to set render target");
 
-            let clear_color: u32 = 0x7F_7F_7F_FF;
-            render_target.clear(ClearFlags::ALL, clear_color, 0);
-            scene_render(uloc_projection.into(), &projection);
-        });
+                let clear_color: u32 = 0x7F_7F_7F_FF;
+                target.clear(ClearFlags::ALL, clear_color, 0);
+                scene_render(uloc_projection.into(), &projection);
+            });
+        };
 
-        instance.render_frame_with(|instance| {
-            instance
-                .select_render_target(&bottom_target)
-                .expect("failed to set render target");
-
-            let clear_color: u32 = 0x7F_7F_7F_FF;
-            bottom_target.clear(ClearFlags::ALL, clear_color, 0);
-            scene_render(uloc_projection.into(), &projection);
-        });
+        render_to(&mut top_target);
+        render_to(&mut bottom_target);
     }
 
     scene_exit(vbo_data);
