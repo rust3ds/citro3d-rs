@@ -1,6 +1,8 @@
 //! Definitions from`<c3d/uniforms.h>`
 
-use super::{C3D_FVUnif, C3D_FVUnifDirty, C3D_FVec, C3D_Mtx, GPU_SHADER_TYPE};
+use ctru_sys::GPU_SHADER_TYPE;
+
+use super::{C3D_FVUnif, C3D_FVUnifDirty, C3D_FVec, C3D_Mtx};
 
 #[inline]
 pub unsafe fn C3D_FVUnifWritePtr(

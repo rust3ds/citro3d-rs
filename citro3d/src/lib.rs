@@ -25,7 +25,7 @@ impl Instance {
     ///
     /// Fails if `citro3d` cannot be initialized.
     pub fn new() -> Result<Self> {
-        Self::with_cmdbuf_size(citro3d_sys::C3D_DEFAULT_CMDBUF_SIZE)
+        Self::with_cmdbuf_size(citro3d_sys::C3D_DEFAULT_CMDBUF_SIZE.try_into().unwrap())
     }
 
     /// Initialize the instance with a specified command buffer size.
@@ -33,7 +33,7 @@ impl Instance {
     /// # Errors
     ///
     /// Fails if `citro3d` cannot be initialized.
-    pub fn with_cmdbuf_size(size: u32) -> Result<Self> {
+    pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
             Ok(Self)
         } else {
