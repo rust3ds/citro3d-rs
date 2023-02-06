@@ -112,7 +112,7 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
 
         // Get the location of the uniforms
         let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
-        let uloc_projection = citro3d_sys::shaderInstanceGetUniformLocation(
+        let uloc_projection = ctru_sys::shaderInstanceGetUniformLocation(
             (*program.as_raw()).vertexShader,
             projection_name.as_ptr(),
         );
@@ -120,8 +120,8 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
         // Configure attributes for use with the vertex shader
         let attr_info = citro3d_sys::C3D_GetAttrInfo();
         citro3d_sys::AttrInfo_Init(attr_info);
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 0, citro3d_sys::GPU_FLOAT, 3); // v0=position
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 1, citro3d_sys::GPU_FLOAT, 3); // v1=color
+        citro3d_sys::AttrInfo_AddLoader(attr_info, 0, ctru_sys::GPU_FLOAT, 3); // v0=position
+        citro3d_sys::AttrInfo_AddLoader(attr_info, 1, ctru_sys::GPU_FLOAT, 3); // v1=color
 
         // Compute the projection matrix
         let projection = {
@@ -141,7 +141,7 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
         };
 
         // Create the vertex buffer object
-        let vbo_data: *mut Vertex = citro3d_sys::linearAlloc(
+        let vbo_data: *mut Vertex = ctru_sys::linearAlloc(
             std::mem::size_of_val(VERTICES)
                 .try_into()
                 .expect("size fits in u32"),
@@ -170,11 +170,11 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
         citro3d_sys::C3D_TexEnvSrc(
             env,
             citro3d_sys::C3D_Both,
-            citro3d_sys::GPU_PRIMARY_COLOR,
+            ctru_sys::GPU_PRIMARY_COLOR,
             0,
             0,
         );
-        citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, citro3d_sys::GPU_REPLACE);
+        citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
 
         (uloc_projection, projection, vbo_data.cast())
     }
@@ -183,11 +183,11 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
 fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
     unsafe {
         // Update the uniforms
-        citro3d_sys::C3D_FVUnifMtx4x4(citro3d_sys::GPU_VERTEX_SHADER, uloc_projection, projection);
+        citro3d_sys::C3D_FVUnifMtx4x4(ctru_sys::GPU_VERTEX_SHADER, uloc_projection, projection);
 
         // Draw the VBO
         citro3d_sys::C3D_DrawArrays(
-            citro3d_sys::GPU_TRIANGLES,
+            ctru_sys::GPU_TRIANGLES,
             0,
             VERTICES
                 .len()
@@ -199,6 +199,6 @@ fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
 
 fn scene_exit(vbo_data: *mut libc::c_void) {
     unsafe {
-        citro3d_sys::linearFree(vbo_data);
+        ctru_sys::linearFree(vbo_data);
     }
 }

@@ -1,6 +1,6 @@
 //! Helper functions based on `<3ds/gpu/gx.h>`.
 
-use crate::{GX_TRANSFER_FORMAT, GX_TRANSFER_SCALE};
+use ctru_sys::{GX_TRANSFER_FORMAT, GX_TRANSFER_SCALE};
 
 #[inline]
 pub fn GX_TRANSFER_FLIP_VERT(flip: bool) -> u32 {

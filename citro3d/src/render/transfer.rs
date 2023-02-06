@@ -1,4 +1,5 @@
-use citro3d_sys::{GX_TRANSFER_FORMAT, GX_TRANSFER_IN_FORMAT, GX_TRANSFER_OUT_FORMAT};
+use citro3d_sys::{GX_TRANSFER_IN_FORMAT, GX_TRANSFER_OUT_FORMAT};
+use ctru_sys::GX_TRANSFER_FORMAT;
 
 use super::ColorFormat;
 
@@ -33,15 +34,15 @@ impl Flags {
 #[repr(u32)]
 pub enum Format {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha.
-    RGBA8 = citro3d_sys::GX_TRANSFER_FMT_RGBA8,
+    RGBA8 = ctru_sys::GX_TRANSFER_FMT_RGBA8,
     /// 8-bit Red + 8-bit Green + 8-bit Blue.
-    RGB8 = citro3d_sys::GX_TRANSFER_FMT_RGB8,
+    RGB8 = ctru_sys::GX_TRANSFER_FMT_RGB8,
     /// 5-bit Red + 5-bit Green + 5-bit Blue + 1-bit Alpha.
-    RGB565 = citro3d_sys::GX_TRANSFER_FMT_RGB565,
+    RGB565 = ctru_sys::GX_TRANSFER_FMT_RGB565,
     /// 5-bit Red + 6-bit Green + 5-bit Blue.
-    RGB5A1 = citro3d_sys::GX_TRANSFER_FMT_RGB5A1,
+    RGB5A1 = ctru_sys::GX_TRANSFER_FMT_RGB5A1,
     /// 4-bit Red + 4-bit Green + 4-bit Blue + 4-bit Alpha.
-    RGBA4 = citro3d_sys::GX_TRANSFER_FMT_RGBA4,
+    RGBA4 = ctru_sys::GX_TRANSFER_FMT_RGBA4,
 }
 
 impl From<ColorFormat> for Format {

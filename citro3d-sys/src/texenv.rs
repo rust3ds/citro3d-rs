@@ -5,6 +5,7 @@
 
 use core::ops::{BitOr, Shl};
 
+use ctru_sys::{GPU_COMBINEFUNC, GPU_PREVIOUS, GPU_REPLACE, GPU_TEVSCALE_1, GPU_TEVSRC};
 use libc::c_int;
 
 use super::*;

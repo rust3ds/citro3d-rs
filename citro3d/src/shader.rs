@@ -16,7 +16,7 @@ pub mod macros;
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
 pub struct Program {
-    program: citro3d_sys::shaderProgram_s,
+    program: ctru_sys::shaderProgram_s,
 }
 
 impl Program {
@@ -30,14 +30,14 @@ impl Program {
     pub fn new(vertex_shader: Entrypoint) -> Result<Self, ctru::Error> {
         let mut program = unsafe {
             let mut program = MaybeUninit::uninit();
-            let result = citro3d_sys::shaderProgramInit(program.as_mut_ptr());
+            let result = ctru_sys::shaderProgramInit(program.as_mut_ptr());
             if result != 0 {
                 return Err(ctru::Error::from(result));
             }
             program.assume_init()
         };
 
-        let ret = unsafe { citro3d_sys::shaderProgramSetVsh(&mut program, vertex_shader.as_raw()) };
+        let ret = unsafe { ctru_sys::shaderProgramSetVsh(&mut program, vertex_shader.as_raw()) };
 
         if ret == 0 {
             Ok(Self { program })
@@ -58,7 +58,7 @@ impl Program {
         stride: u8,
     ) -> Result<(), ctru::Error> {
         let ret = unsafe {
-            citro3d_sys::shaderProgramSetGsh(&mut self.program, geometry_shader.as_raw(), stride)
+            ctru_sys::shaderProgramSetGsh(&mut self.program, geometry_shader.as_raw(), stride)
         };
 
         if ret == 0 {
@@ -69,7 +69,7 @@ impl Program {
     }
 
     // TODO: pub(crate)
-    pub fn as_raw(&mut self) -> *mut citro3d_sys::shaderProgram_s {
+    pub fn as_raw(&mut self) -> *mut ctru_sys::shaderProgram_s {
         &mut self.program
     }
 }
@@ -77,7 +77,7 @@ impl Program {
 impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
-            let _ = citro3d_sys::shaderProgramFree(self.as_raw());
+            let _ = ctru_sys::shaderProgramFree(self.as_raw());
         }
     }
 }
@@ -88,7 +88,7 @@ impl Drop for Program {
 ///
 /// This is the result of parsing a shader binary (shbin), and the resulting
 /// [`Entrypoint`]s can be used as part of a [`Program`].
-pub struct Library(*mut citro3d_sys::DVLB_s);
+pub struct Library(*mut ctru_sys::DVLB_s);
 
 impl Library {
     /// Parse a new shader library from input bytes.
@@ -100,7 +100,7 @@ impl Library {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
         let aligned: &[u32] = bytemuck::try_cast_slice(bytes)?;
         Ok(Self(unsafe {
-            citro3d_sys::DVLB_ParseFile(
+            ctru_sys::DVLB_ParseFile(
                 // SAFETY: we're trusting the parse implementation doesn't mutate
                 // the contents of the data. From a quick read it looks like that's
                 // correct and it should just take a const arg in the API.
@@ -132,7 +132,7 @@ impl Library {
         self.len() == 0
     }
 
-    fn as_raw(&mut self) -> *mut citro3d_sys::DVLB_s {
+    fn as_raw(&mut self) -> *mut ctru_sys::DVLB_s {
         self.0
     }
 }
@@ -140,7 +140,7 @@ impl Library {
 impl Drop for Library {
     fn drop(&mut self) {
         unsafe {
-            citro3d_sys::DVLB_Free(self.as_raw());
+            ctru_sys::DVLB_Free(self.as_raw());
         }
     }
 }
@@ -149,12 +149,12 @@ impl Drop for Library {
 /// vertex or a geometry shader.
 #[derive(Clone, Copy)]
 pub struct Entrypoint<'lib> {
-    ptr: *mut citro3d_sys::DVLE_s,
+    ptr: *mut ctru_sys::DVLE_s,
     _library: &'lib Library,
 }
 
 impl<'lib> Entrypoint<'lib> {
-    fn as_raw(self) -> *mut citro3d_sys::DVLE_s {
+    fn as_raw(self) -> *mut ctru_sys::DVLE_s {
         self.ptr
     }
 }
