@@ -1,7 +1,7 @@
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
-use ctru::gfx::{Gfx, Screen};
+use ctru::gfx::{Gfx, RawFrameBuffer, Screen};
 use ctru::services::apt::Apt;
 use ctru::services::hid::{Hid, KeyPad};
 use ctru::services::soc::Soc;
@@ -59,8 +59,7 @@ fn main() {
     let apt = Apt::init().expect("Couldn't obtain APT controller");
 
     let mut top_screen = gfx.top_screen.borrow_mut();
-    let frame_buffer = top_screen.get_raw_framebuffer();
-    let (width, height) = (frame_buffer.width, frame_buffer.height);
+    let RawFrameBuffer { width, height, .. } = top_screen.get_raw_framebuffer();
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
@@ -68,8 +67,7 @@ fn main() {
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
-    let frame_buffer = bottom_screen.get_raw_framebuffer();
-    let (width, height) = (frame_buffer.width, frame_buffer.height);
+    let RawFrameBuffer { width, height, .. } = bottom_screen.get_raw_framebuffer();
 
     let mut bottom_target = citro3d::render::Target::new(width, height, bottom_screen, None)
         .expect("failed to create bottom screen render target");
@@ -144,7 +142,7 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
 
         // Create the vertex buffer object
         let vbo_data: *mut Vertex = citro3d_sys::linearAlloc(
-            std::mem::size_of_val(&VERTICES)
+            std::mem::size_of_val(VERTICES)
                 .try_into()
                 .expect("size fits in u32"),
         )
