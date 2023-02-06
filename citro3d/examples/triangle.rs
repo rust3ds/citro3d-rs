@@ -1,3 +1,5 @@
+#![feature(allocator_api)]
+
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
@@ -77,7 +79,10 @@ fn main() {
 
     let mut program = shader::Program::new(vertex_shader).unwrap();
 
-    let (uloc_projection, projection, vbo_data) = scene_init(&mut program);
+    let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
+    vbo_data.extend(VERTICES);
+
+    let (uloc_projection, projection) = scene_init(&mut program, &vbo_data);
 
     while apt.main_loop() {
         hid.scan_input();
@@ -102,10 +107,13 @@ fn main() {
         render_to(&mut bottom_target);
     }
 
-    scene_exit(vbo_data);
+    // explicit drop to ensure the vbo_data lives long enough for the render code
+    // to reference it. This hopefully won't be necessary anymore if we can use
+    // lifetimes to manage the buffers instead of passing raw ptrs
+    drop(vbo_data);
 }
 
-fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void) {
+fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mtx) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
         citro3d_sys::C3D_BindProgram(program.as_raw());
@@ -140,22 +148,12 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
             projection.assume_init()
         };
 
-        // Create the vertex buffer object
-        let vbo_data: *mut Vertex = ctru_sys::linearAlloc(
-            std::mem::size_of_val(VERTICES)
-                .try_into()
-                .expect("size fits in u32"),
-        )
-        .cast();
-
-        vbo_data.copy_from(VERTICES.as_ptr(), VERTICES.len());
-
         // Configure buffers
         let buf_info = citro3d_sys::C3D_GetBufInfo();
         citro3d_sys::BufInfo_Init(buf_info);
         citro3d_sys::BufInfo_Add(
             buf_info,
-            vbo_data.cast(),
+            vbo_data.as_ptr().cast(),
             std::mem::size_of::<Vertex>()
                 .try_into()
                 .expect("size of vec3 fits in u32"),
@@ -176,7 +174,7 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
 
-        (uloc_projection, projection, vbo_data.cast())
+        (uloc_projection, projection)
     }
 }
 
@@ -194,11 +192,5 @@ fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
                 .try_into()
                 .expect("VERTICES.len() fits in i32"),
         );
-    }
-}
-
-fn scene_exit(vbo_data: *mut libc::c_void) {
-    unsafe {
-        ctru_sys::linearFree(vbo_data);
     }
 }
