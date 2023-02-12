@@ -41,7 +41,6 @@ impl<'screen> Target<'screen> {
     pub fn new(
         width: u16,
         height: u16,
-        // TODO: is there a use case for a render target that isn't associated with a Screen?
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<DepthFormat>,
     ) -> Result<Self> {

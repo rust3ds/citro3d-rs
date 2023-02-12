@@ -80,7 +80,7 @@ fn main() {
     let mut program = shader::Program::new(vertex_shader).unwrap();
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
-    vbo_data.extend(VERTICES);
+    vbo_data.extend_from_slice(VERTICES);
 
     let (uloc_projection, projection) = scene_init(&mut program, &vbo_data);
 
@@ -106,11 +106,6 @@ fn main() {
         render_to(&mut top_target);
         render_to(&mut bottom_target);
     }
-
-    // explicit drop to ensure the vbo_data lives long enough for the render code
-    // to reference it. This hopefully won't be necessary anymore if we can use
-    // lifetimes to manage the buffers instead of passing raw ptrs
-    drop(vbo_data);
 }
 
 fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mtx) {
