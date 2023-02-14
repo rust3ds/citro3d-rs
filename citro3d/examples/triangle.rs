@@ -1,16 +1,18 @@
+#![feature(allocator_api)]
+
+use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
-use ctru::gfx::{Gfx, Side};
+use ctru::gfx::{Gfx, RawFrameBuffer, Screen};
 use ctru::services::apt::Apt;
 use ctru::services::hid::{Hid, KeyPad};
 use ctru::services::soc::Soc;
-
-use citro3d::render::{ClearFlags, ColorFormat, DepthFormat};
 
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 struct Vec3 {
     x: f32,
     y: f32,
@@ -24,12 +26,13 @@ impl Vec3 {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 struct Vertex {
     pos: Vec3,
     color: Vec3,
 }
 
-const VERTICES: &[Vertex] = &[
+static VERTICES: &[Vertex] = &[
     Vertex {
         pos: Vec3::new(0.0, 0.5, 0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
@@ -44,7 +47,7 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
-const SHADER_BYTES: &[u8] =
+static SHADER_BYTES: &[u8] =
     include_aligned_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
 
 fn main() {
@@ -58,26 +61,28 @@ fn main() {
     let apt = Apt::init().expect("Couldn't obtain APT controller");
 
     let mut top_screen = gfx.top_screen.borrow_mut();
-    let frame_buffer = top_screen.get_raw_framebuffer(Side::Left);
+    let RawFrameBuffer { width, height, .. } = top_screen.get_raw_framebuffer();
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
-    let mut render_target = instance
-        .render_target_for_screen(
-            &frame_buffer,
-            ColorFormat::RGBA8,
-            DepthFormat::Depth24Stencil8,
-        )
+    let mut top_target = citro3d::render::Target::new(width, height, top_screen, None)
         .expect("failed to create render target");
 
-    render_target.set_output(&*top_screen, Side::Left);
+    let mut bottom_screen = gfx.bottom_screen.borrow_mut();
+    let RawFrameBuffer { width, height, .. } = bottom_screen.get_raw_framebuffer();
+
+    let mut bottom_target = citro3d::render::Target::new(width, height, bottom_screen, None)
+        .expect("failed to create bottom screen render target");
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();
 
     let mut program = shader::Program::new(vertex_shader).unwrap();
 
-    let (uloc_projection, projection, vbo_data) = scene_init(&mut program);
+    let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
+    vbo_data.extend_from_slice(VERTICES);
+
+    let (uloc_projection, projection) = scene_init(&mut program, &vbo_data);
 
     while apt.main_loop() {
         hid.scan_input();
@@ -86,22 +91,24 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            let clear_color: u32 = 0x7F_7F_7F_FF;
-            render_target.clear(ClearFlags::ALL, clear_color, 0);
+        let mut render_to = |target: &mut Target| {
+            instance.render_frame_with(|instance| {
+                instance
+                    .select_render_target(target)
+                    .expect("failed to set render target");
 
-            instance
-                .select_render_target(&render_target)
-                .expect("failed to set render target");
+                let clear_color: u32 = 0x7F_7F_7F_FF;
+                target.clear(ClearFlags::ALL, clear_color, 0);
+                scene_render(uloc_projection.into(), &projection);
+            });
+        };
 
-            scene_render(uloc_projection.into(), &projection);
-        });
+        render_to(&mut top_target);
+        render_to(&mut bottom_target);
     }
-
-    scene_exit(vbo_data);
 }
 
-fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void) {
+fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mtx) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
         citro3d_sys::C3D_BindProgram(program.as_raw());
@@ -136,22 +143,12 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
             projection.assume_init()
         };
 
-        // Create the vertex buffer object
-        let vbo_data: *mut Vertex = ctru_sys::linearAlloc(
-            std::mem::size_of_val(&VERTICES)
-                .try_into()
-                .expect("size fits in u32"),
-        )
-        .cast();
-
-        vbo_data.copy_from(VERTICES.as_ptr(), VERTICES.len());
-
         // Configure buffers
         let buf_info = citro3d_sys::C3D_GetBufInfo();
         citro3d_sys::BufInfo_Init(buf_info);
         citro3d_sys::BufInfo_Add(
             buf_info,
-            vbo_data.cast(),
+            vbo_data.as_ptr().cast(),
             std::mem::size_of::<Vertex>()
                 .try_into()
                 .expect("size of vec3 fits in u32"),
@@ -172,7 +169,7 @@ fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx, *mut libc::c_void)
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
 
-        (uloc_projection, projection, vbo_data.cast())
+        (uloc_projection, projection)
     }
 }
 
@@ -190,11 +187,5 @@ fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
                 .try_into()
                 .expect("VERTICES.len() fits in i32"),
         );
-    }
-}
-
-fn scene_exit(vbo_data: *mut libc::c_void) {
-    unsafe {
-        ctru_sys::linearFree(vbo_data);
     }
 }

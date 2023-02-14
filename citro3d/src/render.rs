@@ -1,10 +1,12 @@
 //! This module provides render target types and options for controlling transfer
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
+use std::cell::RefMut;
+
 use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE,
 };
-use ctru::gfx;
+use ctru::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
@@ -14,12 +16,14 @@ mod transfer;
 
 /// A render target for `citro3d`. Frame data will be written to this target
 /// to be rendered on the GPU and displayed on the screen.
-pub struct Target {
+pub struct Target<'screen> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
-    color_format: ColorFormat,
+    // This is unused after construction, but ensures unique access to the
+    // screen this target writes to during rendering
+    _screen: RefMut<'screen, dyn Screen>,
 }
 
-impl Drop for Target {
+impl Drop for Target<'_> {
     fn drop(&mut self) {
         unsafe {
             C3D_RenderTargetDelete(self.raw);
@@ -27,52 +31,52 @@ impl Drop for Target {
     }
 }
 
-impl Target {
+impl<'screen> Target<'screen> {
     /// Create a new render target with the specified size, color format,
     /// and depth format.
     ///
     /// # Errors
     ///
-    /// Fails if the specified sizes are invalid, or the target could not be
-    /// created.
+    /// Fails if the target could not be created.
     pub fn new(
-        width: u32,
-        height: u32,
-        color_format: ColorFormat,
-        depth_format: DepthFormat,
+        width: u16,
+        height: u16,
+        screen: RefMut<'screen, dyn Screen>,
+        depth_format: Option<DepthFormat>,
     ) -> Result<Self> {
+        let color_format: ColorFormat = screen.get_framebuffer_format().into();
+
         let raw = unsafe {
             C3D_RenderTargetCreate(
-                width.try_into()?,
-                height.try_into()?,
+                width.into(),
+                height.into(),
                 color_format as GPU_COLORBUF,
-                depth_format.as_raw(),
+                depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
             )
         };
 
         if raw.is_null() {
-            Err(Error::FailedToInitialize)
-        } else {
-            Ok(Self { raw, color_format })
+            return Err(Error::FailedToInitialize);
         }
-    }
 
-    /// Sets the screen to actually display the output of this render target.
-    pub fn set_output(&mut self, screen: &impl gfx::Screen, side: gfx::Side) {
-        let framebuf_format = screen.get_framebuffer_format();
-
+        // Set the render target to actually output to the given screen
         let flags = transfer::Flags::default()
-            .in_format(self.color_format.into())
-            .out_format(ColorFormat::from(framebuf_format).into());
+            .in_format(color_format.into())
+            .out_format(color_format.into());
 
         unsafe {
             citro3d_sys::C3D_RenderTargetSetOutput(
-                self.raw,
+                raw,
                 screen.as_raw(),
-                side.into(),
+                screen.side().into(),
                 flags.bits(),
             );
         }
+
+        Ok(Self {
+            raw,
+            _screen: screen,
+        })
     }
 
     /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
