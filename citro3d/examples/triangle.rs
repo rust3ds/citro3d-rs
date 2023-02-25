@@ -1,5 +1,7 @@
 #![feature(allocator_api)]
 
+use citro3d::attrib::{self, AttrInfo};
+use citro3d::buffers::BufInfo;
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
@@ -51,8 +53,6 @@ static SHADER_BYTES: &[u8] =
     include_aligned_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
 
 fn main() {
-    ctru::init();
-
     let mut soc = Soc::init().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
@@ -121,10 +121,38 @@ fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mt
         );
 
         // Configure attributes for use with the vertex shader
-        let attr_info = citro3d_sys::C3D_GetAttrInfo();
-        citro3d_sys::AttrInfo_Init(attr_info);
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 0, ctru_sys::GPU_FLOAT, 3); // v0=position
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 1, ctru_sys::GPU_FLOAT, 3); // v1=color
+        let mut attr_info = AttrInfo::get_mut().expect("failed to get global attr info");
+
+        let reg0 = attrib::Register::new(0).unwrap();
+        let reg1 = attrib::Register::new(1).unwrap();
+
+        // The default permutation would actually already be what we want if we
+        // inserted position, then color, but just show that it's customizable
+        // by swapping the order then using `set_permutation`.
+
+        let color_attr = attr_info
+            .add_loader(reg0, attrib::Format::Float, 3)
+            .unwrap();
+
+        let position_attr = attr_info
+            .add_loader(reg1, attrib::Format::Float, 3)
+            .unwrap();
+
+        eprintln!(
+            "count {} permutation {:#x}",
+            attr_info.count(),
+            attr_info.permutation()
+        );
+
+        attr_info
+            .set_permutation(&[position_attr, color_attr])
+            .unwrap();
+
+        eprintln!(
+            "count {} permutation {:#x}",
+            attr_info.count(),
+            attr_info.permutation()
+        );
 
         // Compute the projection matrix
         let projection = {
@@ -144,17 +172,8 @@ fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mt
         };
 
         // Configure buffers
-        let buf_info = citro3d_sys::C3D_GetBufInfo();
-        citro3d_sys::BufInfo_Init(buf_info);
-        citro3d_sys::BufInfo_Add(
-            buf_info,
-            vbo_data.as_ptr().cast(),
-            std::mem::size_of::<Vertex>()
-                .try_into()
-                .expect("size of vec3 fits in u32"),
-            2,    // Each vertex has two attributes
-            0x10, // v0 = position, v1 = color, in LSB->MSB nibble order
-        );
+        let mut buf_info = BufInfo::get_mut().unwrap();
+        buf_info.add(vbo_data, &attr_info).unwrap();
 
         // Configure the first fragment shading substage to just pass through the vertex color
         // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight

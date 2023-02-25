@@ -1,10 +1,13 @@
+#![feature(once_cell)]
+
 //! Safe Rust bindings to `citro3d`.
 
+pub mod attrib;
+pub mod buffers;
 pub mod error;
 pub mod render;
 pub mod shader;
 pub mod texture;
-pub mod vbo;
 
 use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
