@@ -10,7 +10,7 @@ use ctru::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
-use crate::{Error, Result};
+use crate::{buffers, Error, Result};
 
 mod transfer;
 
@@ -90,6 +90,16 @@ impl<'screen> Target<'screen> {
     /// Return the underlying `citro3d` render target for this target.
     pub(crate) fn as_raw(&self) -> *mut C3D_RenderTarget {
         self.raw
+    }
+
+    pub fn draw_arrays(&mut self, primitive: buffers::Primitive, index: buffers::Index) {
+        unsafe {
+            citro3d_sys::C3D_DrawArrays(
+                primitive as ctru_sys::GPU_Primitive_t,
+                index.as_raw(),
+                index.size(),
+            );
+        }
     }
 }
 
