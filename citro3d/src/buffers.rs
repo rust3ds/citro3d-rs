@@ -83,6 +83,12 @@ impl BufInfo {
         };
 
         if res < 0 {
+            // TODO: should we convert to a more specific error if this fails?
+            // It looks like the common cases are
+            // - too many buffers already added (max 12)
+            // - physical memory address in the wrong place (this can be seen by
+            //   using default allocator instead of LinearAllocator)
+            // <https://github.com/devkitPro/citro3d/blob/master/source/buffers.c#L13-L17>
             Err(crate::Error::System(res))
         } else {
             Ok(Index {

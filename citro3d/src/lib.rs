@@ -73,6 +73,16 @@ impl Instance {
             citro3d_sys::C3D_FrameEnd(0);
         }
     }
+
+    pub fn draw_arrays(&mut self, primitive: buffers::Primitive, index: buffers::Index) {
+        unsafe {
+            citro3d_sys::C3D_DrawArrays(
+                primitive as ctru_sys::GPU_Primitive_t,
+                index.as_raw(),
+                index.size(),
+            );
+        }
+    }
 }
 
 impl Drop for Instance {

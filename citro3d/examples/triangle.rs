@@ -110,7 +110,7 @@ fn main() {
                     );
                 }
 
-                target.draw_arrays(buffers::Primitive::Triangles, vbo_idx);
+                instance.draw_arrays(buffers::Primitive::Triangles, vbo_idx);
             });
         };
 
