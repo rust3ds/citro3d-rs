@@ -1,22 +1,9 @@
-use std::ops::{Deref, DerefMut};
-use std::sync::{LazyLock, RwLock};
+use std::mem::MaybeUninit;
 
-static INFO: LazyLock<RwLock<Info>> = LazyLock::new(|| {
-    let raw = unsafe {
-        // TODO: should we check is_null() here?
-        let info = citro3d_sys::C3D_GetAttrInfo();
-        citro3d_sys::AttrInfo_Init(info);
-        info
-    };
+#[derive(Debug)]
+pub struct Info(pub(crate) citro3d_sys::C3D_AttrInfo);
 
-    RwLock::new(Info { raw })
-});
-
-pub struct Info {
-    raw: *mut citro3d_sys::C3D_AttrInfo,
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Register(libc::c_int);
 
 impl Register {
@@ -46,14 +33,23 @@ unsafe impl Sync for Info {}
 unsafe impl Send for Info {}
 
 impl Info {
-    /// Get a reference to the global attribute info.
-    pub fn get() -> crate::Result<impl Deref<Target = Self>> {
-        Ok(INFO.try_read()?)
+    pub fn new() -> Self {
+        let mut raw = MaybeUninit::zeroed();
+        let raw = unsafe {
+            citro3d_sys::AttrInfo_Init(raw.as_mut_ptr());
+            raw.assume_init()
+        };
+        Self(raw)
     }
 
-    /// Get a mutable reference to the global attribute info.
-    pub fn get_mut() -> crate::Result<impl DerefMut<Target = Self>> {
-        Ok(INFO.try_write()?)
+    pub(crate) fn copy_from(raw: *const citro3d_sys::C3D_AttrInfo) -> Option<Self> {
+        if raw.is_null() {
+            None
+        } else {
+            // This is less efficient than returning a pointer or something, but it's
+            // safer since we don't know the lifetime of the pointee
+            Some(Self(unsafe { *raw }))
+        }
     }
 
     /// Add an attribute loader to the attribute info. By default, the resulting
@@ -66,8 +62,11 @@ impl Info {
     ) -> crate::Result<Index> {
         let count = count.try_into()?;
 
-        let ret =
-            unsafe { citro3d_sys::AttrInfo_AddLoader(self.raw, register.0, format as u32, count) };
+        // SAFETY: the &mut self.0 reference is only used to access fields in
+        // the attribute info, not stored somewhere for later use
+        let ret = unsafe {
+            citro3d_sys::AttrInfo_AddLoader(&mut self.0, register.0, format as u32, count)
+        };
 
         let Ok(idx) = ret.try_into() else {
             return Err(crate::Error::FailedToInitialize)
@@ -100,10 +99,9 @@ impl Info {
 
         let permutation = bytemuck::cast(<[u8; 8]>::try_from(bytes).unwrap());
 
-        unsafe {
-            (*self.raw).permutation = permutation;
-            (*self.raw).attrCount = attr_count;
-        }
+        self.0.permutation = permutation;
+        self.0.attrCount = attr_count;
+
         Ok(())
     }
 
@@ -113,11 +111,11 @@ impl Info {
     ///
     /// [GPU/Internal Registers]: https://3dbrew.org/wiki/GPU/Internal_Registers#GPUREG_SH_ATTRIBUTES_PERMUTATION_LOW
     pub fn permutation(&self) -> u64 {
-        unsafe { (*self.raw).permutation }
+        self.0.permutation
     }
 
     /// Get the number of attributes in the current permutation.
     pub fn count(&self) -> libc::c_int {
-        unsafe { (*self.raw).attrCount }
+        self.0.attrCount
     }
 }

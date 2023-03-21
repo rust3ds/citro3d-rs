@@ -1,36 +1,18 @@
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
-use std::ops::{Deref, DerefMut};
-use std::sync::{LazyLock, RwLock};
 
 use crate::attrib;
 
-static BUF_INFO: LazyLock<RwLock<Info>> = LazyLock::new(|| {
-    let raw = unsafe {
-        let info = citro3d_sys::C3D_GetBufInfo();
-        citro3d_sys::BufInfo_Init(info);
-        info
-    };
-
-    RwLock::new(Info { raw })
-});
-
-/// Vertex attribute info. This struct can be used to
-pub struct Info {
-    raw: *mut citro3d_sys::C3D_BufInfo,
-}
-
-// SAFETY: the RWLock ensures unique access when mutating the global struct, and
-// we trust citro3d to Do The Right Thing™ and not mutate it otherwise.
-unsafe impl Sync for Info {}
-unsafe impl Send for Info {}
+#[derive(Debug)]
+pub struct Info(pub(crate) citro3d_sys::C3D_BufInfo);
 
 // TODO: is this a good name? It's more like a "handle" to the VBO data, or a slice.
 #[derive(Debug, Clone, Copy)]
-pub struct Index<'vbo> {
+pub struct Index<'buf> {
     index: libc::c_int,
     size: libc::c_int,
-    _data: PhantomData<&'vbo ()>,
+    _vbo_data: PhantomData<&'buf ()>,
+    buf_info: &'buf Info,
 }
 
 impl Index<'_> {
@@ -40,6 +22,10 @@ impl Index<'_> {
 
     pub fn size(&self) -> libc::c_int {
         self.size
+    }
+
+    pub fn info(&self) -> &Info {
+        self.buf_info
     }
 }
 
@@ -53,28 +39,44 @@ pub enum Primitive {
 }
 
 impl Info {
-    /// Get a reference to the global buffer info.
-    pub fn get() -> crate::Result<impl Deref<Target = Self>> {
-        Ok(BUF_INFO.try_read()?)
+    pub fn new() -> Self {
+        let mut info = MaybeUninit::zeroed();
+        let info = unsafe {
+            citro3d_sys::BufInfo_Init(info.as_mut_ptr());
+            info.assume_init()
+        };
+        Self(info)
     }
 
-    /// Get a mutable reference to the global buffer info.
-    pub fn get_mut() -> crate::Result<impl DerefMut<Target = Self>> {
-        Ok(BUF_INFO.try_write()?)
+    pub(crate) fn copy_from(raw: *const citro3d_sys::C3D_BufInfo) -> Option<Self> {
+        if raw.is_null() {
+            None
+        } else {
+            // This is less efficient than returning a pointer or something, but it's
+            // safer since we don't know the lifetime of the pointee
+            Some(Self(unsafe { *raw }))
+        }
     }
 
-    pub fn add<'vbo, T>(
-        &mut self,
+    pub fn add<'this, 'vbo, 'idx, T>(
+        &'this mut self,
         vbo_data: &'vbo [T],
         attrib_info: &attrib::Info,
-    ) -> crate::Result<Index<'vbo>> {
+    ) -> crate::Result<Index<'idx>>
+    where
+        'this: 'idx,
+        'vbo: 'idx,
+    {
         let stride = std::mem::size_of::<T>().try_into()?;
         let attrib_count = attrib_info.count();
         let permutation = attrib_info.permutation();
 
+        // SAFETY: the lifetime of the VBO data is encapsulated in the return value's
+        // 'vbo lifetime, and the pointer to &mut self.0 is used to access values
+        // in the BufInfo, not copied to be used later.
         let res = unsafe {
             citro3d_sys::BufInfo_Add(
-                self.raw,
+                &mut self.0,
                 vbo_data.as_ptr().cast(),
                 stride,
                 attrib_count,
@@ -94,7 +96,8 @@ impl Info {
             Ok(Index {
                 index: res,
                 size: vbo_data.len().try_into()?,
-                _data: PhantomData,
+                _vbo_data: PhantomData,
+                buf_info: self,
             })
         }
     }

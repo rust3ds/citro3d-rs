@@ -84,7 +84,9 @@ fn main() {
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
-    let vbo_idx = prepare_vbos(&vbo_data);
+
+    let mut buf_info = buffer::Info::new();
+    let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
 
     let (uloc_projection, projection) = scene_init(&mut program);
 
@@ -113,6 +115,8 @@ fn main() {
                     );
                 }
 
+                instance.set_attr_info(&attr_info);
+
                 instance.draw_arrays(buffer::Primitive::Triangles, vbo_idx);
             });
         };
@@ -122,9 +126,17 @@ fn main() {
     }
 }
 
-fn prepare_vbos(vbo_data: &[Vertex]) -> buffer::Index {
+// sheeeesh, this sucks to type:
+fn prepare_vbos<'buf, 'info, 'vbo>(
+    buf_info: &'info mut buffer::Info,
+    vbo_data: &'vbo [Vertex],
+) -> (attrib::Info, buffer::Index<'buf>)
+where
+    'info: 'buf,
+    'vbo: 'buf,
+{
     // Configure attributes for use with the vertex shader
-    let mut attr_info = attrib::Info::get_mut().expect("failed to get global attr info");
+    let mut attr_info = attrib::Info::new();
 
     let reg0 = attrib::Register::new(0).unwrap();
     let reg1 = attrib::Register::new(1).unwrap();
@@ -145,11 +157,9 @@ fn prepare_vbos(vbo_data: &[Vertex]) -> buffer::Index {
         .set_permutation(&[position_attr, color_attr])
         .unwrap();
 
-    // Configure buffers
-    let mut buf_info = buffer::Info::get_mut().unwrap();
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
 
-    buf_idx
+    (attr_info, buf_idx)
 }
 
 fn scene_init(program: &mut shader::Program) -> (i8, C3D_Mtx) {
