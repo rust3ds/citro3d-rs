@@ -1,27 +1,29 @@
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::sync::{LazyLock, RwLock};
 
 use crate::attrib;
 
-static BUF_INFO: LazyLock<RwLock<BufInfo>> = LazyLock::new(|| {
+static BUF_INFO: LazyLock<RwLock<Info>> = LazyLock::new(|| {
     let raw = unsafe {
         let info = citro3d_sys::C3D_GetBufInfo();
         citro3d_sys::BufInfo_Init(info);
         info
     };
 
-    RwLock::new(BufInfo { raw })
+    RwLock::new(Info { raw })
 });
 
-pub struct BufInfo {
+/// Vertex attribute info. This struct can be used to
+pub struct Info {
     raw: *mut citro3d_sys::C3D_BufInfo,
 }
 
 // SAFETY: the RWLock ensures unique access when mutating the global struct, and
 // we trust citro3d to Do The Right Thing™ and not mutate it otherwise.
-unsafe impl Sync for BufInfo {}
-unsafe impl Send for BufInfo {}
+unsafe impl Sync for Info {}
+unsafe impl Send for Info {}
 
 // TODO: is this a good name? It's more like a "handle" to the VBO data, or a slice.
 #[derive(Debug, Clone, Copy)]
@@ -50,7 +52,7 @@ pub enum Primitive {
     GeometryPrim = ctru_sys::GPU_GEOMETRY_PRIM,
 }
 
-impl BufInfo {
+impl Info {
     /// Get a reference to the global buffer info.
     pub fn get() -> crate::Result<impl Deref<Target = Self>> {
         Ok(BUF_INFO.try_read()?)
@@ -64,7 +66,7 @@ impl BufInfo {
     pub fn add<'vbo, T>(
         &mut self,
         vbo_data: &'vbo [T],
-        attrib_info: &attrib::AttrInfo,
+        attrib_info: &attrib::Info,
     ) -> crate::Result<Index<'vbo>> {
         let stride = std::mem::size_of::<T>().try_into()?;
         let attrib_count = attrib_info.count();
@@ -73,8 +75,6 @@ impl BufInfo {
         let res = unsafe {
             citro3d_sys::BufInfo_Add(
                 self.raw,
-                // TODO: figure out how the hell to encode the lifetime of this
-                // data so that we don't try to use it after it's destroyed...
                 vbo_data.as_ptr().cast(),
                 stride,
                 attrib_count,

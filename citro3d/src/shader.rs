@@ -11,8 +11,8 @@ pub mod macros;
 
 /// A PICA200 shader program. It may have one or both of:
 ///
-/// * A vertex [shader instance](Instance)
-/// * A geometry [shader instance](Instance)
+/// * A vertex shader [`Library`]
+/// * A geometry shader [`Library`]
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
 pub struct Program {
@@ -86,7 +86,7 @@ impl Drop for Program {
 /// one or more [`Entrypoint`]s, but most commonly has one vertex shader and an
 /// optional geometry shader.
 ///
-/// This is the result of parsing a shader binary (shbin), and the resulting
+/// This is the result of parsing a shader binary (`.shbin`), and the resulting
 /// [`Entrypoint`]s can be used as part of a [`Program`].
 pub struct Library(*mut ctru_sys::DVLB_s);
 

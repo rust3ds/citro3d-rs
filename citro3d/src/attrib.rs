@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::{LazyLock, RwLock};
 
-static ATTR_INFO: LazyLock<RwLock<AttrInfo>> = LazyLock::new(|| {
+static INFO: LazyLock<RwLock<Info>> = LazyLock::new(|| {
     let raw = unsafe {
         // TODO: should we check is_null() here?
         let info = citro3d_sys::C3D_GetAttrInfo();
@@ -9,13 +9,14 @@ static ATTR_INFO: LazyLock<RwLock<AttrInfo>> = LazyLock::new(|| {
         info
     };
 
-    RwLock::new(AttrInfo { raw })
+    RwLock::new(Info { raw })
 });
 
-pub struct AttrInfo {
+pub struct Info {
     raw: *mut citro3d_sys::C3D_AttrInfo,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Register(libc::c_int);
 
 impl Register {
@@ -24,12 +25,12 @@ impl Register {
         // that gets atomically increasing indices or something? Or look at
         // <https://3dbrew.org/wiki/GPU/Internal_Registers> and define some consts
         // or lookup functions
-        Ok(Self(n as _))
+        Ok(Self(n.into()))
     }
 }
 
 #[must_use]
-pub struct Index(libc::c_int);
+pub struct Index(u8);
 
 #[repr(u32)]
 pub enum Format {
@@ -41,18 +42,18 @@ pub enum Format {
 
 // SAFETY: the RWLock ensures unique access when mutating the global struct, and
 // we trust citro3d to Do The Right Thing™ and not mutate it otherwise.
-unsafe impl Sync for AttrInfo {}
-unsafe impl Send for AttrInfo {}
+unsafe impl Sync for Info {}
+unsafe impl Send for Info {}
 
-impl AttrInfo {
+impl Info {
     /// Get a reference to the global attribute info.
     pub fn get() -> crate::Result<impl Deref<Target = Self>> {
-        Ok(ATTR_INFO.try_read()?)
+        Ok(INFO.try_read()?)
     }
 
     /// Get a mutable reference to the global attribute info.
     pub fn get_mut() -> crate::Result<impl DerefMut<Target = Self>> {
-        Ok(ATTR_INFO.try_write()?)
+        Ok(INFO.try_write()?)
     }
 
     /// Add an attribute loader to the attribute info. By default, the resulting
@@ -65,8 +66,12 @@ impl AttrInfo {
     ) -> crate::Result<Index> {
         let count = count.try_into()?;
 
-        let idx =
+        let ret =
             unsafe { citro3d_sys::AttrInfo_AddLoader(self.raw, register.0, format as u32, count) };
+
+        let Ok(idx) = ret.try_into() else {
+            return Err(crate::Error::FailedToInitialize)
+        };
 
         Ok(Index(idx))
     }
@@ -75,6 +80,7 @@ impl AttrInfo {
         if indices.len() > 16 {
             return Err(crate::Error::TooManyAttributes);
         }
+        let attr_count: libc::c_int = indices.len().try_into().unwrap();
 
         let mut bytes: Vec<u8> = indices
             .windows(2)
@@ -85,7 +91,7 @@ impl AttrInfo {
                     _ => unreachable!(),    // window size of 2 == always 1 or 2 elements
                 };
                 // each value is a nibble, combine them into a byte
-                lo as u8 | (hi as u8) << 4
+                lo | (hi << 4)
             })
             .collect();
 
@@ -96,7 +102,7 @@ impl AttrInfo {
 
         unsafe {
             (*self.raw).permutation = permutation;
-            (*self.raw).attrCount = indices.len() as _;
+            (*self.raw).attrCount = attr_count;
         }
         Ok(())
     }

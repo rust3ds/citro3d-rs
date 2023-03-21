@@ -1,7 +1,10 @@
+//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
+//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
+
 #![feature(allocator_api)]
 
-use citro3d::attrib::{self, AttrInfo};
-use citro3d::buffers::{self, BufInfo};
+use citro3d::attrib::{self};
+use citro3d::buffer::{self};
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
@@ -110,7 +113,7 @@ fn main() {
                     );
                 }
 
-                instance.draw_arrays(buffers::Primitive::Triangles, vbo_idx);
+                instance.draw_arrays(buffer::Primitive::Triangles, vbo_idx);
             });
         };
 
@@ -119,9 +122,9 @@ fn main() {
     }
 }
 
-fn prepare_vbos(vbo_data: &[Vertex]) -> buffers::Index {
+fn prepare_vbos(vbo_data: &[Vertex]) -> buffer::Index {
     // Configure attributes for use with the vertex shader
-    let mut attr_info = AttrInfo::get_mut().expect("failed to get global attr info");
+    let mut attr_info = attrib::Info::get_mut().expect("failed to get global attr info");
 
     let reg0 = attrib::Register::new(0).unwrap();
     let reg1 = attrib::Register::new(1).unwrap();
@@ -143,7 +146,7 @@ fn prepare_vbos(vbo_data: &[Vertex]) -> buffers::Index {
         .unwrap();
 
     // Configure buffers
-    let mut buf_info = BufInfo::get_mut().unwrap();
+    let mut buf_info = buffer::Info::get_mut().unwrap();
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
 
     buf_idx
