@@ -1,5 +1,6 @@
 [workspace]
 members = ["citro3d-sys", "citro3d", "bindgen-citro3d"]
+default-members = ["citro3d", "citro3d-sys"]
 
 [patch."https://github.com/rust3ds/citro3d-rs.git"]
 citro3d-sys = { path = "citro3d-sys" }

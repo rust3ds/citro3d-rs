@@ -6,7 +6,7 @@ use std::cell::RefMut;
 use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE,
 };
-use ctru::gfx::Screen;
+use ctru::services::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
@@ -39,17 +39,17 @@ impl<'screen> Target<'screen> {
     ///
     /// Fails if the target could not be created.
     pub fn new(
-        width: u16,
-        height: u16,
+        width: usize,
+        height: usize,
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<DepthFormat>,
     ) -> Result<Self> {
-        let color_format: ColorFormat = screen.get_framebuffer_format().into();
+        let color_format: ColorFormat = screen.framebuffer_format().into();
 
         let raw = unsafe {
             C3D_RenderTargetCreate(
-                width.into(),
-                height.into(),
+                width.try_into()?,
+                height.try_into()?,
                 color_format as GPU_COLORBUF,
                 depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
             )

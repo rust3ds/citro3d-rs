@@ -3,11 +3,10 @@
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
-use ctru::gfx::{Gfx, RawFrameBuffer, Screen};
-use ctru::services::apt::Apt;
-use ctru::services::hid::{Hid, KeyPad};
-use ctru::services::soc::Soc;
+use ctru::prelude::*;
+use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
+use std::f32::consts::PI;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 
@@ -51,25 +50,31 @@ static SHADER_BYTES: &[u8] =
     include_aligned_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
 
 fn main() {
-    ctru::init();
+    ctru::use_panic_handler();
 
-    let mut soc = Soc::init().expect("failed to get SOC");
+    let mut soc = Soc::new().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
-    let gfx = Gfx::init().expect("Couldn't obtain GFX controller");
-    let hid = Hid::init().expect("Couldn't obtain HID controller");
-    let apt = Apt::init().expect("Couldn't obtain APT controller");
-
-    let mut top_screen = gfx.top_screen.borrow_mut();
-    let RawFrameBuffer { width, height, .. } = top_screen.get_raw_framebuffer();
+    let gfx = Gfx::new().expect("Couldn't obtain GFX controller");
+    let mut hid = Hid::new().expect("Couldn't obtain HID controller");
+    let apt = Apt::new().expect("Couldn't obtain APT controller");
 
     let mut instance = citro3d::Instance::new().expect("failed to initialize Citro3D");
 
-    let mut top_target = citro3d::render::Target::new(width, height, top_screen, None)
+    let top_screen = TopScreen3D::from(&gfx.top_screen);
+
+    let (mut top_left, mut top_right) = top_screen.split_mut();
+
+    let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
+    let mut top_left_target = citro3d::render::Target::new(width, height, top_left, None)
+        .expect("failed to create render target");
+
+    let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
+    let mut top_right_target = citro3d::render::Target::new(width, height, top_right, None)
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
-    let RawFrameBuffer { width, height, .. } = bottom_screen.get_raw_framebuffer();
+    let RawFrameBuffer { width, height, .. } = bottom_screen.raw_framebuffer();
 
     let mut bottom_target = citro3d::render::Target::new(width, height, bottom_screen, None)
         .expect("failed to create bottom screen render target");
@@ -82,29 +87,35 @@ fn main() {
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
 
-    let (uloc_projection, projection) = scene_init(&mut program, &vbo_data);
+    let (projection_uniform_idx, mut projection) = scene_init(&mut program, &vbo_data);
+
+    unsafe { citro3d_sys::Mtx_RotateY(&mut projection, -PI / 12.0, true) };
+
+    let mut right_eye_projection = projection;
+    unsafe { citro3d_sys::Mtx_RotateY(&mut right_eye_projection, 2.0 * PI / 12.0, true) };
 
     while apt.main_loop() {
         hid.scan_input();
 
-        if hid.keys_down().contains(KeyPad::KEY_START) {
+        if hid.keys_down().contains(KeyPad::START) {
             break;
         }
 
-        let mut render_to = |target: &mut Target| {
-            instance.render_frame_with(|instance| {
+        instance.render_frame_with(|instance| {
+            let mut render_to = |target: &mut Target, projection| {
                 instance
                     .select_render_target(target)
                     .expect("failed to set render target");
 
                 let clear_color: u32 = 0x7F_7F_7F_FF;
                 target.clear(ClearFlags::ALL, clear_color, 0);
-                scene_render(uloc_projection.into(), &projection);
-            });
-        };
+                scene_render(projection_uniform_idx.into(), projection);
+            };
 
-        render_to(&mut top_target);
-        render_to(&mut bottom_target);
+            render_to(&mut top_left_target, &projection);
+            render_to(&mut top_right_target, &right_eye_projection);
+            render_to(&mut bottom_target, &projection);
+        });
     }
 }
 
@@ -115,7 +126,7 @@ fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mt
 
         // Get the location of the uniforms
         let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
-        let uloc_projection = ctru_sys::shaderInstanceGetUniformLocation(
+        let projection_uniform_idx = ctru_sys::shaderInstanceGetUniformLocation(
             (*program.as_raw()).vertexShader,
             projection_name.as_ptr(),
         );
@@ -169,14 +180,18 @@ fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mt
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
 
-        (uloc_projection, projection)
+        (projection_uniform_idx, projection)
     }
 }
 
-fn scene_render(uloc_projection: i32, projection: &C3D_Mtx) {
+fn scene_render(projection_uniform_idx: i32, projection: &C3D_Mtx) {
     unsafe {
         // Update the uniforms
-        citro3d_sys::C3D_FVUnifMtx4x4(ctru_sys::GPU_VERTEX_SHADER, uloc_projection, projection);
+        citro3d_sys::C3D_FVUnifMtx4x4(
+            ctru_sys::GPU_VERTEX_SHADER,
+            projection_uniform_idx,
+            projection,
+        );
 
         // Draw the VBO
         citro3d_sys::C3D_DrawArrays(
