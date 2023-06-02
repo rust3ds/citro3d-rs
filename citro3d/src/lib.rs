@@ -5,7 +5,6 @@ pub mod buffer;
 pub mod error;
 pub mod render;
 pub mod shader;
-pub mod texture;
 
 use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
@@ -110,8 +109,8 @@ impl Instance {
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
-                index.as_raw(),
-                index.size(),
+                index.index(),
+                index.len(),
             );
         }
     }

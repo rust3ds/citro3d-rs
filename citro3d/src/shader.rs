@@ -7,6 +7,9 @@
 use std::error::Error;
 use std::mem::MaybeUninit;
 
+// Macros get exported at the crate root, so no reason to document this module.
+// It still needs to be `pub` for the helper struct it exports.
+#[doc(hidden)]
 pub mod macros;
 
 /// A PICA200 shader program. It may have one or both of:
@@ -110,11 +113,19 @@ impl Library {
         }))
     }
 
+    /// Get the number of [`Entrypoint`]s in this shader library.
     #[must_use]
     pub fn len(&self) -> usize {
         unsafe { (*self.0).numDVLE as usize }
     }
 
+    /// Whether the library has any [`Entrypoint`]s or not.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the [`Entrypoint`] at the given index, if present.
     #[must_use]
     pub fn get(&self, index: usize) -> Option<Entrypoint> {
         if index < self.len() {
@@ -125,11 +136,6 @@ impl Library {
         } else {
             None
         }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 
     fn as_raw(&mut self) -> *mut ctru_sys::DVLB_s {

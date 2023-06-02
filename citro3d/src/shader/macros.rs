@@ -1,9 +1,4 @@
-/// Helper struct to [`include_bytes`] aligned as a specific type.
-#[repr(C)] // guarantee 'bytes' comes after '_align'
-pub struct AlignedAs<Align, Bytes: ?Sized> {
-    pub _align: [Align; 0],
-    pub bytes: Bytes,
-}
+//! Helper macros for working with shader data.
 
 /// Helper macro for including a file as bytes that are correctly aligned for
 /// use as a [`Library`](super::Library).
@@ -21,4 +16,12 @@ macro_rules! include_aligned_bytes {
 
         &ALIGNED.bytes
     }};
+}
+
+/// Helper struct to [`include_bytes`] aligned as a specific type.
+#[repr(C)] // guarantee 'bytes' comes after '_align'
+#[doc(hidden)]
+pub struct AlignedAs<Align, Bytes: ?Sized> {
+    pub _align: [Align; 0],
+    pub bytes: Bytes,
 }

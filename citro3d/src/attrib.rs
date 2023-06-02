@@ -1,7 +1,14 @@
+//! Configure vertex attributes.
+//!
+//! This module has types and helpers for describing the shape/structure of vertex
+//! data to be sent to the GPU.
+//!
+//! See the [`buffer`](crate::buffer) module to use the vertex data itself.
+
 use std::mem::MaybeUninit;
 
-/// Vertex attribute info. This struct is used to describe how vertex buffers are
-/// used (i.e. the shape of the vertex data).
+/// Vertex attribute info. This struct describes how vertex buffers are
+/// layed out and used (i.e. the shape of the vertex data).
 #[derive(Debug)]
 pub struct Info(pub(crate) citro3d_sys::C3D_AttrInfo);
 
@@ -82,14 +89,14 @@ impl Info {
     /// Add an attribute loader to the attribute info. The resulting attribute index
     /// indicates the registration order of the attributes.
     ///
-    /// ## Parameters
+    /// # Parameters
     ///
     /// * `register`: the shader program input register for this attribute.
     /// * `format`: the data format of this attribute.
     /// * `count`: the number of elements in each attribute (up to 4, corresponding
     ///   to `xyzw` / `rgba` / `stpq`).
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// * If `count > 4`
     /// * If this attribute info already has the maximum number of attributes.

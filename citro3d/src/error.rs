@@ -24,8 +24,13 @@ pub enum Error {
     /// Indicates that a reference could not be obtained because a lock is already
     /// held on the requested object.
     LockHeld,
-    /// Indicates that too many vertex attributes were specified (max 12 supported).
+    /// Indicates that too many vertex attributes were registered (max 12 supported).
     TooManyAttributes,
+    /// Indicates that too many vertex buffer objects were registered (max 12 supported).
+    TooManyBuffers,
+    /// The given memory could not be converted to a physical address for sharing
+    /// with the GPU. Data should be allocated with [`ctru::linear`].
+    InvalidMemoryLocation,
 }
 
 impl From<TryFromIntError> for Error {
