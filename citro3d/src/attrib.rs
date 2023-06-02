@@ -32,14 +32,20 @@ pub enum Format {
 unsafe impl Sync for Info {}
 unsafe impl Send for Info {}
 
-impl Info {
-    pub fn new() -> Self {
+impl Default for Info {
+    fn default() -> Self {
         let mut raw = MaybeUninit::zeroed();
         let raw = unsafe {
             citro3d_sys::AttrInfo_Init(raw.as_mut_ptr());
             raw.assume_init()
         };
         Self(raw)
+    }
+}
+
+impl Info {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn copy_from(raw: *const citro3d_sys::C3D_AttrInfo) -> Option<Self> {

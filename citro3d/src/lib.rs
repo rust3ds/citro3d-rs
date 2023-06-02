@@ -1,5 +1,3 @@
-#![feature(once_cell)]
-
 //! Safe Rust bindings to `citro3d`.
 
 pub mod attrib;

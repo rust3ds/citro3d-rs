@@ -38,14 +38,20 @@ pub enum Primitive {
     GeometryPrim = ctru_sys::GPU_GEOMETRY_PRIM,
 }
 
-impl Info {
-    pub fn new() -> Self {
+impl Default for Info {
+    fn default() -> Self {
         let mut info = MaybeUninit::zeroed();
         let info = unsafe {
             citro3d_sys::BufInfo_Init(info.as_mut_ptr());
             info.assume_init()
         };
         Self(info)
+    }
+}
+
+impl Info {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn copy_from(raw: *const citro3d_sys::C3D_BufInfo) -> Option<Self> {
