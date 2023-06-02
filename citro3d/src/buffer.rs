@@ -6,16 +6,15 @@ use crate::attrib;
 #[derive(Debug)]
 pub struct Info(pub(crate) citro3d_sys::C3D_BufInfo);
 
-// TODO: is this a good name? It's more like a "handle" to the VBO data, or a slice.
 #[derive(Debug, Clone, Copy)]
-pub struct Index<'buf> {
+pub struct Slice<'buf> {
     index: libc::c_int,
     size: libc::c_int,
     _vbo_data: PhantomData<&'buf ()>,
     buf_info: &'buf Info,
 }
 
-impl Index<'_> {
+impl Slice<'_> {
     pub fn as_raw(&self) -> libc::c_int {
         self.index
     }
@@ -68,14 +67,12 @@ impl Info {
         &'this mut self,
         vbo_data: &'vbo [T],
         attrib_info: &attrib::Info,
-    ) -> crate::Result<Index<'idx>>
+    ) -> crate::Result<Slice<'idx>>
     where
         'this: 'idx,
         'vbo: 'idx,
     {
         let stride = std::mem::size_of::<T>().try_into()?;
-        let attrib_count = attrib_info.count();
-        let permutation = attrib_info.permutation();
 
         // SAFETY: the lifetime of the VBO data is encapsulated in the return value's
         // 'vbo lifetime, and the pointer to &mut self.0 is used to access values
@@ -85,8 +82,8 @@ impl Info {
                 &mut self.0,
                 vbo_data.as_ptr().cast(),
                 stride,
-                attrib_count,
-                permutation,
+                attrib_info.attr_count(),
+                attrib_info.permutation(),
             )
         };
 
@@ -99,7 +96,7 @@ impl Info {
             // <https://github.com/devkitPro/citro3d/blob/master/source/buffers.c#L13-L17>
             Err(crate::Error::System(res))
         } else {
-            Ok(Index {
+            Ok(Slice {
                 index: res,
                 size: vbo_data.len().try_into()?,
                 _vbo_data: PhantomData,

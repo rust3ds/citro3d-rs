@@ -1,29 +1,49 @@
 use std::mem::MaybeUninit;
 
+/// Vertex attribute info. This struct is used to describe how vertex buffers are
+/// used (i.e. the shape of the vertex data).
 #[derive(Debug)]
 pub struct Info(pub(crate) citro3d_sys::C3D_AttrInfo);
 
-#[derive(Debug)]
+/// A shader input register, usually corresponding to a single vertex attribute
+/// (e.g. position or color). These are called `v0`, `v1`, ... `v15` in the
+/// [picasso](https://github.com/devkitPro/picasso/blob/master/Manual.md)
+/// shader language.
+#[derive(Debug, Clone, Copy)]
 pub struct Register(libc::c_int);
 
 impl Register {
+    /// Get a register corresponding to the given index.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for `n >= 16`.
     pub fn new(n: u16) -> crate::Result<Self> {
-        // TODO proper validation for attributes? Or maybe just a next() function
-        // that gets atomically increasing indices or something? Or look at
-        // <https://3dbrew.org/wiki/GPU/Internal_Registers> and define some consts
-        // or lookup functions
-        Ok(Self(n.into()))
+        if n < 16 {
+            Ok(Self(n.into()))
+        } else {
+            Err(crate::Error::TooManyAttributes)
+        }
     }
 }
 
-#[must_use]
+/// An attribute index. This is the attribute's actual index in the input buffer,
+/// and may correspond to any [`Register`] (or multiple) as input in the shader
+/// program.
+#[derive(Debug, Clone, Copy)]
 pub struct Index(u8);
 
+/// The data format of an attribute.
 #[repr(u32)]
+#[derive(Debug, Clone, Copy)]
 pub enum Format {
+    /// A signed byte, i.e. [`i8`].
     Byte = ctru_sys::GPU_BYTE,
+    /// An unsigned byte, i.e. [`u8`].
     UnsignedByte = ctru_sys::GPU_UNSIGNED_BYTE,
+    /// A float, i.e. [`f32`].
     Float = ctru_sys::GPU_FLOAT,
+    /// A short integer, i.e. [`i16`].
     Short = ctru_sys::GPU_SHORT,
 }
 
@@ -44,6 +64,7 @@ impl Default for Info {
 }
 
 impl Info {
+    /// Construct a new attribute info structure with no attributes.
     pub fn new() -> Self {
         Self::default()
     }
@@ -58,70 +79,49 @@ impl Info {
         }
     }
 
-    /// Add an attribute loader to the attribute info. By default, the resulting
-    /// attribute index will be appended to the permutation
+    /// Add an attribute loader to the attribute info. The resulting attribute index
+    /// indicates the registration order of the attributes.
+    ///
+    /// ## Parameters
+    ///
+    /// * `register`: the shader program input register for this attribute.
+    /// * `format`: the data format of this attribute.
+    /// * `count`: the number of elements in each attribute (up to 4, corresponding
+    ///   to `xyzw` / `rgba` / `stpq`).
+    ///
+    /// ## Errors
+    ///
+    /// * If `count > 4`
+    /// * If this attribute info already has the maximum number of attributes.
     pub fn add_loader(
         &mut self,
         register: Register,
         format: Format,
-        count: usize,
+        count: u8,
     ) -> crate::Result<Index> {
-        let count = count.try_into()?;
+        if count > 4 {
+            return Err(crate::Error::InvalidSize);
+        }
 
         // SAFETY: the &mut self.0 reference is only used to access fields in
         // the attribute info, not stored somewhere for later use
         let ret = unsafe {
-            citro3d_sys::AttrInfo_AddLoader(&mut self.0, register.0, format as u32, count)
+            citro3d_sys::AttrInfo_AddLoader(&mut self.0, register.0, format as u32, count.into())
         };
 
         let Ok(idx) = ret.try_into() else {
-            return Err(crate::Error::FailedToInitialize)
+            return Err(crate::Error::TooManyAttributes)
         };
 
         Ok(Index(idx))
     }
 
-    pub fn set_permutation(&mut self, indices: &[Index]) -> crate::Result<()> {
-        if indices.len() > 16 {
-            return Err(crate::Error::TooManyAttributes);
-        }
-        let attr_count: libc::c_int = indices.len().try_into().unwrap();
-
-        let mut bytes: Vec<u8> = indices
-            .windows(2)
-            .map(|window| {
-                let [lo, hi] = match *window {
-                    [Index(lo), Index(hi)] => [lo, hi],
-                    [Index(lo)] => [lo, 0], // high nibble is just padding
-                    _ => unreachable!(),    // window size of 2 == always 1 or 2 elements
-                };
-                // each value is a nibble, combine them into a byte
-                lo | (hi << 4)
-            })
-            .collect();
-
-        // pad the remainder with zeros
-        bytes.extend(std::iter::repeat(0).take(8 - bytes.len()));
-
-        let permutation = bytemuck::cast(<[u8; 8]>::try_from(bytes).unwrap());
-
-        self.0.permutation = permutation;
-        self.0.attrCount = attr_count;
-
-        Ok(())
-    }
-
-    /// Get the current permutation of input register to vertex attributes mapping.
-    /// See [GPU/Internal Registers] for an explanation of how the bits are laid out
-    /// in the resulting value.
-    ///
-    /// [GPU/Internal Registers]: https://3dbrew.org/wiki/GPU/Internal_Registers#GPUREG_SH_ATTRIBUTES_PERMUTATION_LOW
-    pub fn permutation(&self) -> u64 {
+    pub(crate) fn permutation(&self) -> u64 {
         self.0.permutation
     }
 
-    /// Get the number of attributes in the current permutation.
-    pub fn count(&self) -> libc::c_int {
+    /// Get the number of registered attributes.
+    pub fn attr_count(&self) -> libc::c_int {
         self.0.attrCount
     }
 }

@@ -102,7 +102,7 @@ impl Instance {
     }
 
     /// Draw the specified primitivearrays. The
-    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Index) {
+    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Slice) {
         self.set_buffer_info(index.info());
 
         // TODO: should we also require the attrib info directly here?

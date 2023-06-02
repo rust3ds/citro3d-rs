@@ -24,7 +24,7 @@ pub enum Error {
     /// Indicates that a reference could not be obtained because a lock is already
     /// held on the requested object.
     LockHeld,
-    /// Indicates that too many vertex attributes were specified (max 16 supported).
+    /// Indicates that too many vertex attributes were specified (max 12 supported).
     TooManyAttributes,
 }
 

@@ -143,7 +143,7 @@ fn main() {
 fn prepare_vbos<'buf, 'info, 'vbo>(
     buf_info: &'info mut buffer::Info,
     vbo_data: &'vbo [Vertex],
-) -> (attrib::Info, buffer::Index<'buf>)
+) -> (attrib::Info, buffer::Slice<'buf>)
 where
     'info: 'buf,
     'vbo: 'buf,
@@ -154,20 +154,12 @@ where
     let reg0 = attrib::Register::new(0).unwrap();
     let reg1 = attrib::Register::new(1).unwrap();
 
-    // The default permutation would actually already be what we want if we
-    // inserted position, then color, but just show that it's customizable
-    // by swapping the order then using `set_permutation`.
-
-    let color_attr = attr_info
+    attr_info
         .add_loader(reg0, attrib::Format::Float, 3)
         .unwrap();
 
-    let position_attr = attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
-        .unwrap();
-
     attr_info
-        .set_permutation(&[position_attr, color_attr])
+        .add_loader(reg1, attrib::Format::Float, 5)
         .unwrap();
 
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
