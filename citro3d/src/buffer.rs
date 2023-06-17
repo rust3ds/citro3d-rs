@@ -127,9 +127,9 @@ impl Info {
 
         // Error codes from <https://github.com/devkitPro/citro3d/blob/master/source/buffers.c#L11>
         match res {
+            ..=-3 => Err(crate::Error::System(res)),
             -2 => Err(crate::Error::InvalidMemoryLocation),
             -1 => Err(crate::Error::TooManyBuffers),
-            ..=0 => Err(crate::Error::System(res)),
             _ => Ok(Slice {
                 index: res,
                 size: vbo_data.len().try_into()?,
