@@ -7,11 +7,6 @@
 use std::error::Error;
 use std::mem::MaybeUninit;
 
-// Macros get exported at the crate root, so no reason to document this module.
-// It still needs to be `pub` for the helper struct it exports.
-#[doc(hidden)]
-pub mod macros;
-
 /// A PICA200 shader program. It may have one or both of:
 ///
 /// * A vertex shader [`Library`]

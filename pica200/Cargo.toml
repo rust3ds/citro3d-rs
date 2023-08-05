@@ -1,0 +1,13 @@
+[package]
+name = "pica200"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rust3DS Org"]
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+litrs = { version = "0.4.0", default-features = false }
+quote = "1.0.32"

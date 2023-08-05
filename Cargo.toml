@@ -1,6 +1,6 @@
 [workspace]
-members = ["citro3d-sys", "citro3d", "bindgen-citro3d"]
-default-members = ["citro3d", "citro3d-sys"]
+members = ["citro3d-sys", "citro3d", "bindgen-citro3d", "pica200"]
+default-members = ["citro3d", "citro3d-sys", "pica200"]
 resolver = "2"
 
 [patch."https://github.com/rust3ds/citro3d-rs.git"]
