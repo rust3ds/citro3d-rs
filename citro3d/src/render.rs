@@ -96,8 +96,11 @@ impl<'screen> Target<'screen> {
 bitflags::bitflags! {
     /// Indicate whether color, depth buffer, or both values should be cleared.
     pub struct ClearFlags: u32 {
+        /// Clear the color of the render target.
         const COLOR = citro3d_sys::C3D_CLEAR_COLOR;
+        /// Clear the depth buffer value of the render target.
         const DEPTH = citro3d_sys::C3D_CLEAR_DEPTH;
+        /// Clear both color and depth buffer values of the render target.
         const ALL = citro3d_sys::C3D_CLEAR_ALL;
     }
 }

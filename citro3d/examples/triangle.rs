@@ -1,12 +1,16 @@
+//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
+//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
+
 #![feature(allocator_api)]
 
+use citro3d::attrib::{self};
+use citro3d::buffer::{self};
 use citro3d::render::{ClearFlags, Target};
 use citro3d::{include_aligned_bytes, shader};
 use citro3d_sys::C3D_Mtx;
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
-use std::f32::consts::PI;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 
@@ -33,15 +37,15 @@ struct Vertex {
 
 static VERTICES: &[Vertex] = &[
     Vertex {
-        pos: Vec3::new(0.0, 0.5, 0.5),
+        pos: Vec3::new(0.0, 0.5, 3.0),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(-0.5, -0.5, 0.5),
+        pos: Vec3::new(-0.5, -0.5, 3.0),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(0.5, -0.5, 0.5),
+        pos: Vec3::new(0.5, -0.5, 3.0),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
 ];
@@ -87,13 +91,10 @@ fn main() {
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
 
-    let (projection_uniform_idx, mut projection) = scene_init(&mut program, &vbo_data);
+    let mut buf_info = buffer::Info::new();
+    let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
 
-    unsafe { citro3d_sys::Mtx_RotateY(&mut projection, -PI / 12.0, true) };
-
-    let mut right_eye_projection = projection;
-    unsafe { citro3d_sys::Mtx_RotateY(&mut right_eye_projection, 2.0 * PI / 12.0, true) };
-
+    let projection_uniform_idx = scene_init(&mut program);
     while apt.main_loop() {
         hid.scan_input();
 
@@ -109,63 +110,127 @@ fn main() {
 
                 let clear_color: u32 = 0x7F_7F_7F_FF;
                 target.clear(ClearFlags::ALL, clear_color, 0);
-                scene_render(projection_uniform_idx.into(), projection);
+
+                unsafe {
+                    // Update the uniforms
+                    citro3d_sys::C3D_FVUnifMtx4x4(
+                        ctru_sys::GPU_VERTEX_SHADER,
+                        projection_uniform_idx.into(),
+                        projection,
+                    );
+                }
+
+                instance.set_attr_info(&attr_info);
+
+                instance.draw_arrays(buffer::Primitive::Triangles, vbo_idx);
             };
 
-            render_to(&mut top_left_target, &projection);
-            render_to(&mut top_right_target, &right_eye_projection);
-            render_to(&mut bottom_target, &projection);
+            let Projections {
+                left,
+                right,
+                center,
+            } = calculate_projections();
+
+            render_to(&mut top_left_target, &left);
+            render_to(&mut top_right_target, &right);
+            render_to(&mut bottom_target, &center);
         });
     }
 }
 
-fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mtx) {
+// sheeeesh, this sucks to type:
+fn prepare_vbos<'buf, 'info, 'vbo>(
+    buf_info: &'info mut buffer::Info,
+    vbo_data: &'vbo [Vertex],
+) -> (attrib::Info, buffer::Slice<'buf>)
+where
+    'info: 'buf,
+    'vbo: 'buf,
+{
+    // Configure attributes for use with the vertex shader
+    let mut attr_info = attrib::Info::new();
+
+    let reg0 = attrib::Register::new(0).unwrap();
+    let reg1 = attrib::Register::new(1).unwrap();
+
+    attr_info
+        .add_loader(reg0, attrib::Format::Float, 3)
+        .unwrap();
+
+    attr_info
+        .add_loader(reg1, attrib::Format::Float, 3)
+        .unwrap();
+
+    let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
+
+    (attr_info, buf_idx)
+}
+
+struct Projections {
+    left: C3D_Mtx,
+    right: C3D_Mtx,
+    center: C3D_Mtx,
+}
+
+fn calculate_projections() -> Projections {
+    let mut left_eye = MaybeUninit::uninit();
+    let mut right_eye = MaybeUninit::uninit();
+    let mut center = MaybeUninit::uninit();
+
+    // TODO: it would be cool to allow playing around with these parameters on
+    // the fly with D-pad, etc.
+    let slider_val = unsafe { citro3d_sys::osGet3DSliderState() };
+    let iod = slider_val / 4.0;
+
+    let near = 0.01;
+    let far = 100.0;
+    let fovy = 40.0_f32.to_radians();
+    let screen = 2.0;
+
+    unsafe {
+        citro3d_sys::Mtx_PerspStereoTilt(
+            left_eye.as_mut_ptr(),
+            fovy,
+            citro3d_sys::C3D_AspectRatioTop as f32,
+            near,
+            far,
+            -iod,
+            screen,
+            true,
+        );
+
+        citro3d_sys::Mtx_PerspStereoTilt(
+            right_eye.as_mut_ptr(),
+            fovy,
+            citro3d_sys::C3D_AspectRatioTop as f32,
+            near,
+            far,
+            iod,
+            screen,
+            true,
+        );
+
+        citro3d_sys::Mtx_PerspTilt(
+            center.as_mut_ptr(),
+            fovy,
+            citro3d_sys::C3D_AspectRatioBot as f32,
+            near,
+            far,
+            true,
+        );
+
+        Projections {
+            left: left_eye.assume_init(),
+            right: right_eye.assume_init(),
+            center: center.assume_init(),
+        }
+    }
+}
+
+fn scene_init(program: &mut shader::Program) -> i8 {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
         citro3d_sys::C3D_BindProgram(program.as_raw());
-
-        // Get the location of the uniforms
-        let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
-        let projection_uniform_idx = ctru_sys::shaderInstanceGetUniformLocation(
-            (*program.as_raw()).vertexShader,
-            projection_name.as_ptr(),
-        );
-
-        // Configure attributes for use with the vertex shader
-        let attr_info = citro3d_sys::C3D_GetAttrInfo();
-        citro3d_sys::AttrInfo_Init(attr_info);
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 0, ctru_sys::GPU_FLOAT, 3); // v0=position
-        citro3d_sys::AttrInfo_AddLoader(attr_info, 1, ctru_sys::GPU_FLOAT, 3); // v1=color
-
-        // Compute the projection matrix
-        let projection = {
-            let mut projection = MaybeUninit::uninit();
-            citro3d_sys::Mtx_OrthoTilt(
-                projection.as_mut_ptr(),
-                // The 3ds top screen is a 5:3 ratio
-                -1.66,
-                1.66,
-                -1.0,
-                1.0,
-                0.0,
-                1.0,
-                true,
-            );
-            projection.assume_init()
-        };
-
-        // Configure buffers
-        let buf_info = citro3d_sys::C3D_GetBufInfo();
-        citro3d_sys::BufInfo_Init(buf_info);
-        citro3d_sys::BufInfo_Add(
-            buf_info,
-            vbo_data.as_ptr().cast(),
-            std::mem::size_of::<Vertex>()
-                .try_into()
-                .expect("size of vec3 fits in u32"),
-            2,    // Each vertex has two attributes
-            0x10, // v0 = position, v1 = color, in LSB->MSB nibble order
-        );
 
         // Configure the first fragment shading substage to just pass through the vertex color
         // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -180,27 +245,13 @@ fn scene_init(program: &mut shader::Program, vbo_data: &[Vertex]) -> (i8, C3D_Mt
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
 
-        (projection_uniform_idx, projection)
-    }
-}
-
-fn scene_render(projection_uniform_idx: i32, projection: &C3D_Mtx) {
-    unsafe {
-        // Update the uniforms
-        citro3d_sys::C3D_FVUnifMtx4x4(
-            ctru_sys::GPU_VERTEX_SHADER,
-            projection_uniform_idx,
-            projection,
+        // Get the location of the uniforms
+        let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
+        let projection_uniform_idx = ctru_sys::shaderInstanceGetUniformLocation(
+            (*program.as_raw()).vertexShader,
+            projection_name.as_ptr(),
         );
 
-        // Draw the VBO
-        citro3d_sys::C3D_DrawArrays(
-            ctru_sys::GPU_TRIANGLES,
-            0,
-            VERTICES
-                .len()
-                .try_into()
-                .expect("VERTICES.len() fits in i32"),
-        );
+        projection_uniform_idx
     }
 }
