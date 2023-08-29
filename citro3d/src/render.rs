@@ -79,6 +79,14 @@ impl<'screen> Target<'screen> {
         })
     }
 
+    /// Create a new render target from a pre-computed C3D_RenderTarget.
+    pub fn new_computed(raw: *mut C3D_RenderTarget, screen: RefMut<'screen, dyn Screen>) -> Self {
+        Self {
+            raw,
+            _screen: screen
+        }
+    }
+
     /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
     /// Use `flags` to specify whether color and/or depth should be overwritten.
     pub fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
@@ -88,7 +96,7 @@ impl<'screen> Target<'screen> {
     }
 
     /// Return the underlying `citro3d` render target for this target.
-    pub(crate) fn as_raw(&self) -> *mut C3D_RenderTarget {
+    pub fn as_raw(&self) -> *mut C3D_RenderTarget {
         self.raw
     }
 }
