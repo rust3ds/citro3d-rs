@@ -39,8 +39,8 @@ impl<'screen> Target<'screen> {
     ///
     /// Fails if the target could not be created.
     pub fn new(
-        width: u16,
-        height: u16,
+        width: usize,
+        height: usize,
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<DepthFormat>,
     ) -> Result<Self> {
@@ -48,8 +48,8 @@ impl<'screen> Target<'screen> {
 
         let raw = unsafe {
             C3D_RenderTargetCreate(
-                width.into(),
-                height.into(),
+                width.try_into()?,
+                height.try_into()?,
                 color_format as GPU_COLORBUF,
                 depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
             )
@@ -96,8 +96,11 @@ impl<'screen> Target<'screen> {
 bitflags::bitflags! {
     /// Indicate whether color, depth buffer, or both values should be cleared.
     pub struct ClearFlags: u32 {
+        /// Clear the color of the render target.
         const COLOR = citro3d_sys::C3D_CLEAR_COLOR;
+        /// Clear the depth buffer value of the render target.
         const DEPTH = citro3d_sys::C3D_CLEAR_DEPTH;
+        /// Clear both color and depth buffer values of the render target.
         const ALL = citro3d_sys::C3D_CLEAR_ALL;
     }
 }

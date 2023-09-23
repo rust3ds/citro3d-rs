@@ -1,10 +1,10 @@
 //! Safe Rust bindings to `citro3d`.
 
+pub mod attrib;
+pub mod buffer;
 pub mod error;
 pub mod render;
 pub mod shader;
-pub mod texture;
-pub mod vbo;
 
 use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
@@ -12,6 +12,7 @@ pub use error::{Error, Result};
 /// The single instance for using `citro3d`. This is the base type that an application
 /// should instantiate to use this library.
 #[non_exhaustive]
+#[must_use]
 #[derive(Debug)]
 pub struct Instance;
 
@@ -68,6 +69,49 @@ impl Instance {
 
         unsafe {
             citro3d_sys::C3D_FrameEnd(0);
+        }
+    }
+
+    /// Get the buffer info being used, if it exists. Note that the resulting
+    /// [`buffer::Info`] is copied from the one currently in use.
+    pub fn buffer_info(&self) -> Option<buffer::Info> {
+        let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
+        buffer::Info::copy_from(raw)
+    }
+
+    /// Set the buffer info to use for any following draw calls.
+    pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
+        let raw: *const _ = &buffer_info.0;
+        // SAFETY: C3D_SetBufInfo actually copies the pointee instead of mutating it.
+        unsafe { citro3d_sys::C3D_SetBufInfo(raw.cast_mut()) };
+    }
+
+    /// Get the attribute info being used, if it exists. Note that the resulting
+    /// [`attrib::Info`] is copied from the one currently in use.
+    pub fn attr_info(&self) -> Option<attrib::Info> {
+        let raw = unsafe { citro3d_sys::C3D_GetAttrInfo() };
+        attrib::Info::copy_from(raw)
+    }
+
+    /// Set the attribute info to use for any following draw calls.
+    pub fn set_attr_info(&mut self, attr_info: &attrib::Info) {
+        let raw: *const _ = &attr_info.0;
+        // SAFETY: C3D_SetAttrInfo actually copies the pointee instead of mutating it.
+        unsafe { citro3d_sys::C3D_SetAttrInfo(raw.cast_mut()) };
+    }
+
+    /// Draw the specified primitivearrays. The
+    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Slice) {
+        self.set_buffer_info(index.info());
+
+        // TODO: should we also require the attrib info directly here?
+
+        unsafe {
+            citro3d_sys::C3D_DrawArrays(
+                primitive as ctru_sys::GPU_Primitive_t,
+                index.index(),
+                index.len(),
+            );
         }
     }
 }

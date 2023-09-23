@@ -7,12 +7,15 @@
 use std::error::Error;
 use std::mem::MaybeUninit;
 
+// Macros get exported at the crate root, so no reason to document this module.
+// It still needs to be `pub` for the helper struct it exports.
+#[doc(hidden)]
 pub mod macros;
 
 /// A PICA200 shader program. It may have one or both of:
 ///
-/// * A vertex [shader instance](Instance)
-/// * A geometry [shader instance](Instance)
+/// * A vertex shader [`Library`]
+/// * A geometry shader [`Library`]
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
 pub struct Program {
@@ -86,7 +89,7 @@ impl Drop for Program {
 /// one or more [`Entrypoint`]s, but most commonly has one vertex shader and an
 /// optional geometry shader.
 ///
-/// This is the result of parsing a shader binary (shbin), and the resulting
+/// This is the result of parsing a shader binary (`.shbin`), and the resulting
 /// [`Entrypoint`]s can be used as part of a [`Program`].
 pub struct Library(*mut ctru_sys::DVLB_s);
 
@@ -110,11 +113,19 @@ impl Library {
         }))
     }
 
+    /// Get the number of [`Entrypoint`]s in this shader library.
     #[must_use]
     pub fn len(&self) -> usize {
         unsafe { (*self.0).numDVLE as usize }
     }
 
+    /// Whether the library has any [`Entrypoint`]s or not.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the [`Entrypoint`] at the given index, if present.
     #[must_use]
     pub fn get(&self, index: usize) -> Option<Entrypoint> {
         if index < self.len() {
@@ -125,11 +136,6 @@ impl Library {
         } else {
             None
         }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 
     fn as_raw(&mut self) -> *mut ctru_sys::DVLB_s {
