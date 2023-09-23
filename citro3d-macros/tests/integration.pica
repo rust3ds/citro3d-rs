@@ -1,0 +1,14 @@
+; Trivial vertex shader
+
+.out outpos position
+.out outclr color
+
+.alias inpos v1
+.alias inclr v0
+
+.proc main
+    mov outpos, inpos
+    mov outclr, inclr
+
+    end
+.end

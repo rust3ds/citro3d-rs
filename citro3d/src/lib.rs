@@ -8,7 +8,11 @@ pub mod shader;
 
 use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
-pub use pica200::include_shader;
+
+pub mod macros {
+    //! Helper macros for working with shaders.
+    pub use citro3d_macros::*;
+}
 
 /// The single instance for using `citro3d`. This is the base type that an application
 /// should instantiate to use this library.

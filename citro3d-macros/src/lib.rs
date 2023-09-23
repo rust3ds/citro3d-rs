@@ -1,10 +1,13 @@
 // we're already nightly-only so might as well use unstable proc macro APIs.
 #![feature(proc_macro_span)]
 
+use std::error::Error;
+use std::fs::DirBuilder;
 use std::path::PathBuf;
 use std::{env, process};
 
 use litrs::StringLit;
+use proc_macro::TokenStream;
 use quote::quote;
 
 /// Compiles the given PICA200 shader using [`picasso`](https://github.com/devkitPro/picasso)
@@ -23,22 +26,30 @@ use quote::quote;
 /// # Example
 ///
 /// ```no_run
-/// # use pica200::include_shader;
+/// # use citro3d_macros::include_shader;
 /// static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
 /// ```
 #[proc_macro]
 pub fn include_shader(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    match include_shader_impl(input) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            let err_str = err.to_string();
+            quote! { compile_error!( #err_str ) }.into()
+        }
+    }
+}
+
+fn include_shader_impl(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
     let tokens: Vec<_> = input.into_iter().collect();
 
     if tokens.len() != 1 {
-        let msg = format!("expected exactly one input token, got {}", tokens.len());
-        return quote! { compile_error!(#msg) }.into();
+        return Err(format!("expected exactly one input token, got {}", tokens.len()).into());
     }
 
     let string_lit = match StringLit::try_from(&tokens[0]) {
-        // Error if the token is not a string literal
-        Err(e) => return e.to_compile_error(),
         Ok(lit) => lit,
+        Err(err) => return Ok(err.to_compile_error()),
     };
 
     // The cwd can change depending on whether this is running in a doctest or not:
@@ -46,46 +57,51 @@ pub fn include_shader(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     //
     // But the span's `source_file()` seems to always be relative to the cwd.
     let cwd = env::current_dir().expect("unable to determine working directory");
-    let invoking_source_file = tokens[0].span().source_file().path();
-    let invoking_source_dir = invoking_source_file
-        .parent()
-        .expect("unable to find parent directory of invoking source file");
+    let span = tokens[0].span();
+    let invoking_source_file = span.source_file().path();
+    let Some(invoking_source_dir) = invoking_source_file.parent() else {
+        return Err("unable to find parent directory of invoking source file".into());
+    };
 
     // By joining these three pieces, we arrive at approximately the same behavior as `include_bytes!`
     let shader_source_file = cwd.join(invoking_source_dir).join(string_lit.value());
-    let shader_out_file = shader_source_file.with_extension("shbin");
-
-    let Some(shader_out_file) = shader_out_file.file_name() else {
-        let msg = format!("invalid input file name {shader_source_file:?}");
-        return quote! { compile_error!(#msg) }.into();
-    };
+    let shader_out_file: PathBuf = shader_source_file.with_extension("shbin");
 
     let out_dir = PathBuf::from(env!("OUT_DIR"));
-    let out_path = out_dir.join(shader_out_file);
+    // This might be overkill, but it ensures we get a unique path if different
+    // shaders with the same relative path are used within one program
+    let relative_out_path = shader_out_file.canonicalize()?;
+
+    let out_path = out_dir.join(
+        relative_out_path
+            .strip_prefix("/")
+            .unwrap_or(&shader_out_file),
+    );
+
+    let parent_dir = out_path.parent().ok_or("invalid input filename")?;
+    DirBuilder::new().recursive(true).create(parent_dir)?;
 
     let devkitpro = PathBuf::from(env!("DEVKITPRO"));
 
     let output = process::Command::new(devkitpro.join("tools/bin/picasso"))
         .arg("--out")
         .args([&out_path, &shader_source_file])
-        .output()
-        .unwrap();
+        .output()?;
 
     match output.status.code() {
         Some(0) => {}
         code => {
             let code = code.map_or_else(|| String::from("unknown"), |c| c.to_string());
 
-            let msg = format!(
-                "failed to compile shader {shader_source_file:?}: exit status {code}: {}",
+            return Err(format!(
+                "failed to compile shader: exit status from `picasso` was {code}: {}",
                 String::from_utf8_lossy(&output.stderr),
-            );
-
-            return quote! { compile_error!(#msg) }.into();
+            )
+            .into());
         }
     }
 
-    let bytes = std::fs::read(out_path).unwrap();
+    let bytes = std::fs::read(out_path)?;
     let source_file_path = shader_source_file.to_string_lossy();
 
     let result = quote! {
@@ -111,5 +127,5 @@ pub fn include_shader(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         }
     };
 
-    result.into()
+    Ok(result.into())
 }

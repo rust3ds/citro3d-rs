@@ -17,3 +17,6 @@ Cargo.lock
 rust-toolchain
 rust-toolchain.toml
 .cargo/
+
+# Pica200 output files
+*.shbin
