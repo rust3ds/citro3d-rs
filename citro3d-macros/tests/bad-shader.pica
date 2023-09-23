@@ -1,0 +1,11 @@
+; Vertex shader that won't compile
+
+.out outpos position
+.out outclr color
+
+.proc main
+    mov outpos, 1
+    mov outclr, 0
+
+    end
+.end
