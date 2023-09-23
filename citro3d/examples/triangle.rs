@@ -6,7 +6,8 @@
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 
-use citro3d::render::{ClearFlags, Target};
+use citro3d::macros::include_shader;
+use citro3d::render::{self, ClearFlags};
 use citro3d::{attrib, buffer, shader};
 use citro3d_sys::C3D_Mtx;
 use ctru::prelude::*;
@@ -48,7 +49,7 @@ static VERTICES: &[Vertex] = &[
     },
 ];
 
-static SHADER_BYTES: &[u8] = citro3d::include_shader!("assets/vshader.pica");
+static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
 
 fn main() {
     ctru::use_panic_handler();
@@ -67,17 +68,17 @@ fn main() {
     let (mut top_left, mut top_right) = top_screen.split_mut();
 
     let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
-    let mut top_left_target = citro3d::render::Target::new(width, height, top_left, None)
-        .expect("failed to create render target");
+    let mut top_left_target =
+        render::Target::new(width, height, top_left, None).expect("failed to create render target");
 
     let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
-    let mut top_right_target = citro3d::render::Target::new(width, height, top_right, None)
+    let mut top_right_target = render::Target::new(width, height, top_right, None)
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
     let RawFrameBuffer { width, height, .. } = bottom_screen.raw_framebuffer();
 
-    let mut bottom_target = citro3d::render::Target::new(width, height, bottom_screen, None)
+    let mut bottom_target = render::Target::new(width, height, bottom_screen, None)
         .expect("failed to create bottom screen render target");
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
@@ -100,7 +101,7 @@ fn main() {
         }
 
         instance.render_frame_with(|instance| {
-            let mut render_to = |target: &mut Target, projection| {
+            let mut render_to = |target: &mut render::Target, projection| {
                 instance
                     .select_render_target(target)
                     .expect("failed to set render target");
@@ -244,11 +245,10 @@ fn scene_init(program: &mut shader::Program) -> i8 {
 
         // Get the location of the uniforms
         let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
-        let projection_uniform_idx = ctru_sys::shaderInstanceGetUniformLocation(
+
+        ctru_sys::shaderInstanceGetUniformLocation(
             (*program.as_raw()).vertexShader,
             projection_name.as_ptr(),
-        );
-
-        projection_uniform_idx
+        )
     }
 }
