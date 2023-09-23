@@ -13,7 +13,7 @@ use quote::quote;
 /// Compiles the given PICA200 shader using [`picasso`](https://github.com/devkitPro/picasso)
 /// and returns the compiled bytes directly as a `&[u8]` slice.
 ///
-/// This is similar to the standard library's [`include_bytes!`] macro, for which
+/// This is similar to the standard library's [`include_bytes!`](std::include_bytes) macro, for which
 /// file paths are relative to the source file where the macro is invoked.
 ///
 /// The compiled shader binary will be saved in the caller's `$OUT_DIR`.
