@@ -3,16 +3,15 @@
 
 #![feature(allocator_api)]
 
-use citro3d::attrib;
-use citro3d::buffer;
+use std::ffi::CStr;
+use std::mem::MaybeUninit;
+
+use citro3d::macros::include_shader;
 use citro3d::render::{self, ClearFlags};
-use citro3d::{include_aligned_bytes, shader};
+use citro3d::{attrib, buffer, shader};
 use citro3d_sys::C3D_Mtx;
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
-
-use std::ffi::CStr;
-use std::mem::MaybeUninit;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -50,8 +49,7 @@ static VERTICES: &[Vertex] = &[
     },
 ];
 
-static SHADER_BYTES: &[u8] =
-    include_aligned_bytes!(concat!(env!("OUT_DIR"), "/examples/assets/vshader.shbin"));
+static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
 
 fn main() {
     ctru::use_panic_handler();

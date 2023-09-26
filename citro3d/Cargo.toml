@@ -1,11 +1,12 @@
 [package]
 name = "citro3d"
-authors = [ "Rust3DS Org" ]
+authors = ["Rust3DS Org"]
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+citro3d-macros = { version = "0.1.0", path = "../citro3d-macros" }
 bitflags = "1.3.2"
 bytemuck = { version = "1.10.0", features = ["extern_crate_std"] }
 citro3d-sys = { git = "https://github.com/rust3ds/citro3d-rs.git" }
