@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        toolchain:
+          # Run against a "known good" nightly. Rustc version is 1 day behind the toolchain date
+          - nightly-2023-06-01
+          # Check for breakage on latest nightly
+          - nightly
+
+    # But if latest nightly fails, allow the workflow to continue
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+
+      - uses: rust3ds/test-runner/setup@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      # https://github.com/actions/runner/issues/504
+      # Removing the matchers won't keep the job from failing if there are errors,
+      # but will at least declutter pull request annotations (especially for warnings).
+      - name: Hide duplicate annotations from nightly
+        if: ${{ matrix.toolchain == 'nightly' }}
+        run: |
+          echo "::remove-matcher owner=clippy::"
+          echo "::remove-matcher owner=rustfmt::"
+
+      - name: Check formatting
+        run: cargo fmt --all --verbose -- --check
+
+      - name: Run linting
+        run: cargo 3ds clippy --color=always --verbose --all-targets
+
+  test:
+    strategy:
+      matrix:
+        toolchain:
+          - nightly-2023-06-01
+          - nightly
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+
+      - uses: rust3ds/test-runner/setup@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Hide duplicated warnings from lint job
+        run: echo "::remove-matcher owner=clippy::"
+
+      - name: Build and run macro tests
+        run: cargo test --package citro3d-macros
+
+      - name: Build and run lib and integration tests
+        uses: rust3ds/test-runner/run-tests@v1
+        with:
+          args: --tests --package citro3d
+
+      - name: Build and run doc tests
+        uses: rust3ds/test-runner/run-tests@v1
+        with:
+          args: --doc --package citro3d
+
+      - name: Upload citra logs and capture videos
+        uses: actions/upload-artifact@v3
+        if: success() || failure() # always run unless the workflow was cancelled
+        with:
+          name: citra-logs-${{ matrix.toolchain }}
+          path: |
+            target/armv6k-nintendo-3ds/debug/deps/*.txt
+            target/armv6k-nintendo-3ds/debug/deps/*.webm
