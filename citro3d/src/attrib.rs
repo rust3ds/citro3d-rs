@@ -117,7 +117,7 @@ impl Info {
         };
 
         let Ok(idx) = ret.try_into() else {
-            return Err(crate::Error::TooManyAttributes)
+            return Err(crate::Error::TooManyAttributes);
         };
 
         Ok(Index(idx))
