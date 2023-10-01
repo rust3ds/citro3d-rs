@@ -4,16 +4,16 @@ use std::mem::MaybeUninit;
 
 use crate::AspectRatio;
 
-/// A 4-vector of [`u8`]s.
+/// A 4-vector of `u8`s.
 pub struct IntVec(citro3d_sys::C3D_IVec);
 
-/// A 4-vector of [`f32`]s.
+/// A 4-vector of `f32`s.
 pub struct FloatVec(citro3d_sys::C3D_FVec);
 
-/// A quaternion, internally represented the same way as [`FVec`].
+/// A quaternion, internally represented the same way as [`FloatVec`].
 pub struct Quaternion(citro3d_sys::C3D_FQuat);
 
-/// A 4x4 row-major matrix of [`f32`]s.
+/// A 4x4 row-major matrix of `f32`s.
 pub struct Matrix(citro3d_sys::C3D_Mtx);
 
 /// Whether to use left-handed or right-handed coordinates for calculations.

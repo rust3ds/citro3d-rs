@@ -67,20 +67,26 @@ impl Program {
         }
     }
 
-    // TODO: newtype for index?
+    /// Get the index of a uniform by name.
+    ///
+    /// # Errors
+    ///
+    /// * If the given `name` contains a null byte
+    /// * If a uniform with the given `name` could not be found
     pub fn get_uniform_location(&self, name: &str) -> crate::Result<i8> {
         let vertex_instance = unsafe { (*self.as_raw()).vertexShader };
-        if vertex_instance.is_null() {
-            return Err(todo!());
-        }
+        assert!(
+            !vertex_instance.is_null(),
+            "vertex shader should never be null!"
+        );
 
-        let name = CString::new(name).map_err(|e| -> crate::Error { todo!() })?;
+        let name = CString::new(name)?;
 
         let idx =
             unsafe { ctru_sys::shaderInstanceGetUniformLocation(vertex_instance, name.as_ptr()) };
 
         if idx < 0 {
-            Err(todo!())
+            Err(crate::Error::NotFound)
         } else {
             Ok(idx)
         }
