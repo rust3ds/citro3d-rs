@@ -1,4 +1,6 @@
 //! Safe Rust bindings to `citro3d`.
+#![feature(custom_test_frameworks)]
+#![test_runner(test_runner::run_gdb)]
 
 pub mod attrib;
 pub mod buffer;
