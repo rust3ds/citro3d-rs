@@ -5,11 +5,12 @@
 pub mod attrib;
 pub mod buffer;
 pub mod error;
+pub mod math;
 pub mod render;
 pub mod shader;
 
-use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
+pub use math::Matrix;
 
 pub mod macros {
     //! Helper macros for working with shaders.
@@ -53,7 +54,7 @@ impl Instance {
     /// Fails if the given target cannot be used for drawing.
     pub fn select_render_target(&mut self, target: &render::Target<'_>) -> Result<()> {
         let _ = self;
-        if unsafe { C3D_FrameDrawOn(target.as_raw()) } {
+        if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
             Ok(())
         } else {
             Err(Error::InvalidRenderTarget)
@@ -121,12 +122,43 @@ impl Instance {
             );
         }
     }
+
+    // TODO: need separate versions for vertex/geometry and different dimensions?
+    // Maybe we could do something nicer with const generics, or something, although
+    // it will probably be tricker
+    pub fn update_vertex_uniform_mat4x4(&mut self, index: i8, matrix: &Matrix) {
+        unsafe {
+            citro3d_sys::C3D_FVUnifMtx4x4(
+                ctru_sys::GPU_VERTEX_SHADER,
+                index.into(),
+                matrix.as_raw(),
+            )
+        }
+    }
 }
 
 impl Drop for Instance {
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_Fini();
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+pub enum AspectRatio {
+    TopScreen,
+    BottomScreen,
+    Other(f32),
+}
+
+impl From<AspectRatio> for f32 {
+    fn from(ratio: AspectRatio) -> Self {
+        match ratio {
+            AspectRatio::TopScreen => citro3d_sys::C3D_AspectRatioTop as f32,
+            AspectRatio::BottomScreen => citro3d_sys::C3D_AspectRatioBot as f32,
+            AspectRatio::Other(ratio) => ratio,
         }
     }
 }

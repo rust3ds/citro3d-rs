@@ -5,6 +5,7 @@
 //! documentation for <https://github.com/devkitPro/picasso>.
 
 use std::error::Error;
+use std::ffi::CString;
 use std::mem::MaybeUninit;
 
 /// A PICA200 shader program. It may have one or both of:
@@ -66,8 +67,30 @@ impl Program {
         }
     }
 
+    // TODO: newtype for index?
+    pub fn get_uniform_location(&self, name: &str) -> crate::Result<i8> {
+        let vertex_instance = unsafe { (*self.as_raw()).vertexShader };
+        if vertex_instance.is_null() {
+            return Err(todo!());
+        }
+
+        let name = CString::new(name).map_err(|e| -> crate::Error { todo!() })?;
+
+        let idx =
+            unsafe { ctru_sys::shaderInstanceGetUniformLocation(vertex_instance, name.as_ptr()) };
+
+        if idx < 0 {
+            Err(todo!())
+        } else {
+            Ok(idx)
+        }
+    }
     // TODO: pub(crate)
-    pub fn as_raw(&mut self) -> *mut ctru_sys::shaderProgram_s {
+    pub fn as_raw(&self) -> *const ctru_sys::shaderProgram_s {
+        &self.program
+    }
+
+    pub fn as_raw_mut(&mut self) -> *mut ctru_sys::shaderProgram_s {
         &mut self.program
     }
 }
@@ -75,7 +98,7 @@ impl Program {
 impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
-            let _ = ctru_sys::shaderProgramFree(self.as_raw());
+            let _ = ctru_sys::shaderProgramFree(self.as_raw_mut());
         }
     }
 }

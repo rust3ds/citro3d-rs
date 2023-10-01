@@ -3,13 +3,10 @@
 
 #![feature(allocator_api)]
 
-use std::ffi::CStr;
-use std::mem::MaybeUninit;
-
 use citro3d::macros::include_shader;
+use citro3d::math::{CoordinateSystem, Matrix};
 use citro3d::render::{self, ClearFlags};
-use citro3d::{attrib, buffer, shader};
-use citro3d_sys::C3D_Mtx;
+use citro3d::{attrib, buffer, shader, AspectRatio};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -92,7 +89,10 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
 
-    let projection_uniform_idx = scene_init(&mut program);
+    scene_init(&mut program);
+
+    let projection_uniform_idx = program.get_uniform_location("projection").unwrap();
+
     while apt.main_loop() {
         hid.scan_input();
 
@@ -109,14 +109,7 @@ fn main() {
                 let clear_color: u32 = 0x7F_7F_7F_FF;
                 target.clear(ClearFlags::ALL, clear_color, 0);
 
-                unsafe {
-                    // Update the uniforms
-                    citro3d_sys::C3D_FVUnifMtx4x4(
-                        ctru_sys::GPU_VERTEX_SHADER,
-                        projection_uniform_idx.into(),
-                        projection,
-                    );
-                }
+                instance.update_vertex_uniform_mat4x4(projection_uniform_idx, projection);
 
                 instance.set_attr_info(&attr_info);
 
@@ -165,16 +158,12 @@ where
 }
 
 struct Projections {
-    left: C3D_Mtx,
-    right: C3D_Mtx,
-    center: C3D_Mtx,
+    left: Matrix,
+    right: Matrix,
+    center: Matrix,
 }
 
 fn calculate_projections() -> Projections {
-    let mut left_eye = MaybeUninit::uninit();
-    let mut right_eye = MaybeUninit::uninit();
-    let mut center = MaybeUninit::uninit();
-
     // TODO: it would be cool to allow playing around with these parameters on
     // the fly with D-pad, etc.
     let slider_val = unsafe { ctru_sys::osGet3DSliderState() };
@@ -182,53 +171,48 @@ fn calculate_projections() -> Projections {
 
     let near = 0.01;
     let far = 100.0;
-    let fovy = 40.0_f32.to_radians();
+    let fov_y = 40.0_f32.to_radians();
     let screen = 2.0;
 
-    unsafe {
-        citro3d_sys::Mtx_PerspStereoTilt(
-            left_eye.as_mut_ptr(),
-            fovy,
-            citro3d_sys::C3D_AspectRatioTop as f32,
-            near,
-            far,
-            -iod,
-            screen,
-            true,
-        );
+    let left_eye = Matrix::perspective_stereo_tilt(
+        fov_y,
+        AspectRatio::TopScreen,
+        near,
+        far,
+        -iod,
+        screen,
+        CoordinateSystem::LeftHanded,
+    );
 
-        citro3d_sys::Mtx_PerspStereoTilt(
-            right_eye.as_mut_ptr(),
-            fovy,
-            citro3d_sys::C3D_AspectRatioTop as f32,
-            near,
-            far,
-            iod,
-            screen,
-            true,
-        );
+    let right_eye = Matrix::perspective_stereo_tilt(
+        fov_y,
+        AspectRatio::TopScreen,
+        near,
+        far,
+        iod,
+        screen,
+        CoordinateSystem::LeftHanded,
+    );
 
-        citro3d_sys::Mtx_PerspTilt(
-            center.as_mut_ptr(),
-            fovy,
-            citro3d_sys::C3D_AspectRatioBot as f32,
-            near,
-            far,
-            true,
-        );
+    let center = Matrix::perspective_tilt(
+        fov_y,
+        AspectRatio::BottomScreen,
+        near,
+        far,
+        CoordinateSystem::LeftHanded,
+    );
 
-        Projections {
-            left: left_eye.assume_init(),
-            right: right_eye.assume_init(),
-            center: center.assume_init(),
-        }
+    Projections {
+        left: left_eye,
+        right: right_eye,
+        center,
     }
 }
 
-fn scene_init(program: &mut shader::Program) -> i8 {
+fn scene_init(program: &mut shader::Program) {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
-        citro3d_sys::C3D_BindProgram(program.as_raw());
+        citro3d_sys::C3D_BindProgram(program.as_raw_mut());
 
         // Configure the first fragment shading substage to just pass through the vertex color
         // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -242,13 +226,5 @@ fn scene_init(program: &mut shader::Program) -> i8 {
             0,
         );
         citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
-
-        // Get the location of the uniforms
-        let projection_name = CStr::from_bytes_with_nul(b"projection\0").unwrap();
-
-        ctru_sys::shaderInstanceGetUniformLocation(
-            (*program.as_raw()).vertexShader,
-            projection_name.as_ptr(),
-        )
     }
 }
