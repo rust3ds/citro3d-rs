@@ -5,19 +5,7 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::all)]
 
-pub mod base;
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
 pub mod gx;
-pub mod os;
-pub mod renderqueue;
-pub mod texenv;
-pub mod uniforms;
-
-mod bindings;
-
-pub use base::*;
-pub use bindings::*;
 pub use gx::*;
-pub use os::*;
-pub use renderqueue::*;
-pub use texenv::*;
-pub use uniforms::*;

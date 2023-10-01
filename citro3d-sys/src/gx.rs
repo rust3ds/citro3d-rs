@@ -1,4 +1,5 @@
-//! Helper functions based on `<3ds/gpu/gx.h>`.
+//! Helper functions based on `<3ds/gpu/gx.h>`. Bindgen doesn't work on these
+//! function-like macros so we just reimplement them as `#[inline]` here.
 
 use ctru_sys::{GX_TRANSFER_FORMAT, GX_TRANSFER_SCALE};
 

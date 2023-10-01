@@ -177,7 +177,7 @@ fn calculate_projections() -> Projections {
 
     // TODO: it would be cool to allow playing around with these parameters on
     // the fly with D-pad, etc.
-    let slider_val = unsafe { citro3d_sys::osGet3DSliderState() };
+    let slider_val = unsafe { ctru_sys::osGet3DSliderState() };
     let iod = slider_val / 4.0;
 
     let near = 0.01;

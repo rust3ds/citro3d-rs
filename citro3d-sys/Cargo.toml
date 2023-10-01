@@ -8,3 +8,8 @@ license = "Zlib"
 [dependencies]
 libc = "0.2.116"
 ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
+
+[build-dependencies]
+bindgen = { version = "0.68.1", features = ["experimental"] }
+cc = "1.0.83"
+doxygen-rs = "0.4.2"
