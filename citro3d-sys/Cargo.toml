@@ -1,9 +1,10 @@
 [package]
 name = "citro3d-sys"
 version = "0.1.0"
-authors = [ "Rust3DS Org", "panicbit <panicbit.dev@gmail.com>" ]
+authors = ["Rust3DS Org", "panicbit <panicbit.dev@gmail.com>"]
 edition = "2021"
 license = "Zlib"
+links = "citro3d"
 
 [dependencies]
 libc = "0.2.116"

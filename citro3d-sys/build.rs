@@ -42,6 +42,18 @@ fn main() {
     let system_include = sysroot.join("include");
     let static_fns_path = Path::new("citro3d_statics_wrapper");
 
+    let gcc_dir = PathBuf::from_iter([devkitarm.as_str(), "lib", "gcc", "arm-none-eabi"]);
+
+    let gcc_include = gcc_dir
+        .read_dir()
+        .unwrap()
+        // Assuming that there is only one gcc version of libs under the devkitARM dir
+        .next()
+        .unwrap()
+        .unwrap()
+        .path()
+        .join("include");
+
     let bindings = Builder::default()
         .header(three_ds_h.to_str().unwrap())
         .header(citro3d_h.to_str().unwrap())
@@ -70,6 +82,8 @@ fn main() {
             sysroot.to_str().unwrap(),
             "-isystem",
             system_include.to_str().unwrap(),
+            "-isystem",
+            gcc_include.to_str().unwrap(),
             "-I",
             include_path.to_str().unwrap(),
             "-mfloat-abi=hard",
