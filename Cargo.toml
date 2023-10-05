@@ -1,9 +1,8 @@
 [workspace]
 members = [
-    "bindgen-citro3d",
-    "citro3d-macros",
-    "citro3d-sys",
     "citro3d",
+    "citro3d-sys",
+    "citro3d-macros",
 ]
 default-members = [
     "citro3d",
@@ -13,4 +12,6 @@ default-members = [
 resolver = "2"
 
 [patch."https://github.com/rust3ds/citro3d-rs.git"]
+citro3d = { path = "citro3d" }
 citro3d-sys = { path = "citro3d-sys" }
+citro3d-macros = { path = "citro3d-macros" }

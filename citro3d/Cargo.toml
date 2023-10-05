@@ -13,3 +13,6 @@ citro3d-sys = { git = "https://github.com/rust3ds/citro3d-rs.git" }
 ctru-rs = { git = "https://github.com/rust3ds/ctru-rs.git" }
 ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 libc = "0.2.125"
+
+[dev-dependencies]
+test-runner = { git = "https://github.com/rust3ds/test-runner.git" }
