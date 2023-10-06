@@ -4,7 +4,7 @@
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
-use citro3d::math::{CoordinateSystem, Matrix};
+use citro3d::math::{ClipPlane, CoordinateSystem, Matrix, Orientation, Stereoscopic};
 use citro3d::render::{self, ClearFlags};
 use citro3d::{attrib, buffer, shader, AspectRatio};
 use ctru::prelude::*;
@@ -117,8 +117,8 @@ fn main() {
             };
 
             let Projections {
-                left,
-                right,
+                left_eye: left,
+                right_eye: right,
                 center,
             } = calculate_projections();
 
@@ -158,8 +158,8 @@ where
 }
 
 struct Projections {
-    left: Matrix,
-    right: Matrix,
+    left_eye: Matrix,
+    right_eye: Matrix,
     center: Matrix,
 }
 
@@ -167,44 +167,51 @@ fn calculate_projections() -> Projections {
     // TODO: it would be cool to allow playing around with these parameters on
     // the fly with D-pad, etc.
     let slider_val = unsafe { ctru_sys::osGet3DSliderState() };
-    let iod = slider_val / 4.0;
+    let interocular_distance = slider_val / 4.0;
 
-    let near = 0.01;
-    let far = 100.0;
-    let fov_y = 40.0_f32.to_radians();
-    let screen = 2.0;
+    let vertical_fov = 40.0_f32.to_radians();
+    let screen_depth = 2.0;
 
-    let left_eye = Matrix::perspective_stereo_tilt(
-        fov_y,
+    let clip_plane = ClipPlane {
+        near: 0.01,
+        far: 100.0,
+    };
+
+    let stereoscopic = Stereoscopic::Stereo {
+        interocular_distance,
+        screen_depth,
+    };
+
+    let left_eye = Matrix::perspective_projection(
+        vertical_fov,
         AspectRatio::TopScreen,
-        near,
-        far,
-        -iod,
-        screen,
+        Orientation::Natural,
+        clip_plane,
+        stereoscopic,
         CoordinateSystem::LeftHanded,
     );
 
-    let right_eye = Matrix::perspective_stereo_tilt(
-        fov_y,
+    let right_eye = Matrix::perspective_projection(
+        vertical_fov,
         AspectRatio::TopScreen,
-        near,
-        far,
-        iod,
-        screen,
+        Orientation::Natural,
+        clip_plane,
+        stereoscopic.invert(),
         CoordinateSystem::LeftHanded,
     );
 
-    let center = Matrix::perspective_tilt(
-        fov_y,
+    let center = Matrix::perspective_projection(
+        vertical_fov,
         AspectRatio::BottomScreen,
-        near,
-        far,
+        Orientation::Natural,
+        clip_plane,
+        Stereoscopic::Mono,
         CoordinateSystem::LeftHanded,
     );
 
     Projections {
-        left: left_eye,
-        right: right_eye,
+        left_eye,
+        right_eye,
         center,
     }
 }
