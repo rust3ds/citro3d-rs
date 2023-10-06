@@ -8,10 +8,12 @@ use std::error::Error;
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 
+use crate::uniform;
+
 /// A PICA200 shader program. It may have one or both of:
 ///
-/// * A vertex shader [`Library`]
-/// * A geometry shader [`Library`]
+/// * A [vertex](Type::Vertex) shader [`Library`]
+/// * A [geometry](Type::Geometry) shader [`Library`]
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
 pub struct Program {
@@ -73,7 +75,7 @@ impl Program {
     ///
     /// * If the given `name` contains a null byte
     /// * If a uniform with the given `name` could not be found
-    pub fn get_uniform_location(&self, name: &str) -> crate::Result<i8> {
+    pub fn get_uniform(&self, name: &str) -> crate::Result<uniform::Index> {
         let vertex_instance = unsafe { (*self.as_raw()).vertexShader };
         assert!(
             !vertex_instance.is_null(),
@@ -88,14 +90,15 @@ impl Program {
         if idx < 0 {
             Err(crate::Error::NotFound)
         } else {
-            Ok(idx)
+            Ok(idx.into())
         }
     }
-    // TODO: pub(crate)
-    pub fn as_raw(&self) -> *const ctru_sys::shaderProgram_s {
+
+    pub(crate) fn as_raw(&self) -> *const ctru_sys::shaderProgram_s {
         &self.program
     }
 
+    // TODO: pub(crate)
     pub fn as_raw_mut(&mut self) -> *mut ctru_sys::shaderProgram_s {
         &mut self.program
     }
@@ -106,6 +109,19 @@ impl Drop for Program {
         unsafe {
             let _ = ctru_sys::shaderProgramFree(self.as_raw_mut());
         }
+    }
+}
+
+/// The type of a shader.
+#[repr(u32)]
+pub enum Type {
+    Vertex = ctru_sys::GPU_VERTEX_SHADER,
+    Geometry = ctru_sys::GPU_GEOMETRY_SHADER,
+}
+
+impl From<Type> for u32 {
+    fn from(value: Type) -> Self {
+        value as u32
     }
 }
 
@@ -131,7 +147,7 @@ impl Library {
                 // SAFETY: we're trusting the parse implementation doesn't mutate
                 // the contents of the data. From a quick read it looks like that's
                 // correct and it should just take a const arg in the API.
-                aligned.as_ptr() as *mut _,
+                aligned.as_ptr().cast_mut(),
                 aligned.len().try_into()?,
             )
         }))

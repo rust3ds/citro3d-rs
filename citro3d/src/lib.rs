@@ -8,9 +8,12 @@ pub mod error;
 pub mod math;
 pub mod render;
 pub mod shader;
+pub mod uniform;
 
 pub use error::{Error, Result};
 pub use math::Matrix;
+
+use self::uniform::Uniform;
 
 pub mod macros {
     //! Helper macros for working with shaders.
@@ -123,17 +126,12 @@ impl Instance {
         }
     }
 
-    // TODO: need separate versions for vertex/geometry and different dimensions?
-    // Maybe we could do something nicer with const generics, or something, although
-    // it will probably be tricker
-    pub fn update_vertex_uniform_mat4x4(&mut self, index: i8, matrix: &Matrix) {
-        unsafe {
-            citro3d_sys::C3D_FVUnifMtx4x4(
-                ctru_sys::GPU_VERTEX_SHADER,
-                index.into(),
-                matrix.as_raw(),
-            )
-        }
+    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: &impl Uniform) {
+        uniform.bind(self, shader::Type::Vertex, index);
+    }
+
+    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: &impl Uniform) {
+        uniform.bind(self, shader::Type::Geometry, index);
     }
 }
 

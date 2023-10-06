@@ -91,7 +91,7 @@ fn main() {
 
     scene_init(&mut program);
 
-    let projection_uniform_idx = program.get_uniform_location("projection").unwrap();
+    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -109,7 +109,7 @@ fn main() {
                 let clear_color: u32 = 0x7F_7F_7F_FF;
                 target.clear(ClearFlags::ALL, clear_color, 0);
 
-                instance.update_vertex_uniform_mat4x4(projection_uniform_idx, projection);
+                instance.bind_vertex_uniform(projection_uniform_idx, projection);
 
                 instance.set_attr_info(&attr_info);
 
