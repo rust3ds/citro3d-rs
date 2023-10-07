@@ -10,6 +10,7 @@ on:
 jobs:
   lint:
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
           # Run against a "known good" nightly. Rustc version is 1 day behind the toolchain date
@@ -46,6 +47,7 @@ jobs:
 
   test:
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
           - nightly-2023-06-01

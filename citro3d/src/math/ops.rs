@@ -15,7 +15,7 @@ impl<Rhs: Borrow<Self>> Sub<Rhs> for FVec4 {
     type Output = Self;
 
     fn sub(self, rhs: Rhs) -> Self::Output {
-        Self(unsafe { citro3d_sys::FVec4_Add(self.0, rhs.borrow().0) })
+        Self(unsafe { citro3d_sys::FVec4_Subtract(self.0, rhs.borrow().0) })
     }
 }
 
@@ -47,7 +47,7 @@ impl<Rhs: Borrow<Self>> Sub<Rhs> for FVec3 {
     type Output = Self;
 
     fn sub(self, rhs: Rhs) -> Self::Output {
-        Self(unsafe { citro3d_sys::FVec3_Add(self.0, rhs.borrow().0) })
+        Self(unsafe { citro3d_sys::FVec3_Subtract(self.0, rhs.borrow().0) })
     }
 }
 

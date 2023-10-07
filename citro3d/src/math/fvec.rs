@@ -57,12 +57,12 @@ impl FVec4 {
 
     /// The dot product of two vectors.
     pub fn dot(&self, rhs: &Self) -> f32 {
-        unsafe { citro3d_sys::FVec3_Dot(self.0, rhs.0) }
+        unsafe { citro3d_sys::FVec4_Dot(self.0, rhs.0) }
     }
 
     /// The magnitude of the vector.
     pub fn magnitude(&self) -> f32 {
-        unsafe { citro3d_sys::FVec3_Magnitude(self.0) }
+        unsafe { citro3d_sys::FVec4_Magnitude(self.0) }
     }
 
     /// Normalize the vector to a magnitude of `1.0`.
@@ -144,7 +144,7 @@ mod tests {
         let dot = l.dot(&FVec4::splat(3.0));
         assert!((dot - 24.0).abs() < f32::EPSILON);
 
-        assert!((l.magnitude() - 8.0).abs() < f32::EPSILON);
+        assert!((l.magnitude() - 4.0).abs() < f32::EPSILON);
 
         let norm = l.normalize();
         assert!((norm.magnitude() - 1.0).abs() < f32::EPSILON);
@@ -166,7 +166,7 @@ mod tests {
         let dot = l.dot(&FVec3::splat(3.0));
         assert!((dot - 18.0).abs() < f32::EPSILON);
 
-        assert!((l.magnitude() - 8.0).abs() < f32::EPSILON);
+        assert!((l.magnitude() - f32::sqrt(12.0)).abs() < f32::EPSILON);
 
         let norm = l.normalize();
         assert!((norm.magnitude() - 1.0).abs() < f32::EPSILON);
