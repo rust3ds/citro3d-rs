@@ -85,7 +85,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vec3_ops() {
+    fn vec3() {
         let l = FVec3::splat(1.0);
         let r = FVec3::splat(2.0);
 
@@ -99,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn vec4_ops() {
+    fn vec4() {
         let l = FVec4::splat(1.0);
         let r = FVec4::splat(2.0);
 

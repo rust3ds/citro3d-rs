@@ -128,7 +128,9 @@ impl<const N: usize> FVec<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use float_cmp::assert_approx_eq;
 
+    // TODO: These could probably all be doctests instead it's just sort of a pain
     #[test]
     fn fvec4() {
         let l = FVec4::new(2.0, 2.0, 2.0, 2.0);
@@ -136,20 +138,20 @@ mod tests {
         assert_eq!(l, FVec4::splat(2.0));
 
         for component in [l.x(), l.y(), l.z(), l.w()] {
-            assert!((component - 2.0).abs() < f32::EPSILON);
+            assert_approx_eq!(f32, component, 2.0);
         }
 
         assert_eq!(l.perspective_divide(), FVec4::splat(1.0));
 
         let dot = l.dot(&FVec4::splat(3.0));
-        assert!((dot - 24.0).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, dot, 24.0);
 
-        assert!((l.magnitude() - 4.0).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, l.magnitude(), 4.0);
 
         let norm = l.normalize();
-        assert!((norm.magnitude() - 1.0).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, norm.magnitude(), 1.0);
         for component in [l.y(), l.z(), l.w()] {
-            assert!((component - l.x()).abs() < f32::EPSILON);
+            assert_approx_eq!(f32, component, l.x());
         }
     }
 
@@ -160,18 +162,18 @@ mod tests {
         assert_eq!(l, FVec3::splat(2.0));
 
         for component in [l.x(), l.y(), l.z()] {
-            assert!((component - 2.0).abs() < f32::EPSILON);
+            assert_approx_eq!(f32, component, 2.0);
         }
 
         let dot = l.dot(&FVec3::splat(3.0));
-        assert!((dot - 18.0).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, dot, 18.0);
 
-        assert!((l.magnitude() - f32::sqrt(12.0)).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, l.magnitude(), f32::sqrt(12.0));
 
         let norm = l.normalize();
-        assert!((norm.magnitude() - 1.0).abs() < f32::EPSILON);
+        assert_approx_eq!(f32, norm.magnitude(), 1.0);
         for component in [l.y(), l.z()] {
-            assert!((l.x() - component).abs() < f32::EPSILON);
+            assert_approx_eq!(f32, l.x(), component);
         }
     }
 }

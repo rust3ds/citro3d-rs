@@ -15,4 +15,5 @@ ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 libc = "0.2.125"
 
 [dev-dependencies]
+float-cmp = "0.9.0"
 test-runner = { git = "https://github.com/rust3ds/test-runner.git" }
