@@ -115,7 +115,9 @@ impl Drop for Program {
 /// The type of a shader.
 #[repr(u32)]
 pub enum Type {
+    /// A vertex shader.
     Vertex = ctru_sys::GPU_VERTEX_SHADER,
+    /// A geometry shader.
     Geometry = ctru_sys::GPU_GEOMETRY_SHADER,
 }
 

@@ -126,11 +126,37 @@ impl Instance {
         }
     }
 
-    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: &impl Uniform) {
+    /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::{uniform, Matrix};
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix::identity();
+    /// instance.bind_vertex_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
         uniform.bind(self, shader::Type::Vertex, index);
     }
 
-    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: &impl Uniform) {
+    /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::{uniform, Matrix};
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix::identity();
+    /// instance.bind_geometry_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
         uniform.bind(self, shader::Type::Geometry, index);
     }
 }
@@ -139,24 +165,6 @@ impl Drop for Instance {
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_Fini();
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-#[non_exhaustive]
-pub enum AspectRatio {
-    TopScreen,
-    BottomScreen,
-    Other(f32),
-}
-
-impl From<AspectRatio> for f32 {
-    fn from(ratio: AspectRatio) -> Self {
-        match ratio {
-            AspectRatio::TopScreen => citro3d_sys::C3D_AspectRatioTop as f32,
-            AspectRatio::BottomScreen => citro3d_sys::C3D_AspectRatioBot as f32,
-            AspectRatio::Other(ratio) => ratio,
         }
     }
 }

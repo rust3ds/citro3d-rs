@@ -4,9 +4,11 @@
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
-use citro3d::math::{ClipPlane, CoordinateSystem, Matrix, Orientation, Stereoscopic};
-use citro3d::render::{self, ClearFlags};
-use citro3d::{attrib, buffer, shader, AspectRatio};
+use citro3d::math::{
+    AspectRatio, ClipPlanes, CoordinateOrientation, Matrix, ScreenOrientation, StereoDisplacement,
+};
+use citro3d::render::ClearFlags;
+use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -167,46 +169,34 @@ fn calculate_projections() -> Projections {
     // TODO: it would be cool to allow playing around with these parameters on
     // the fly with D-pad, etc.
     let slider_val = unsafe { ctru_sys::osGet3DSliderState() };
-    let interocular_distance = slider_val / 4.0;
+    let interocular_distance = slider_val / 2.0;
 
     let vertical_fov = 40.0_f32.to_radians();
     let screen_depth = 2.0;
 
-    let clip_plane = ClipPlane {
+    let clip_planes = ClipPlanes {
         near: 0.01,
         far: 100.0,
     };
 
-    let stereoscopic = Stereoscopic::Stereo {
-        interocular_distance,
-        screen_depth,
-    };
+    let stereo = StereoDisplacement::new(interocular_distance, screen_depth);
 
-    let left_eye = Matrix::perspective_projection(
+    let (left_eye, right_eye) = Matrix::stereo_projections(
         vertical_fov,
         AspectRatio::TopScreen,
-        Orientation::Natural,
-        clip_plane,
-        stereoscopic,
-        CoordinateSystem::LeftHanded,
-    );
-
-    let right_eye = Matrix::perspective_projection(
-        vertical_fov,
-        AspectRatio::TopScreen,
-        Orientation::Natural,
-        clip_plane,
-        stereoscopic.invert(),
-        CoordinateSystem::LeftHanded,
+        ScreenOrientation::Rotated,
+        clip_planes,
+        CoordinateOrientation::LeftHanded,
+        stereo,
     );
 
     let center = Matrix::perspective_projection(
         vertical_fov,
         AspectRatio::BottomScreen,
-        Orientation::Natural,
-        clip_plane,
-        Stereoscopic::Mono,
-        CoordinateSystem::LeftHanded,
+        ScreenOrientation::Rotated,
+        clip_planes,
+        CoordinateOrientation::LeftHanded,
+        None,
     );
 
     Projections {
