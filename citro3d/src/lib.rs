@@ -11,7 +11,6 @@ pub mod shader;
 pub mod uniform;
 
 pub use error::{Error, Result};
-pub use math::Matrix;
 
 use self::uniform::Uniform;
 
@@ -132,7 +131,8 @@ impl Instance {
     ///
     /// ```
     /// # let _runner = test_runner::GdbRunner::default();
-    /// # use citro3d::{uniform, Matrix};
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix;
     /// #
     /// # let mut instance = citro3d::Instance::new().unwrap();
     /// let idx = uniform::Index::from(0);
@@ -149,7 +149,8 @@ impl Instance {
     ///
     /// ```
     /// # let _runner = test_runner::GdbRunner::default();
-    /// # use citro3d::{uniform, Matrix};
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix;
     /// #
     /// # let mut instance = citro3d::Instance::new().unwrap();
     /// let idx = uniform::Index::from(0);

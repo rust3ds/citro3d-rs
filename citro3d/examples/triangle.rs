@@ -4,9 +4,7 @@
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
-use citro3d::math::{
-    AspectRatio, ClipPlanes, CoordinateOrientation, Matrix, ScreenOrientation, StereoDisplacement,
-};
+use citro3d::math::{AspectRatio, ClipPlanes, Matrix, Projection, StereoDisplacement};
 use citro3d::render::ClearFlags;
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
@@ -119,13 +117,13 @@ fn main() {
             };
 
             let Projections {
-                left_eye: left,
-                right_eye: right,
+                left_eye,
+                right_eye,
                 center,
             } = calculate_projections();
 
-            render_to(&mut top_left_target, &left);
-            render_to(&mut top_right_target, &right);
+            render_to(&mut top_left_target, &left_eye);
+            render_to(&mut top_right_target, &right_eye);
             render_to(&mut bottom_target, &center);
         });
     }
@@ -179,25 +177,14 @@ fn calculate_projections() -> Projections {
         far: 100.0,
     };
 
-    let stereo = StereoDisplacement::new(interocular_distance, screen_depth);
+    let (left, right) = StereoDisplacement::new(interocular_distance, screen_depth);
 
-    let (left_eye, right_eye) = Matrix::stereo_projections(
-        vertical_fov,
-        AspectRatio::TopScreen,
-        ScreenOrientation::Rotated,
-        clip_planes,
-        CoordinateOrientation::LeftHanded,
-        stereo,
-    );
+    let (left_eye, right_eye) =
+        Projection::perspective(vertical_fov, AspectRatio::TopScreen, clip_planes)
+            .stereo_matrices(left, right);
 
-    let center = Matrix::perspective_projection(
-        vertical_fov,
-        AspectRatio::BottomScreen,
-        ScreenOrientation::Rotated,
-        clip_planes,
-        CoordinateOrientation::LeftHanded,
-        None,
-    );
+    let center =
+        Projection::perspective(vertical_fov, AspectRatio::BottomScreen, clip_planes).into();
 
     Projections {
         left_eye,

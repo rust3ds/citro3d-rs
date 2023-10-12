@@ -1,7 +1,8 @@
 //! Common definitions for binding uniforms to shaders. This is primarily
 //! done by implementing the [`Uniform`] trait for a given type.
 
-use crate::{shader, Instance, Matrix};
+use crate::math::Matrix;
+use crate::{shader, Instance};
 
 /// The index of a uniform within a [`shader::Program`].
 #[derive(Copy, Clone, Debug)]
@@ -20,7 +21,7 @@ impl From<Index> for i32 {
 }
 
 mod private {
-    use crate::Matrix;
+    use crate::math::Matrix;
 
     pub trait Sealed {}
     impl Sealed for &Matrix {}
