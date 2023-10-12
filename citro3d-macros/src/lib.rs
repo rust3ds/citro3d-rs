@@ -1,3 +1,5 @@
+//! Procedural macro helpers for `citro3d`.
+
 // we're already nightly-only so might as well use unstable proc macro APIs.
 #![feature(proc_macro_span)]
 

@@ -5,11 +5,14 @@
 pub mod attrib;
 pub mod buffer;
 pub mod error;
+pub mod math;
 pub mod render;
 pub mod shader;
+pub mod uniform;
 
-use citro3d_sys::C3D_FrameDrawOn;
 pub use error::{Error, Result};
+
+use self::uniform::Uniform;
 
 pub mod macros {
     //! Helper macros for working with shaders.
@@ -53,7 +56,7 @@ impl Instance {
     /// Fails if the given target cannot be used for drawing.
     pub fn select_render_target(&mut self, target: &render::Target<'_>) -> Result<()> {
         let _ = self;
-        if unsafe { C3D_FrameDrawOn(target.as_raw()) } {
+        if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
             Ok(())
         } else {
             Err(Error::InvalidRenderTarget)
@@ -120,6 +123,42 @@ impl Instance {
                 index.len(),
             );
         }
+    }
+
+    /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix;
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix::identity();
+    /// instance.bind_vertex_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
+        uniform.bind(self, shader::Type::Vertex, index);
+    }
+
+    /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix;
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix::identity();
+    /// instance.bind_geometry_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
+        uniform.bind(self, shader::Type::Geometry, index);
     }
 }
 

@@ -1,5 +1,6 @@
 //! General-purpose error and result types returned by public APIs of this crate.
 
+use std::ffi::NulError;
 use std::num::TryFromIntError;
 use std::sync::TryLockError;
 
@@ -31,6 +32,10 @@ pub enum Error {
     /// The given memory could not be converted to a physical address for sharing
     /// with the GPU. Data should be allocated with [`ctru::linear`].
     InvalidMemoryLocation,
+    /// The given name was not valid for the requested purpose.
+    InvalidName,
+    /// The requested resource could not be found.
+    NotFound,
 }
 
 impl From<TryFromIntError> for Error {
@@ -42,5 +47,11 @@ impl From<TryFromIntError> for Error {
 impl<T> From<TryLockError<T>> for Error {
     fn from(_: TryLockError<T>) -> Self {
         Self::LockHeld
+    }
+}
+
+impl From<NulError> for Error {
+    fn from(_: NulError) -> Self {
+        Self::InvalidName
     }
 }

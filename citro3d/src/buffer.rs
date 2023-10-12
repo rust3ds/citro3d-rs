@@ -100,7 +100,6 @@ impl Info {
     ///
     /// * if `vbo_data` is not allocated with the [`ctru::linear`] allocator
     /// * if the maximum number (12) of VBOs are already registered
-    ///
     pub fn add<'this, 'vbo, 'idx, T>(
         &'this mut self,
         vbo_data: &'vbo [T],
