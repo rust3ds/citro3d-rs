@@ -2,14 +2,14 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use super::{
-    AspectRatio, ClipPlanes, CoordinateOrientation, Matrix, ScreenOrientation, StereoDisplacement,
+    AspectRatio, ClipPlanes, CoordinateOrientation, Matrix4, ScreenOrientation, StereoDisplacement,
 };
 
 /// Configuration for a 3D [projection](https://en.wikipedia.org/wiki/3D_projection).
 /// See specific `Kind` implementations for constructors, e.g.
 /// [`Projection::perspective`] and [`Projection::orthographic`].
 ///
-/// To use the resulting projection, convert it to a [`Matrix`] with [`From`]/[`Into`].
+/// To use the resulting projection, convert it to a [`Matrix`](super::Matrix) with [`From`]/[`Into`].
 #[derive(Clone, Debug)]
 pub struct Projection<Kind> {
     coordinates: CoordinateOrientation,
@@ -122,7 +122,7 @@ impl Projection<Perspective> {
         self,
         left_eye: StereoDisplacement,
         right_eye: StereoDisplacement,
-    ) -> (Matrix, Matrix) {
+    ) -> (Matrix4, Matrix4) {
         // TODO: we might be able to avoid this clone if there was a conversion
         // from &Self to Matrix instead of Self... but it's probably fine for now
         let left = self.clone().stereo(left_eye);
@@ -137,7 +137,7 @@ impl Projection<Perspective> {
     }
 }
 
-impl From<Projection<Perspective>> for Matrix {
+impl From<Projection<Perspective>> for Matrix4 {
     fn from(projection: Projection<Perspective>) -> Self {
         let Perspective {
             vertical_fov_radians,
@@ -182,7 +182,7 @@ impl From<Projection<Perspective>> for Matrix {
             }
         }
 
-        unsafe { Self(result.assume_init()) }
+        unsafe { Self::new(result.assume_init()) }
     }
 }
 
@@ -233,7 +233,7 @@ impl Projection<Orthographic> {
     }
 }
 
-impl From<Projection<Orthographic>> for Matrix {
+impl From<Projection<Orthographic>> for Matrix4 {
     fn from(projection: Projection<Orthographic>) -> Self {
         let make_mtx = match projection.rotation {
             ScreenOrientation::Rotated => citro3d_sys::Mtx_OrthoTilt,
@@ -258,7 +258,7 @@ impl From<Projection<Orthographic>> for Matrix {
                 clip_planes_z.far,
                 projection.coordinates.is_left_handed(),
             );
-            Self(out.assume_init())
+            Self::new(out.assume_init())
         }
     }
 }

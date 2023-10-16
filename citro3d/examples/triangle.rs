@@ -4,7 +4,7 @@
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
-use citro3d::math::{AspectRatio, ClipPlanes, Matrix, Projection, StereoDisplacement};
+use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
 use citro3d::render::ClearFlags;
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
@@ -158,9 +158,9 @@ where
 }
 
 struct Projections {
-    left_eye: Matrix,
-    right_eye: Matrix,
-    center: Matrix,
+    left_eye: Matrix4,
+    right_eye: Matrix4,
+    center: Matrix4,
 }
 
 fn calculate_projections() -> Projections {

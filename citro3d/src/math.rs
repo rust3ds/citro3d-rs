@@ -21,11 +21,40 @@ pub struct IVec(citro3d_sys::C3D_IVec);
 #[doc(alias = "C3D_FQuat")]
 pub struct FQuat(citro3d_sys::C3D_FQuat);
 
-/// A 4x4 row-major matrix of `f32`s.
-#[doc(alias = "C3D_Mtx")]
-pub struct Matrix(citro3d_sys::C3D_Mtx);
+mod mtx {
+    /// An `M`x`N` row-major matrix of `f32`s.
+    #[doc(alias = "C3D_Mtx")]
+    pub struct Matrix<const M: usize, const N: usize>(citro3d_sys::C3D_Mtx);
 
-impl Matrix {
+    impl<const M: usize, const N: usize> Matrix<M, N> {
+        const ROW_SIZE: () = assert!(M == 3 || M == 4);
+        const COLUMN_SIZE: () = assert!(N > 0 && N <= 4);
+
+        // This constructor validates, at compile time, that the
+        // constructed matrix is 3xN or 4xN matrix, where 0 < N ≤ 4.
+        // We put this struct in a submodule to enforce that nothing creates
+        // a Matrix without calling this constructor.
+        #[allow(clippy::let_unit_value)]
+        pub(crate) fn new(value: citro3d_sys::C3D_Mtx) -> Self {
+            let () = Self::ROW_SIZE;
+            let () = Self::COLUMN_SIZE;
+            Self(value)
+        }
+
+        pub(crate) fn as_raw(&self) -> *const citro3d_sys::C3D_Mtx {
+            &self.0
+        }
+    }
+}
+
+pub use mtx::Matrix;
+
+/// A 3x3 row-major matrix of `f32`s.
+pub type Matrix3 = Matrix<3, 3>;
+/// A 4x4 row-major matrix of `f32`s.
+pub type Matrix4 = Matrix<4, 4>;
+
+impl<const M: usize, const N: usize> Matrix<M, N> {
     /// Construct the zero matrix.
     #[doc(alias = "Mtx_Zeros")]
     pub fn zero() -> Self {
@@ -33,22 +62,20 @@ impl Matrix {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Zeros(out.as_mut_ptr());
-            Self(out.assume_init())
+            Self::new(out.assume_init())
         }
     }
+}
 
+impl<const N: usize> Matrix<N, N> {
     /// Construct the identity matrix.
     #[doc(alias = "Mtx_Identity")]
     pub fn identity() -> Self {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Identity(out.as_mut_ptr());
-            Self(out.assume_init())
+            Self::new(out.assume_init())
         }
-    }
-
-    pub(crate) fn as_raw(&self) -> *const citro3d_sys::C3D_Mtx {
-        &self.0
     }
 }
 
