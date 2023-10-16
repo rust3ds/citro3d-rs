@@ -22,9 +22,21 @@ pub struct IVec(citro3d_sys::C3D_IVec);
 pub struct FQuat(citro3d_sys::C3D_FQuat);
 
 mod mtx {
+    use std::fmt;
+
     /// An `M`x`N` row-major matrix of `f32`s.
     #[doc(alias = "C3D_Mtx")]
+    #[derive(Clone)]
     pub struct Matrix<const M: usize, const N: usize>(citro3d_sys::C3D_Mtx);
+
+    impl<const M: usize, const N: usize> fmt::Debug for Matrix<M, N> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let inner = unsafe { self.0.r.map(|v| v.c) };
+            f.debug_tuple(std::any::type_name::<Self>())
+                .field(&inner)
+                .finish()
+        }
+    }
 
     impl<const M: usize, const N: usize> Matrix<M, N> {
         const ROW_SIZE: () = assert!(M == 3 || M == 4);
@@ -43,6 +55,14 @@ mod mtx {
 
         pub(crate) fn as_raw(&self) -> *const citro3d_sys::C3D_Mtx {
             &self.0
+        }
+
+        pub(crate) fn into_raw(self) -> citro3d_sys::C3D_Mtx {
+            self.0
+        }
+
+        pub(crate) fn as_mut(&mut self) -> *mut citro3d_sys::C3D_Mtx {
+            &mut self.0
         }
     }
 }
@@ -65,15 +85,121 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
             Self::new(out.assume_init())
         }
     }
+
+    /// Transpose the matrix, swapping rows and columns.
+    pub fn transpose(mut self) -> Matrix<N, M> {
+        unsafe {
+            citro3d_sys::Mtx_Transpose(self.as_mut());
+        }
+        Matrix::new(self.into_raw())
+    }
+
+    // region: Matrix transformations
+    //
+    // NOTE: the `bRightSide` arg common to many of these APIs flips the order of
+    // operations so that a transformation occurs as self(T) instead of T(self).
+    // For now I'm not sure if that's a common use case, but if needed we could
+    // probably have some kinda wrapper type that does transformations in the
+    // opposite order, or an enum arg for these APIs or something.
+
+    /// Translate a transformation matrix by the given amounts in the X, Y, and Z
+    /// directions.
+    pub fn translate(&mut self, x: f32, y: f32, z: f32) {
+        unsafe { citro3d_sys::Mtx_Translate(self.as_mut(), x, y, z, false) }
+    }
+
+    /// Scale a transformation matrix by the given amounts in the X, Y, and Z directions.
+    pub fn scale(&mut self, x: f32, y: f32, z: f32) {
+        unsafe { citro3d_sys::Mtx_Scale(self.as_mut(), x, y, z) }
+    }
+
+    /// Rotate a transformation matrix by the given angle around the given axis.
+    pub fn rotate(&mut self, axis: FVec3, angle: f32) {
+        unsafe { citro3d_sys::Mtx_Rotate(self.as_mut(), axis.0, angle, false) }
+    }
+
+    /// Rotate a transformation matrix by the given angle around the X axis.
+    pub fn rotate_x(&mut self, angle: f32) {
+        unsafe { citro3d_sys::Mtx_RotateX(self.as_mut(), angle, false) }
+    }
+
+    /// Rotate a transformation matrix by the given angle around the Y axis.
+    pub fn rotate_y(&mut self, angle: f32) {
+        unsafe { citro3d_sys::Mtx_RotateY(self.as_mut(), angle, false) }
+    }
+
+    /// Rotate a transformation matrix by the given angle around the Z axis.
+    pub fn rotate_z(&mut self, angle: f32) {
+        unsafe { citro3d_sys::Mtx_RotateZ(self.as_mut(), angle, false) }
+    }
+
+    // endregion
 }
 
 impl<const N: usize> Matrix<N, N> {
+    /// Find the inverse of the matrix.
+    ///
+    /// # Errors
+    ///
+    /// If the matrix has no inverse, it will be returned unchanged as an [`Err`].
+    pub fn inverse(mut self) -> Result<Self, Self> {
+        let determinant = unsafe { citro3d_sys::Mtx_Inverse(self.as_mut()) };
+        if determinant == 0.0 {
+            Err(self)
+        } else {
+            Ok(self)
+        }
+    }
+
     /// Construct the identity matrix.
     #[doc(alias = "Mtx_Identity")]
     pub fn identity() -> Self {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Identity(out.as_mut_ptr());
+            Self::new(out.assume_init())
+        }
+    }
+}
+
+impl Matrix3 {
+    /// Construct a 3x3 matrix with the given values on the diagonal.
+    pub fn diagonal(x: f32, y: f32, z: f32) -> Self {
+        let mut out = MaybeUninit::uninit();
+        unsafe {
+            citro3d_sys::Mtx_Diagonal(out.as_mut_ptr(), x, y, z, 0.0);
+            Self::new(out.assume_init())
+        }
+    }
+}
+
+impl Matrix4 {
+    /// Construct a 4x4 matrix with the given values on the diagonal.
+    pub fn diagonal(x: f32, y: f32, z: f32, w: f32) -> Self {
+        let mut out = MaybeUninit::uninit();
+        unsafe {
+            citro3d_sys::Mtx_Diagonal(out.as_mut_ptr(), x, y, z, w);
+            Self::new(out.assume_init())
+        }
+    }
+
+    /// Construct a 3D transformation matrix for a camera, given its position,
+    /// target, and upward direction.
+    pub fn looking_at(
+        camera_position: FVec3,
+        camera_target: FVec3,
+        camera_up: FVec3,
+        coordinates: CoordinateOrientation,
+    ) -> Self {
+        let mut out = MaybeUninit::uninit();
+        unsafe {
+            citro3d_sys::Mtx_LookAt(
+                out.as_mut_ptr(),
+                camera_position.0,
+                camera_target.0,
+                camera_up.0,
+                coordinates.is_left_handed(),
+            );
             Self::new(out.assume_init())
         }
     }

@@ -4,7 +4,7 @@ use std::fmt;
 
 /// A vector of `f32`s.
 #[derive(Clone, Copy)]
-pub struct FVec<const N: usize>(pub(super) citro3d_sys::C3D_FVec);
+pub struct FVec<const N: usize>(pub(crate) citro3d_sys::C3D_FVec);
 
 /// A 3-vector of `f32`s.
 pub type FVec3 = FVec<3>;
@@ -20,18 +20,6 @@ impl<const N: usize> fmt::Debug for FVec<N> {
             .finish()
     }
 }
-
-impl<Rhs, const N: usize> PartialEq<Rhs> for FVec<N>
-where
-    Rhs: Copy,
-    Self: From<Rhs>,
-{
-    fn eq(&self, other: &Rhs) -> bool {
-        unsafe { self.0.c == Self::from(*other).0.c }
-    }
-}
-
-impl<const N: usize> Eq for FVec<N> {}
 
 impl FVec4 {
     /// Create a new [`FVec4`] from its components.
@@ -127,8 +115,9 @@ impl<const N: usize> FVec<N> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use float_cmp::assert_approx_eq;
+
+    use super::*;
 
     // TODO: These could probably all be doctests instead it's just sort of a pain
     #[test]
