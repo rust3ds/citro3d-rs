@@ -38,25 +38,32 @@ mod private {
         pub(crate) fn as_mut(&mut self) -> *mut citro3d_sys::C3D_Mtx {
             &mut self.0
         }
+
+        /// Trim the matrix down to only the rows and columns we care about,
+        /// since the inner representation is always 4x4.
+        pub(crate) fn as_rows(&self) -> [[f32; N]; M] {
+            let rows = unsafe { self.0.r }.map(|row| -> [f32; N] {
+                // Rows are stored in WZYX order, so we slice from back to front.
+                // UNWRAP: N ≤ 4, so slicing to a smaller array should always work
+                unsafe { row.c[(4 - N)..].try_into() }.unwrap()
+            });
+
+            // UNWRAP: M ≤ 4, so slicing to a smaller array should always work
+            rows[..M].try_into().unwrap()
+        }
     }
 
     impl<const M: usize, const N: usize> fmt::Debug for Matrix<M, N> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let rows = unsafe { self.0.r }.map(|row| {
-                // UNWRAP: N ≤ 4, so slicing to a smaller array should always work
-                let mut row: [f32; N] = unsafe { row.c[..N].try_into() }.unwrap();
+            let inner = self.as_rows().map(|mut row| {
                 // Rows are stored in WZYX order which is opposite of how most people
-                // probably expect, so we reverse each row in-place as well.
+                // probably expect, so reverse each row in-place for debug printing
                 row.reverse();
                 row
             });
 
-            // UNWRAP: M ≤ 4, so slicing to a smaller array should always work
-            let inner: [_; M] = rows[..M].try_into().unwrap();
-
-            f.debug_tuple(std::any::type_name::<Self>())
-                .field(&inner)
-                .finish()
+            let type_name = std::any::type_name::<Self>().split("::").last().unwrap();
+            f.debug_tuple(type_name).field(&inner).finish()
         }
     }
 }

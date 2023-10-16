@@ -157,7 +157,7 @@ impl Mul<FVec3> for &Matrix<4, 3> {
 
 impl<Rhs: Borrow<Self>, const M: usize, const N: usize> PartialEq<Rhs> for Matrix<M, N> {
     fn eq(&self, other: &Rhs) -> bool {
-        unsafe { (*self.as_raw()).m == (*other.borrow().as_raw()).m }
+        self.as_rows() == other.borrow().as_rows()
     }
 }
 

@@ -73,10 +73,11 @@ impl Projection<Perspective> {
     ///     far: 100.0,
     /// };
     ///
-    /// let bottom: Matrix =
+    /// let bottom: Matrix4 =
     ///     Projection::perspective(PI / 4.0, AspectRatio::BottomScreen, clip_planes).into();
     ///
-    /// let top: Matrix = Projection::perspective(PI / 4.0, AspectRatio::TopScreen, clip_planes).into();
+    /// let top: Matrix4 =
+    ///     Projection::perspective(PI / 4.0, AspectRatio::TopScreen, clip_planes).into();
     /// ```
     #[doc(alias = "Mtx_Persp")]
     #[doc(alias = "Mtx_PerspTilt")]
@@ -204,9 +205,9 @@ impl Projection<Orthographic> {
     ///
     /// ```
     /// # let _runner = test_runner::GdbRunner::default();
-    /// # use citro3d::math::{Projection, ClipPlanes, Matrix};
+    /// # use citro3d::math::{Projection, ClipPlanes, Matrix4};
     /// #
-    /// let mtx: Matrix = Projection::orthographic(
+    /// let mtx: Matrix4 = Projection::orthographic(
     ///     0.0..240.0,
     ///     0.0..400.0,
     ///     ClipPlanes {
