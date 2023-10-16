@@ -14,7 +14,7 @@ pub type FVec4 = FVec<4>;
 
 impl<const N: usize> fmt::Debug for FVec<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let inner = unsafe { self.0.c };
+        let inner = unsafe { self.0.__bindgen_anon_1 };
         f.debug_tuple(std::any::type_name::<Self>())
             .field(&inner)
             .finish()

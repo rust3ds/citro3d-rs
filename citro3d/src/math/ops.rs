@@ -166,7 +166,6 @@ impl<const M: usize, const N: usize> Eq for Matrix<M, N> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::math::{Matrix3, Matrix4};
 
     #[test]
     fn vec3() {
@@ -198,7 +197,7 @@ mod tests {
         let r = Matrix3::identity();
         let (l, r) = (&l, &r);
 
-        assert_eq!(l * r, r);
+        assert_eq!(l * r, l);
         assert_eq!(l + r, Matrix3::diagonal(2.0, 3.0, 4.0));
         assert_eq!(l - r, Matrix3::diagonal(0.0, 1.0, 2.0));
     }
@@ -209,7 +208,7 @@ mod tests {
         let r = Matrix4::identity();
         let (l, r) = (&l, &r);
 
-        assert_eq!(l * r, r);
+        assert_eq!(l * r, l);
         assert_eq!(l + r, Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
         assert_eq!(l - r, Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
     }
