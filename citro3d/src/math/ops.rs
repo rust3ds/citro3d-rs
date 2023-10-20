@@ -2,11 +2,16 @@ use std::borrow::Borrow;
 use std::mem::MaybeUninit;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 
+use float_cmp::ApproxEq;
+
 use super::{FVec, FVec3, FVec4, Matrix, Matrix3, Matrix4};
+
+// region: FVec4 math operators
 
 impl Add for FVec4 {
     type Output = Self;
 
+    #[doc(alias = "FVec4_Add")]
     fn add(self, rhs: Self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec4_Add(self.0, rhs.0) })
     }
@@ -15,6 +20,7 @@ impl Add for FVec4 {
 impl Sub for FVec4 {
     type Output = Self;
 
+    #[doc(alias = "FVec4_Subtract")]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec4_Subtract(self.0, rhs.0) })
     }
@@ -23,6 +29,7 @@ impl Sub for FVec4 {
 impl Neg for FVec4 {
     type Output = Self;
 
+    #[doc(alias = "FVec4_Negate")]
     fn neg(self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec4_Negate(self.0) })
     }
@@ -31,14 +38,20 @@ impl Neg for FVec4 {
 impl Mul<f32> for FVec4 {
     type Output = Self;
 
+    #[doc(alias = "FVec4_Scale")]
     fn mul(self, rhs: f32) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec4_Scale(self.0, rhs) })
     }
 }
 
+// endregion
+
+// region: FVec3 math operators
+
 impl Add for FVec3 {
     type Output = Self;
 
+    #[doc(alias = "FVec3_Add")]
     fn add(self, rhs: Self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec3_Add(self.0, rhs.0) })
     }
@@ -47,6 +60,7 @@ impl Add for FVec3 {
 impl Sub for FVec3 {
     type Output = Self;
 
+    #[doc(alias = "FVec3_Subtract")]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec3_Subtract(self.0, rhs.0) })
     }
@@ -55,6 +69,7 @@ impl Sub for FVec3 {
 impl Neg for FVec3 {
     type Output = Self;
 
+    #[doc(alias = "FVec3_Negate")]
     fn neg(self) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec3_Negate(self.0) })
     }
@@ -63,10 +78,13 @@ impl Neg for FVec3 {
 impl Mul<f32> for FVec3 {
     type Output = Self;
 
+    #[doc(alias = "FVec3_Scale")]
     fn mul(self, rhs: f32) -> Self::Output {
         Self(unsafe { citro3d_sys::FVec3_Scale(self.0, rhs) })
     }
 }
+
+// endregion
 
 impl<const N: usize> Div<f32> for FVec<N>
 where
@@ -81,11 +99,28 @@ where
 
 impl<const N: usize> PartialEq for FVec<N> {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { self.0.c == other.0.c }
+        let range = (4 - N)..;
+        unsafe { self.0.c[range.clone()] == other.0.c[range] }
     }
 }
 
 impl<const N: usize> Eq for FVec<N> {}
+
+impl<Margin: Copy + Default, const N: usize> ApproxEq for FVec<N>
+where
+    f32: ApproxEq<Margin = Margin>,
+{
+    type Margin = Margin;
+
+    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
+        let margin = margin.into();
+        let range = (4 - N)..;
+        let (lhs, rhs) = unsafe { (&self.0.c[range.clone()], &other.0.c[range]) };
+        lhs.approx_eq(rhs, margin)
+    }
+}
+
+// region: Matrix math operators
 
 impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Add<Rhs> for &Matrix<M, N> {
     type Output = <Self as Deref>::Target;
@@ -155,6 +190,8 @@ impl Mul<FVec3> for &Matrix<4, 3> {
     }
 }
 
+// endregion
+
 impl<Rhs: Borrow<Self>, const M: usize, const N: usize> PartialEq<Rhs> for Matrix<M, N> {
     fn eq(&self, other: &Rhs) -> bool {
         self.as_rows() == other.borrow().as_rows()
@@ -163,8 +200,34 @@ impl<Rhs: Borrow<Self>, const M: usize, const N: usize> PartialEq<Rhs> for Matri
 
 impl<const M: usize, const N: usize> Eq for Matrix<M, N> {}
 
+impl<Margin, const M: usize, const N: usize> ApproxEq for &Matrix<M, N>
+where
+    Margin: Copy + Default,
+    f32: ApproxEq<Margin = Margin>,
+{
+    type Margin = Margin;
+
+    fn approx_eq<Marg: Into<Self::Margin>>(self, other: Self, margin: Marg) -> bool {
+        let margin = margin.into();
+        let lhs = self.as_rows();
+        let rhs = other.as_rows();
+
+        for row in 0..M {
+            for col in 0..N {
+                if !lhs[row][col].approx_eq(rhs[row][col], margin) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use float_cmp::assert_approx_eq;
+
     use super::*;
 
     #[test]
@@ -172,11 +235,11 @@ mod tests {
         let l = FVec3::splat(1.0);
         let r = FVec3::splat(2.0);
 
-        assert_eq!(l + r, FVec3::splat(3.0));
-        assert_eq!(l - r, FVec3::splat(-1.0));
-        assert_eq!(-l, FVec3::splat(-1.0));
-        assert_eq!(l * 1.5, FVec3::splat(1.5));
-        assert_eq!(l / 2.0, FVec3::splat(0.5));
+        assert_approx_eq!(FVec3, l + r, FVec3::splat(3.0));
+        assert_approx_eq!(FVec3, l - r, FVec3::splat(-1.0));
+        assert_approx_eq!(FVec3, -l, FVec3::splat(-1.0));
+        assert_approx_eq!(FVec3, l * 1.5, FVec3::splat(1.5));
+        assert_approx_eq!(FVec3, l / 2.0, FVec3::splat(0.5));
     }
 
     #[test]
@@ -184,11 +247,11 @@ mod tests {
         let l = FVec4::splat(1.0);
         let r = FVec4::splat(2.0);
 
-        assert_eq!(l + r, FVec4::splat(3.0));
-        assert_eq!(l - r, FVec4::splat(-1.0));
-        assert_eq!(-l, FVec4::splat(-1.0));
-        assert_eq!(l * 1.5, FVec4::splat(1.5));
-        assert_eq!(l / 2.0, FVec4::splat(0.5));
+        assert_approx_eq!(FVec4, l + r, FVec4::splat(3.0));
+        assert_approx_eq!(FVec4, l - r, FVec4::splat(-1.0));
+        assert_approx_eq!(FVec4, -l, FVec4::splat(-1.0));
+        assert_approx_eq!(FVec4, l * 1.5, FVec4::splat(1.5));
+        assert_approx_eq!(FVec4, l / 2.0, FVec4::splat(0.5));
     }
 
     #[test]
@@ -197,9 +260,9 @@ mod tests {
         let r = Matrix3::identity();
         let (l, r) = (&l, &r);
 
-        assert_eq!(l * r, l);
-        assert_eq!(l + r, Matrix3::diagonal(2.0, 3.0, 4.0));
-        assert_eq!(l - r, Matrix3::diagonal(0.0, 1.0, 2.0));
+        assert_approx_eq!(&Matrix3, &(l * r), l);
+        assert_approx_eq!(&Matrix3, &(l + r), &Matrix3::diagonal(2.0, 3.0, 4.0));
+        assert_approx_eq!(&Matrix3, &(l - r), &Matrix3::diagonal(0.0, 1.0, 2.0));
     }
 
     #[test]
@@ -208,8 +271,8 @@ mod tests {
         let r = Matrix4::identity();
         let (l, r) = (&l, &r);
 
-        assert_eq!(l * r, l);
-        assert_eq!(l + r, Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
-        assert_eq!(l - r, Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
+        assert_approx_eq!(&Matrix4, &(l * r), l);
+        assert_approx_eq!(&Matrix4, &(l + r), &Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
+        assert_approx_eq!(&Matrix4, &(l - r), &Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
     }
 }

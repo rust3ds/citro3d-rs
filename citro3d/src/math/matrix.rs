@@ -41,6 +41,11 @@ mod private {
 
         /// Trim the matrix down to only the rows and columns we care about,
         /// since the inner representation is always 4x4.
+        ///
+        /// NOTE: this probably shouldn't be used in hot paths since it copies
+        /// the underlying storage. For some use cases slicing might be better,
+        /// although the underlying slice would always contain extra values for
+        /// matrices smaller than 4x4.
         pub(crate) fn as_rows(&self) -> [[f32; N]; M] {
             let rows = unsafe { self.0.r }.map(|row| -> [f32; N] {
                 // Rows are stored in WZYX order, so we slice from back to front.
