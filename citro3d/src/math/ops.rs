@@ -2,7 +2,8 @@ use std::borrow::Borrow;
 use std::mem::MaybeUninit;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 
-use float_cmp::ApproxEq;
+#[cfg(feature = "approx")]
+use approx::AbsDiffEq;
 
 use super::{FVec, FVec3, FVec4, Matrix, Matrix3, Matrix4};
 
@@ -106,17 +107,20 @@ impl<const N: usize> PartialEq for FVec<N> {
 
 impl<const N: usize> Eq for FVec<N> {}
 
-impl<Margin: Copy + Default, const N: usize> ApproxEq for FVec<N>
-where
-    f32: ApproxEq<Margin = Margin>,
-{
-    type Margin = Margin;
+#[cfg(feature = "approx")]
+impl<const N: usize> AbsDiffEq for FVec<N> {
+    type Epsilon = f32;
 
-    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
-        let margin = margin.into();
+    fn default_epsilon() -> Self::Epsilon {
+        // See https://docs.rs/almost/latest/almost/#why-another-crate
+        // for rationale of using this over just EPSILON
+        f32::EPSILON.sqrt()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         let range = (4 - N)..;
         let (lhs, rhs) = unsafe { (&self.0.c[range.clone()], &other.0.c[range]) };
-        lhs.approx_eq(rhs, margin)
+        lhs.abs_diff_eq(rhs, epsilon)
     }
 }
 
@@ -200,21 +204,24 @@ impl<Rhs: Borrow<Self>, const M: usize, const N: usize> PartialEq<Rhs> for Matri
 
 impl<const M: usize, const N: usize> Eq for Matrix<M, N> {}
 
-impl<Margin, const M: usize, const N: usize> ApproxEq for &Matrix<M, N>
-where
-    Margin: Copy + Default,
-    f32: ApproxEq<Margin = Margin>,
-{
-    type Margin = Margin;
+#[cfg(feature = "approx")]
+#[doc(cfg(feature = "approx"))]
+impl<const M: usize, const N: usize> AbsDiffEq for Matrix<M, N> {
+    type Epsilon = f32;
 
-    fn approx_eq<Marg: Into<Self::Margin>>(self, other: Self, margin: Marg) -> bool {
-        let margin = margin.into();
+    fn default_epsilon() -> Self::Epsilon {
+        // See https://docs.rs/almost/latest/almost/#why-another-crate
+        // for rationale of using this over just EPSILON
+        f32::EPSILON.sqrt()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         let lhs = self.as_rows();
         let rhs = other.as_rows();
 
         for row in 0..M {
             for col in 0..N {
-                if !lhs[row][col].approx_eq(rhs[row][col], margin) {
+                if !lhs[row][col].abs_diff_eq(&rhs[row][col], epsilon) {
                     return false;
                 }
             }
@@ -226,32 +233,32 @@ where
 
 #[cfg(test)]
 mod tests {
-    use float_cmp::assert_approx_eq;
+    use approx::assert_abs_diff_eq;
 
     use super::*;
 
     #[test]
-    fn vec3() {
+    fn fvec3() {
         let l = FVec3::splat(1.0);
         let r = FVec3::splat(2.0);
 
-        assert_approx_eq!(FVec3, l + r, FVec3::splat(3.0));
-        assert_approx_eq!(FVec3, l - r, FVec3::splat(-1.0));
-        assert_approx_eq!(FVec3, -l, FVec3::splat(-1.0));
-        assert_approx_eq!(FVec3, l * 1.5, FVec3::splat(1.5));
-        assert_approx_eq!(FVec3, l / 2.0, FVec3::splat(0.5));
+        assert_abs_diff_eq!(l + r, FVec3::splat(3.0));
+        assert_abs_diff_eq!(l - r, FVec3::splat(-1.0));
+        assert_abs_diff_eq!(-l, FVec3::splat(-1.0));
+        assert_abs_diff_eq!(l * 1.5, FVec3::splat(1.5));
+        assert_abs_diff_eq!(l / 2.0, FVec3::splat(0.5));
     }
 
     #[test]
-    fn vec4() {
+    fn fvec4() {
         let l = FVec4::splat(1.0);
         let r = FVec4::splat(2.0);
 
-        assert_approx_eq!(FVec4, l + r, FVec4::splat(3.0));
-        assert_approx_eq!(FVec4, l - r, FVec4::splat(-1.0));
-        assert_approx_eq!(FVec4, -l, FVec4::splat(-1.0));
-        assert_approx_eq!(FVec4, l * 1.5, FVec4::splat(1.5));
-        assert_approx_eq!(FVec4, l / 2.0, FVec4::splat(0.5));
+        assert_abs_diff_eq!(l + r, FVec4::splat(3.0));
+        assert_abs_diff_eq!(l - r, FVec4::splat(-1.0));
+        assert_abs_diff_eq!(-l, FVec4::splat(-1.0));
+        assert_abs_diff_eq!(l * 1.5, FVec4::splat(1.5));
+        assert_abs_diff_eq!(l / 2.0, FVec4::splat(0.5));
     }
 
     #[test]
@@ -260,9 +267,9 @@ mod tests {
         let r = Matrix3::identity();
         let (l, r) = (&l, &r);
 
-        assert_approx_eq!(&Matrix3, &(l * r), l);
-        assert_approx_eq!(&Matrix3, &(l + r), &Matrix3::diagonal(2.0, 3.0, 4.0));
-        assert_approx_eq!(&Matrix3, &(l - r), &Matrix3::diagonal(0.0, 1.0, 2.0));
+        assert_abs_diff_eq!(&(l * r), l);
+        assert_abs_diff_eq!(&(l + r), &Matrix3::diagonal(2.0, 3.0, 4.0));
+        assert_abs_diff_eq!(&(l - r), &Matrix3::diagonal(0.0, 1.0, 2.0));
     }
 
     #[test]
@@ -271,8 +278,8 @@ mod tests {
         let r = Matrix4::identity();
         let (l, r) = (&l, &r);
 
-        assert_approx_eq!(&Matrix4, &(l * r), l);
-        assert_approx_eq!(&Matrix4, &(l + r), &Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
-        assert_approx_eq!(&Matrix4, &(l - r), &Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
+        assert_abs_diff_eq!(&(l * r), l);
+        assert_abs_diff_eq!(&(l + r), &Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
+        assert_abs_diff_eq!(&(l - r), &Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
     }
 }

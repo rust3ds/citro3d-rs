@@ -1,6 +1,13 @@
-//! Safe Rust bindings to `citro3d`.
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner::run_gdb)]
+#![feature(doc_cfg)]
+#![feature(doc_auto_cfg)]
+
+//! Safe Rust bindings to `citro3d`. This crate wraps `citro3d-sys` to provide
+//! safer APIs for graphics programs targeting the 3DS.
+//!
+//! ## Feature flags
+#![doc = document_features::document_features!()]
 
 pub mod attrib;
 pub mod buffer;
