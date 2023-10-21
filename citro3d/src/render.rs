@@ -16,6 +16,7 @@ mod transfer;
 
 /// A render target for `citro3d`. Frame data will be written to this target
 /// to be rendered on the GPU and displayed on the screen.
+#[doc(alias = "C3D_RenderTarget")]
 pub struct Target<'screen> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
     // This is unused after construction, but ensures unique access to the
@@ -24,6 +25,7 @@ pub struct Target<'screen> {
 }
 
 impl Drop for Target<'_> {
+    #[doc(alias = "C3D_RenderTargetDelete")]
     fn drop(&mut self) {
         unsafe {
             C3D_RenderTargetDelete(self.raw);
@@ -38,6 +40,8 @@ impl<'screen> Target<'screen> {
     /// # Errors
     ///
     /// Fails if the target could not be created.
+    #[doc(alias = "C3D_RenderTargetCreate")]
+    #[doc(alias = "C3D_RenderTargetSetOutput")]
     pub fn new(
         width: usize,
         height: usize,
@@ -81,6 +85,7 @@ impl<'screen> Target<'screen> {
 
     /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
     /// Use `flags` to specify whether color and/or depth should be overwritten.
+    #[doc(alias = "C3D_RenderTargetClear")]
     pub fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
         unsafe {
             citro3d_sys::C3D_RenderTargetClear(self.raw, flags.bits(), rgba_color, depth);
@@ -95,6 +100,7 @@ impl<'screen> Target<'screen> {
 
 bitflags::bitflags! {
     /// Indicate whether color, depth buffer, or both values should be cleared.
+    #[doc(alias = "C3D_ClearBits")]
     pub struct ClearFlags: u32 {
         /// Clear the color of the render target.
         const COLOR = citro3d_sys::C3D_CLEAR_COLOR;
@@ -108,6 +114,7 @@ bitflags::bitflags! {
 /// The color format to use when rendering on the GPU.
 #[repr(u32)]
 #[derive(Clone, Copy, Debug)]
+#[doc(alias = "GPU_COLORBUF")]
 pub enum ColorFormat {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha.
     RGBA8 = ctru_sys::GPU_RB_RGBA8,
@@ -137,6 +144,8 @@ impl From<FramebufferFormat> for ColorFormat {
 /// The depth buffer format to use when rendering.
 #[repr(u32)]
 #[derive(Clone, Copy, Debug)]
+#[doc(alias = "GPU_DEPTHBUF")]
+#[doc(alias = "C3D_DEPTHTYPE")]
 pub enum DepthFormat {
     /// 16-bit depth.
     Depth16 = ctru_sys::GPU_RB_DEPTH16,

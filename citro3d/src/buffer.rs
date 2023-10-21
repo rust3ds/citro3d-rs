@@ -10,6 +10,7 @@ use crate::attrib;
 /// Vertex buffer info. This struct is used to describe the shape of the buffer
 /// data to be sent to the GPU for rendering.
 #[derive(Debug)]
+#[doc(alias = "C3D_BufInfo")]
 pub struct Info(pub(crate) citro3d_sys::C3D_BufInfo);
 
 /// A slice of buffer data. This borrows the buffer data and can be thought of
@@ -50,6 +51,7 @@ impl Slice<'_> {
 /// The geometric primitive to draw (i.e. what shapes the buffer data describes).
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
+#[doc(alias = "GPU_Primitive_t")]
 pub enum Primitive {
     /// Draw triangles (3 vertices per triangle).
     Triangles = ctru_sys::GPU_TRIANGLES,
@@ -63,6 +65,7 @@ pub enum Primitive {
 }
 
 impl Default for Info {
+    #[doc(alias = "BufInfo_Init")]
     fn default() -> Self {
         let mut info = MaybeUninit::zeroed();
         let info = unsafe {
@@ -100,6 +103,7 @@ impl Info {
     ///
     /// * if `vbo_data` is not allocated with the [`ctru::linear`] allocator
     /// * if the maximum number (12) of VBOs are already registered
+    #[doc(alias = "BufInfo_Add")]
     pub fn add<'this, 'vbo, 'idx, T>(
         &'this mut self,
         vbo_data: &'vbo [T],

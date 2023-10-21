@@ -109,31 +109,37 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
 
     /// Translate a transformation matrix by the given amounts in the X, Y, and Z
     /// directions.
+    #[doc(alias = "Mtx_Translate")]
     pub fn translate(&mut self, x: f32, y: f32, z: f32) {
         unsafe { citro3d_sys::Mtx_Translate(self.as_mut(), x, y, z, false) }
     }
 
     /// Scale a transformation matrix by the given amounts in the X, Y, and Z directions.
+    #[doc(alias = "Mtx_Scale")]
     pub fn scale(&mut self, x: f32, y: f32, z: f32) {
         unsafe { citro3d_sys::Mtx_Scale(self.as_mut(), x, y, z) }
     }
 
     /// Rotate a transformation matrix by the given angle around the given axis.
+    #[doc(alias = "Mtx_Rotate")]
     pub fn rotate(&mut self, axis: FVec3, angle: f32) {
         unsafe { citro3d_sys::Mtx_Rotate(self.as_mut(), axis.0, angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the X axis.
+    #[doc(alias = "Mtx_RotateX")]
     pub fn rotate_x(&mut self, angle: f32) {
         unsafe { citro3d_sys::Mtx_RotateX(self.as_mut(), angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the Y axis.
+    #[doc(alias = "Mtx_RotateY")]
     pub fn rotate_y(&mut self, angle: f32) {
         unsafe { citro3d_sys::Mtx_RotateY(self.as_mut(), angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the Z axis.
+    #[doc(alias = "Mtx_RotateZ")]
     pub fn rotate_z(&mut self, angle: f32) {
         unsafe { citro3d_sys::Mtx_RotateZ(self.as_mut(), angle, false) }
     }
@@ -193,6 +199,7 @@ impl Matrix4 {
 
     /// Construct a 3D transformation matrix for a camera, given its position,
     /// target, and upward direction.
+    #[doc(alias = "Mtx_LookAt")]
     pub fn looking_at(
         camera_position: FVec3,
         camera_target: FVec3,

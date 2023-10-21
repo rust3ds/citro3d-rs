@@ -10,6 +10,7 @@ use std::mem::MaybeUninit;
 /// Vertex attribute info. This struct describes how vertex buffers are
 /// layed out and used (i.e. the shape of the vertex data).
 #[derive(Debug)]
+#[doc(alias = "C3D_AttrInfo")]
 pub struct Info(pub(crate) citro3d_sys::C3D_AttrInfo);
 
 /// A shader input register, usually corresponding to a single vertex attribute
@@ -43,6 +44,7 @@ pub struct Index(u8);
 /// The data format of an attribute.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
+#[doc(alias = "GPU_FORMATS")]
 pub enum Format {
     /// A signed byte, i.e. [`i8`].
     Byte = ctru_sys::GPU_BYTE,
@@ -60,6 +62,7 @@ unsafe impl Sync for Info {}
 unsafe impl Send for Info {}
 
 impl Default for Info {
+    #[doc(alias = "AttrInfo_Init")]
     fn default() -> Self {
         let mut raw = MaybeUninit::zeroed();
         let raw = unsafe {
@@ -100,6 +103,7 @@ impl Info {
     ///
     /// * If `count > 4`
     /// * If this attribute info already has the maximum number of attributes.
+    #[doc(alias = "AttrInfo_AddLoader")]
     pub fn add_loader(
         &mut self,
         register: Register,
