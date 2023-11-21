@@ -7,11 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
     container: devkitpro/devkitarm
-    permissions:
-      id-token: write
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
@@ -27,7 +25,13 @@ jobs:
         uses: actions/upload-pages-artifact@v2
         with:
           path: ./target/armv6k-nintendo-3ds/doc
-
-      - name: Deploy GitHub pages
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v2
 
