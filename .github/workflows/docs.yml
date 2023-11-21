@@ -21,8 +21,11 @@ jobs:
       - name: Build workspace docs
         run: cargo 3ds --verbose doc --verbose --no-deps --workspace
 
-      - name: Deploy crate docs
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload generated docs
+        uses: actions/upload-pages-artifact@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/armv6k-nintendo-3ds/doc
+          path: ./target/armv6k-nintendo-3ds/doc
+
+      - name: Deploy GitHub pages
+        uses: actions/deploy-pages@v2
+
