@@ -128,11 +128,11 @@ impl FVec4 {
     /// # use citro3d::math::FVec4;
     /// # use approx::assert_abs_diff_eq;
     /// let v = FVec4::new(1.0, 2.0, 2.0, 4.0);
-    /// assert_abs_diff_eq!(v, FVec4::new(0.1, 0.4, 0.4, 0.8));
+    /// assert_abs_diff_eq!(v.normalize(), FVec4::new(0.2, 0.4, 0.4, 0.8));
     /// ```
     #[doc(alias = "FVec3_Normalize")]
     pub fn normalize(self) -> Self {
-        Self(unsafe { citro3d_sys::FVec3_Normalize(self.0) })
+        Self(unsafe { citro3d_sys::FVec4_Normalize(self.0) })
     }
 }
 
@@ -233,8 +233,8 @@ impl FVec3 {
     /// # let _runner = test_runner::GdbRunner::default();
     /// # use citro3d::math::FVec3;
     /// # use approx::assert_abs_diff_eq;
-    /// let v = FVec3::splat(2.0);
-    /// assert_abs_diff_eq!(v.normalize(), FVec3::splat(1.0));
+    /// let v = FVec3::splat(1.0);
+    /// assert_abs_diff_eq!(v.normalize(), FVec3::splat(1.0 / 3.0_f32.sqrt()));
     /// ```
     #[doc(alias = "FVec3_Normalize")]
     pub fn normalize(self) -> Self {
