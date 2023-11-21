@@ -24,7 +24,8 @@ mod private {
     use crate::math::Matrix;
 
     pub trait Sealed {}
-    impl Sealed for &Matrix {}
+
+    impl<const M: usize, const N: usize> Sealed for &Matrix<M, N> {}
 }
 
 /// A shader uniform. This trait is implemented for types that can be bound to
@@ -36,9 +37,21 @@ pub trait Uniform: private::Sealed {
     fn bind(self, instance: &mut Instance, shader_type: shader::Type, index: Index);
 }
 
-impl Uniform for &Matrix {
-    #[doc(alias = "C3D_FVUnifMtx4x4")]
+impl<const M: usize> Uniform for &Matrix<M, 4> {
+    #[doc(alias = "C34_FVUnifMtxNx4")]
+    #[doc(alias = "C34_FVUnifMtx4x4")]
+    #[doc(alias = "C34_FVUnifMtx3x4")]
+    #[doc(alias = "C34_FVUnifMtx2x4")]
     fn bind(self, _instance: &mut Instance, type_: shader::Type, index: Index) {
-        unsafe { citro3d_sys::C3D_FVUnifMtx4x4(type_.into(), index.into(), self.as_raw()) }
+        unsafe {
+            citro3d_sys::C3D_FVUnifMtxNx4(
+                type_.into(),
+                index.into(),
+                self.as_raw(),
+                // UNWRAP: it should be impossible for end users to construct
+                // a matrix with M > i32::MAX
+                M.try_into().unwrap(),
+            );
+        }
     }
 }

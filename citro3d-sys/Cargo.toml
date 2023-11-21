@@ -14,3 +14,6 @@ ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 bindgen = { version = "0.68.1", features = ["experimental"] }
 cc = "1.0.83"
 doxygen-rs = "0.4.2"
+
+[dev-dependencies]
+shim-3ds = { git = "https://github.com/rust3ds/shim-3ds.git" }
