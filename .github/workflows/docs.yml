@@ -20,6 +20,10 @@ jobs:
 
       - name: Build workspace docs
         run: cargo 3ds --verbose doc --verbose --no-deps --workspace
+        env:
+          # TODO: might want a custom index page ?
+          # https://doc.rust-lang.org/rustdoc/unstable-features.html#--index-page-provide-a-top-level-landing-page-for-docs
+          RUSTDOCFLAGS: "--enable-index-page"
 
       # https://github.com/actions/upload-pages-artifact#file-permissions
       - name: Fix file permissions
