@@ -21,10 +21,18 @@ jobs:
       - name: Build workspace docs
         run: cargo 3ds --verbose doc --verbose --no-deps --workspace
 
+      # https://github.com/actions/upload-pages-artifact#file-permissions
+      - name: Fix file permissions
+        run: |
+          chmod -c -R +rX "target/armv6k-nintendo-3ds/doc" | while read line; do
+            echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
+
       - name: Upload generated docs
         uses: actions/upload-pages-artifact@v2
         with:
           path: ./target/armv6k-nintendo-3ds/doc
+
   deploy:
     runs-on: ubuntu-latest
     needs: build
