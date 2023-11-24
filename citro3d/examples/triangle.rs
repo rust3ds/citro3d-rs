@@ -49,8 +49,6 @@ static VERTICES: &[Vertex] = &[
 static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
 
 fn main() {
-    ctru::use_panic_handler();
-
     let mut soc = Soc::new().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
@@ -166,7 +164,7 @@ struct Projections {
 fn calculate_projections() -> Projections {
     // TODO: it would be cool to allow playing around with these parameters on
     // the fly with D-pad, etc.
-    let slider_val = unsafe { ctru_sys::osGet3DSliderState() };
+    let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 
     let vertical_fov = 40.0_f32.to_radians();
