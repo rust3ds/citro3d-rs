@@ -14,16 +14,23 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        with:
+          generator_config_file: ./_site/_config.yml
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+
       - uses: rust3ds/test-runner/setup@v1
         with:
           toolchain: nightly
 
       - name: Build workspace docs
         run: cargo 3ds --verbose doc --verbose --no-deps --workspace
-        env:
-          # TODO: might want a custom index page ?
-          # https://doc.rust-lang.org/rustdoc/unstable-features.html#--index-page-provide-a-top-level-landing-page-for-docs
-          RUSTDOCFLAGS: "--enable-index-page"
 
       # https://github.com/actions/upload-pages-artifact#file-permissions
       - name: Fix file permissions
@@ -32,10 +39,13 @@ jobs:
             echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
 
-      - name: Upload generated docs
+      - name: Copy generated docs to _site
+        # Note: this won't include proc-macro crate, but macros are re-exported
+        # by the crate docs so there will still be some documentation.
+        run: cp -R ./target/armv6k-nintendo-3ds/doc ./_site/crates
+
+      - name: Upload docs
         uses: actions/upload-pages-artifact@v2
-        with:
-          path: ./target/armv6k-nintendo-3ds/doc
 
   deploy:
     runs-on: ubuntu-latest
