@@ -15,6 +15,7 @@ pub mod error;
 pub mod math;
 pub mod render;
 pub mod shader;
+pub mod texenv;
 pub mod uniform;
 
 pub use error::{Error, Result};

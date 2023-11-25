@@ -6,6 +6,7 @@
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
 use citro3d::render::ClearFlags;
+use citro3d::texenv::{self, CombineFunc, TexEnv};
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
@@ -88,7 +89,11 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
 
-    scene_init();
+    // Configure the first fragment shading substage to just pass through the vertex color
+    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+    TexEnv::get(&mut instance, texenv::Id(0))
+        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .func(texenv::Mode::BOTH, CombineFunc::Replace);
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
@@ -189,23 +194,5 @@ fn calculate_projections() -> Projections {
         left_eye,
         right_eye,
         center,
-    }
-}
-
-fn scene_init() {
-    // Load the vertex shader, create a shader program and bind it
-    unsafe {
-        // Configure the first fragment shading substage to just pass through the vertex color
-        // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-        let env = citro3d_sys::C3D_GetTexEnv(0);
-        citro3d_sys::C3D_TexEnvInit(env);
-        citro3d_sys::C3D_TexEnvSrc(
-            env,
-            citro3d_sys::C3D_Both,
-            ctru_sys::GPU_PRIMARY_COLOR,
-            0,
-            0,
-        );
-        citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
     }
 }
