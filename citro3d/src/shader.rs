@@ -16,6 +16,7 @@ use crate::uniform;
 /// * A [geometry](Type::Geometry) shader [`Library`]
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
+#[doc(alias = "shaderProgram_s")]
 pub struct Program {
     program: ctru_sys::shaderProgram_s,
 }
@@ -28,6 +29,8 @@ impl Program {
     /// Returns an error if:
     /// * the shader program cannot be initialized
     /// * the input shader is not a vertex shader or is otherwise invalid
+    #[doc(alias = "shaderProgramInit")]
+    #[doc(alias = "shaderProgramSetVsh")]
     pub fn new(vertex_shader: Entrypoint) -> Result<Self, ctru::Error> {
         let mut program = unsafe {
             let mut program = MaybeUninit::uninit();
@@ -53,6 +56,7 @@ impl Program {
     ///
     /// Returns an error if the input shader is not a geometry shader or is
     /// otherwise invalid.
+    #[doc(alias = "shaderProgramSetGsh")]
     pub fn set_geometry_shader(
         &mut self,
         geometry_shader: Entrypoint,
@@ -75,6 +79,7 @@ impl Program {
     ///
     /// * If the given `name` contains a null byte
     /// * If a uniform with the given `name` could not be found
+    #[doc(alias = "shaderInstanceGetUniformLocation")]
     pub fn get_uniform(&self, name: &str) -> crate::Result<uniform::Index> {
         let vertex_instance = unsafe { (*self.as_raw()).vertexShader };
         assert!(
@@ -105,6 +110,7 @@ impl Program {
 }
 
 impl Drop for Program {
+    #[doc(alias = "shaderProgramFree")]
     fn drop(&mut self) {
         unsafe {
             let _ = ctru_sys::shaderProgramFree(self.as_raw_mut());
@@ -133,6 +139,7 @@ impl From<Type> for u32 {
 ///
 /// This is the result of parsing a shader binary (`.shbin`), and the resulting
 /// [`Entrypoint`]s can be used as part of a [`Program`].
+#[doc(alias = "DVLB_s")]
 pub struct Library(*mut ctru_sys::DVLB_s);
 
 impl Library {
@@ -142,6 +149,7 @@ impl Library {
     ///
     /// An error is returned if the input data does not have an alignment of 4
     /// (cannot be safely converted to `&[u32]`).
+    #[doc(alias = "DVLB_ParseFile")]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
         let aligned: &[u32] = bytemuck::try_cast_slice(bytes)?;
         Ok(Self(unsafe {
@@ -157,6 +165,7 @@ impl Library {
 
     /// Get the number of [`Entrypoint`]s in this shader library.
     #[must_use]
+    #[doc(alias = "numDVLE")]
     pub fn len(&self) -> usize {
         unsafe { (*self.0).numDVLE as usize }
     }
@@ -186,6 +195,7 @@ impl Library {
 }
 
 impl Drop for Library {
+    #[doc(alias = "DVLB_Free")]
     fn drop(&mut self) {
         unsafe {
             ctru_sys::DVLB_Free(self.as_raw());

@@ -4,6 +4,7 @@ use std::fmt;
 
 /// A vector of `f32`s.
 #[derive(Clone, Copy)]
+#[doc(alias = "C3D_FVec")]
 pub struct FVec<const N: usize>(pub(crate) citro3d_sys::C3D_FVec);
 
 /// A 3-vector of `f32`s.
@@ -130,7 +131,7 @@ impl FVec4 {
     /// let v = FVec4::new(1.0, 2.0, 2.0, 4.0);
     /// assert_abs_diff_eq!(v.normalize(), FVec4::new(0.2, 0.4, 0.4, 0.8));
     /// ```
-    #[doc(alias = "FVec3_Normalize")]
+    #[doc(alias = "FVec4_Normalize")]
     pub fn normalize(self) -> Self {
         Self(unsafe { citro3d_sys::FVec4_Normalize(self.0) })
     }

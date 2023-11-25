@@ -129,6 +129,7 @@ impl<const N: usize> AbsDiffEq for FVec<N> {
 impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Add<Rhs> for &Matrix<M, N> {
     type Output = <Self as Deref>::Target;
 
+    #[doc(alias = "Mtx_Add")]
     fn add(self, rhs: Rhs) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
@@ -141,6 +142,7 @@ impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Add<Rhs> for &Matrix<M, 
 impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Sub<Rhs> for &Matrix<M, N> {
     type Output = <Self as Deref>::Target;
 
+    #[doc(alias = "Mtx_Subtract")]
     fn sub(self, rhs: Rhs) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
@@ -153,6 +155,7 @@ impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Sub<Rhs> for &Matrix<M, 
 impl<const M: usize, const N: usize, const P: usize> Mul<&Matrix<N, P>> for &Matrix<M, N> {
     type Output = Matrix<M, P>;
 
+    #[doc(alias = "Mtx_Multiply")]
     fn mul(self, rhs: &Matrix<N, P>) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
@@ -173,6 +176,7 @@ impl<const M: usize, const N: usize, const P: usize> Mul<Matrix<N, P>> for &Matr
 impl Mul<FVec3> for &Matrix3 {
     type Output = FVec3;
 
+    #[doc(alias = "Mtx_MultiplyFVec3")]
     fn mul(self, rhs: FVec3) -> Self::Output {
         FVec(unsafe { citro3d_sys::Mtx_MultiplyFVec3(self.as_raw(), rhs.0) })
     }
@@ -181,6 +185,7 @@ impl Mul<FVec3> for &Matrix3 {
 impl Mul<FVec4> for &Matrix4 {
     type Output = FVec4;
 
+    #[doc(alias = "Mtx_MultiplyFVec4")]
     fn mul(self, rhs: FVec4) -> Self::Output {
         FVec(unsafe { citro3d_sys::Mtx_MultiplyFVec4(self.as_raw(), rhs.0) })
     }
@@ -189,6 +194,7 @@ impl Mul<FVec4> for &Matrix4 {
 impl Mul<FVec3> for &Matrix<4, 3> {
     type Output = FVec4;
 
+    #[doc(alias = "Mtx_MultiplyFVecH")]
     fn mul(self, rhs: FVec3) -> Self::Output {
         FVec(unsafe { citro3d_sys::Mtx_MultiplyFVecH(self.as_raw(), rhs.0) })
     }

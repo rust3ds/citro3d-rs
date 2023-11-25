@@ -370,6 +370,8 @@ pub struct ClipPlanes {
 /// The aspect ratio of a projection plane.
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
+#[doc(alias = "C3D_AspectRatioTop")]
+#[doc(alias = "C3D_AspectRatioBot")]
 pub enum AspectRatio {
     /// The aspect ratio of the 3DS' top screen (per-eye).
     #[doc(alias = "C3D_AspectRatioTop")]

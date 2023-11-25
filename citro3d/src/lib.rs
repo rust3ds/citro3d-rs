@@ -48,6 +48,7 @@ impl Instance {
     /// # Errors
     ///
     /// Fails if `citro3d` cannot be initialized.
+    #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
             Ok(Self)
@@ -61,6 +62,7 @@ impl Instance {
     /// # Errors
     ///
     /// Fails if the given target cannot be used for drawing.
+    #[doc(alias = "C3D_FrameDrawOn")]
     pub fn select_render_target(&mut self, target: &render::Target<'_>) -> Result<()> {
         let _ = self;
         if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
@@ -72,13 +74,13 @@ impl Instance {
 
     /// Render a frame. The passed in function/closure can mutate the instance,
     /// such as to [select a render target](Self::select_render_target).
+    #[doc(alias = "C3D_FrameBegin")]
+    #[doc(alias = "C3D_FrameEnd")]
     pub fn render_frame_with(&mut self, f: impl FnOnce(&mut Self)) {
         unsafe {
             citro3d_sys::C3D_FrameBegin(
                 // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW
-                    .try_into()
-                    .expect("const is valid u8"),
+                citro3d_sys::C3D_FRAME_SYNCDRAW.try_into().unwrap(),
             );
         }
 
@@ -91,12 +93,14 @@ impl Instance {
 
     /// Get the buffer info being used, if it exists. Note that the resulting
     /// [`buffer::Info`] is copied from the one currently in use.
+    #[doc(alias = "C3D_GetBufInfo")]
     pub fn buffer_info(&self) -> Option<buffer::Info> {
         let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
         buffer::Info::copy_from(raw)
     }
 
     /// Set the buffer info to use for any following draw calls.
+    #[doc(alias = "C3D_SetBufInfo")]
     pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
         let raw: *const _ = &buffer_info.0;
         // SAFETY: C3D_SetBufInfo actually copies the pointee instead of mutating it.
@@ -105,19 +109,22 @@ impl Instance {
 
     /// Get the attribute info being used, if it exists. Note that the resulting
     /// [`attrib::Info`] is copied from the one currently in use.
+    #[doc(alias = "C3D_GetAttrInfo")]
     pub fn attr_info(&self) -> Option<attrib::Info> {
         let raw = unsafe { citro3d_sys::C3D_GetAttrInfo() };
         attrib::Info::copy_from(raw)
     }
 
     /// Set the attribute info to use for any following draw calls.
+    #[doc(alias = "C3D_SetAttrInfo")]
     pub fn set_attr_info(&mut self, attr_info: &attrib::Info) {
         let raw: *const _ = &attr_info.0;
         // SAFETY: C3D_SetAttrInfo actually copies the pointee instead of mutating it.
         unsafe { citro3d_sys::C3D_SetAttrInfo(raw.cast_mut()) };
     }
 
-    /// Draw the specified primitivearrays. The
+    /// Render primitives from the current vertex array buffer.
+    #[doc(alias = "C3D_DrawArrays")]
     pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Slice) {
         self.set_buffer_info(index.info());
 
@@ -170,6 +177,7 @@ impl Instance {
 }
 
 impl Drop for Instance {
+    #[doc(alias = "C3D_Fini")]
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_Fini();

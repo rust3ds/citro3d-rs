@@ -32,6 +32,7 @@ impl Flags {
 /// convertible to one another. Use [`From::from`] to get the [`Format`] corresponding
 /// to a given [`ColorFormat`].
 #[repr(u32)]
+#[doc(alias = "GX_TRANSFER_FORMAT")]
 pub enum Format {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha.
     RGBA8 = ctru_sys::GX_TRANSFER_FMT_RGBA8,
