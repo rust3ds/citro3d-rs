@@ -73,7 +73,8 @@ impl Instance {
     }
 
     /// Render a frame. The passed in function/closure can mutate the instance,
-    /// such as to [select a render target](Self::select_render_target).
+    /// such as to [select a render target](Self::select_render_target)
+    /// or [bind a new shader program](Self::bind_program).
     #[doc(alias = "C3D_FrameBegin")]
     #[doc(alias = "C3D_FrameEnd")]
     pub fn render_frame_with(&mut self, f: impl FnOnce(&mut Self)) {
@@ -136,6 +137,15 @@ impl Instance {
                 index.index(),
                 index.len(),
             );
+        }
+    }
+
+    /// Use the given [`shader::Program`] for subsequent draw calls.
+    pub fn bind_program(&mut self, program: &shader::Program) {
+        // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
+        // instead of mutating the pointee in any way that would cause UB
+        unsafe {
+            citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
     }
 

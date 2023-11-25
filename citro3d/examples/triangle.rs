@@ -79,7 +79,8 @@ fn main() {
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();
 
-    let mut program = shader::Program::new(vertex_shader).unwrap();
+    let program = shader::Program::new(vertex_shader).unwrap();
+    instance.bind_program(&program);
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
@@ -87,7 +88,7 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
 
-    scene_init(&mut program);
+    scene_init();
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
@@ -191,11 +192,9 @@ fn calculate_projections() -> Projections {
     }
 }
 
-fn scene_init(program: &mut shader::Program) {
+fn scene_init() {
     // Load the vertex shader, create a shader program and bind it
     unsafe {
-        citro3d_sys::C3D_BindProgram(program.as_raw_mut());
-
         // Configure the first fragment shading substage to just pass through the vertex color
         // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
         let env = citro3d_sys::C3D_GetTexEnv(0);
