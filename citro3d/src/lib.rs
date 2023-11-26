@@ -18,8 +18,12 @@ pub mod shader;
 pub mod texenv;
 pub mod uniform;
 
+use std::cell::OnceCell;
+use std::fmt;
+
 pub use error::{Error, Result};
 
+use self::texenv::TexEnv;
 use self::uniform::Uniform;
 
 pub mod macros {
@@ -31,8 +35,15 @@ pub mod macros {
 /// should instantiate to use this library.
 #[non_exhaustive]
 #[must_use]
-#[derive(Debug)]
-pub struct Instance;
+pub struct Instance {
+    texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
+}
+
+impl fmt::Debug for Instance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Instance").finish_non_exhaustive()
+    }
+}
 
 impl Instance {
     /// Initialize the default `citro3d` instance.
@@ -52,7 +63,17 @@ impl Instance {
     #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
-            Ok(Self)
+            Ok(Self {
+                texenvs: [
+                    // thank goodness there's only six of them!
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                ],
+            })
         } else {
             Err(Error::FailedToInitialize)
         }
@@ -184,6 +205,27 @@ impl Instance {
     /// ```
     pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
         uniform.bind(self, shader::Type::Geometry, index);
+    }
+
+    /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use citro3d::texenv;
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let stage0 = texenv::Stage::new(0).unwrap();
+    /// let texenv0 = instance.texenv(stage0);
+    /// ```
+    #[doc(alias = "C3D_GetTexEnv")]
+    #[doc(alias = "C3D_TexEnvInit")]
+    pub fn texenv(&mut self, stage: texenv::Stage) -> &mut texenv::TexEnv {
+        let texenv = &mut self.texenvs[stage.0];
+        texenv.get_or_init(|| TexEnv::new(stage));
+        // We have to do this weird unwrap to get a mutable reference,
+        // since there is no `get_mut_or_init` or equivalent
+        texenv.get_mut().unwrap()
     }
 }
 

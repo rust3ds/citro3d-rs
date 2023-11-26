@@ -6,7 +6,7 @@
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
 use citro3d::render::ClearFlags;
-use citro3d::texenv::{self, CombineFunc, TexEnv};
+use citro3d::texenv;
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
@@ -91,9 +91,10 @@ fn main() {
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-    TexEnv::get(&mut instance, texenv::Id(0))
+    instance
+        .texenv(texenv::Stage::new(0).unwrap())
         .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-        .func(texenv::Mode::BOTH, CombineFunc::Replace);
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
