@@ -88,10 +88,11 @@ bitflags! {
 }
 
 /// A source operand of a [`TexEnv`]'s texture combination.
-#[derive(Debug, Clone, Copy)]
-#[repr(u32)]
 #[doc(alias = "GPU_TEVSRC")]
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy)]
+#[repr(u32)]
+#[non_exhaustive]
 pub enum Source {
     PrimaryColor = ctru_sys::GPU_PRIMARY_COLOR,
     FragmentPrimaryColor = ctru_sys::GPU_FRAGMENT_PRIMARY_COLOR,
@@ -106,10 +107,11 @@ pub enum Source {
 }
 
 /// The combination function to apply to the [`TexEnv`] operands.
-#[derive(Debug, Clone, Copy)]
-#[repr(u32)]
 #[doc(alias = "GPU_COMBINEFUNC")]
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy)]
+#[repr(u32)]
+#[non_exhaustive]
 pub enum CombineFunc {
     Replace = ctru_sys::GPU_REPLACE,
     Modulate = ctru_sys::GPU_MODULATE,
@@ -118,7 +120,8 @@ pub enum CombineFunc {
     Interpolate = ctru_sys::GPU_INTERPOLATE,
     Subtract = ctru_sys::GPU_SUBTRACT,
     Dot3Rgb = ctru_sys::GPU_DOT3_RGB,
-    Dot3Rgba = ctru_sys::GPU_DOT3_RGBA,
+    // Added in libcrtu 2.3.0:
+    // Dot3Rgba = ctru_sys::GPU_DOT3_RGBA,
 }
 
 /// A texture combination stage identifier. This index doubles as the order
