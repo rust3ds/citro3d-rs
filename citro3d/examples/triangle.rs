@@ -48,6 +48,7 @@ static VERTICES: &[Vertex] = &[
 ];
 
 static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
+const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
 
 fn main() {
     let mut soc = Soc::new().expect("failed to get SOC");
@@ -87,12 +88,13 @@ fn main() {
     vbo_data.extend_from_slice(VERTICES);
 
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
+    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+    let stage0 = texenv::Stage::new(0).unwrap();
     instance
-        .texenv(texenv::Stage::new(0).unwrap())
+        .texenv(stage0)
         .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
         .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
@@ -107,18 +109,17 @@ fn main() {
 
         instance.render_frame_with(|instance| {
             let mut render_to = |target: &mut render::Target, projection| {
+                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+
                 instance
                     .select_render_target(target)
                     .expect("failed to set render target");
-
-                let clear_color: u32 = 0x7F_7F_7F_FF;
-                target.clear(ClearFlags::ALL, clear_color, 0);
 
                 instance.bind_vertex_uniform(projection_uniform_idx, projection);
 
                 instance.set_attr_info(&attr_info);
 
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_idx);
+                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             };
 
             let Projections {
@@ -134,15 +135,10 @@ fn main() {
     }
 }
 
-// sheeeesh, this sucks to type:
-fn prepare_vbos<'buf, 'info, 'vbo>(
-    buf_info: &'info mut buffer::Info,
-    vbo_data: &'vbo [Vertex],
-) -> (attrib::Info, buffer::Slice<'buf>)
-where
-    'info: 'buf,
-    'vbo: 'buf,
-{
+fn prepare_vbos<'a>(
+    buf_info: &'a mut buffer::Info,
+    vbo_data: &'a [Vertex],
+) -> (attrib::Info, buffer::Slice<'a>) {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 

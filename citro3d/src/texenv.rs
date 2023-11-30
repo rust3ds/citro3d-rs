@@ -6,20 +6,14 @@ use bitflags::bitflags;
 /// A texture combiner, also called a "texture environment" (hence the struct name).
 /// See also [`texenv.h` documentation](https://oreo639.github.io/citro3d/texenv_8h.html).
 #[doc(alias = "C3D_TexEnv")]
-pub struct TexEnv {
-    raw: *mut citro3d_sys::C3D_TexEnv,
-}
+pub struct TexEnv(*mut citro3d_sys::C3D_TexEnv);
 
 // https://oreo639.github.io/citro3d/texenv_8h.html#a9eda91f8e7252c91f873b1d43e3728b6
 pub(crate) const TEXENV_COUNT: usize = 6;
 
 impl TexEnv {
     pub(crate) fn new(stage: Stage) -> Self {
-        let mut result = unsafe {
-            Self {
-                raw: citro3d_sys::C3D_GetTexEnv(stage.0 as _),
-            }
-        };
+        let mut result = unsafe { Self(citro3d_sys::C3D_GetTexEnv(stage.0 as _)) };
         result.reset();
         result
     }
@@ -27,7 +21,7 @@ impl TexEnv {
     /// Re-initialize the texture combiner to its default state.
     pub fn reset(&mut self) {
         unsafe {
-            citro3d_sys::C3D_TexEnvInit(self.raw);
+            citro3d_sys::C3D_TexEnvInit(self.0);
         }
     }
 
@@ -48,7 +42,7 @@ impl TexEnv {
     ) -> &mut Self {
         unsafe {
             citro3d_sys::C3D_TexEnvSrc(
-                self.raw,
+                self.0,
                 mode.bits(),
                 source0 as _,
                 source1.unwrap_or(Source::PrimaryColor) as _,
@@ -67,7 +61,7 @@ impl TexEnv {
     #[doc(alias = "C3D_TexEnvFunc")]
     pub fn func(&mut self, mode: Mode, func: CombineFunc) -> &mut Self {
         unsafe {
-            citro3d_sys::C3D_TexEnvFunc(self.raw, mode.bits(), func as _);
+            citro3d_sys::C3D_TexEnvFunc(self.0, mode.bits(), func as _);
         }
 
         self

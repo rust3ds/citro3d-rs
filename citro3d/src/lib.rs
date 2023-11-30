@@ -148,16 +148,16 @@ impl Instance {
 
     /// Render primitives from the current vertex array buffer.
     #[doc(alias = "C3D_DrawArrays")]
-    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Slice) {
-        self.set_buffer_info(index.info());
+    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, vbo_data: buffer::Slice) {
+        self.set_buffer_info(vbo_data.info());
 
         // TODO: should we also require the attrib info directly here?
 
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
-                index.index(),
-                index.len(),
+                vbo_data.index(),
+                vbo_data.len(),
             );
         }
     }
