@@ -26,14 +26,42 @@ impl<Kind> Projection<Kind> {
 
     /// Set the coordinate system's orientation for the projection.
     /// See [`CoordinateOrientation`] for more details.
-    pub fn coordinates(&mut self, orientation: CoordinateOrientation) -> &mut Self {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::math::{Projection, AspectRatio, CoordinateOrientation, Matrix4, ClipPlanes};
+    /// let clip_planes = ClipPlanes {
+    ///     near: 0.1,
+    ///     far: 100.0,
+    /// };
+    /// let mtx: Matrix4 = Projection::perspective(40.0,  AspectRatio::TopScreen, clip_planes)
+    ///     .coordinates(CoordinateOrientation::LeftHanded)
+    ///     .into();
+    /// ```
+    pub fn coordinates(mut self, orientation: CoordinateOrientation) -> Self {
         self.coordinates = orientation;
         self
     }
 
     /// Set the screen rotation for the projection.
     /// See [`ScreenOrientation`] for more details.
-    pub fn screen(&mut self, orientation: ScreenOrientation) -> &mut Self {
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::math::{Projection, AspectRatio, ScreenOrientation, Matrix4, ClipPlanes};
+    /// let clip_planes = ClipPlanes {
+    ///     near: 0.1,
+    ///     far: 100.0,
+    /// };
+    /// let mtx: Matrix4 = Projection::perspective(40.0, AspectRatio::TopScreen, clip_planes)
+    ///     .screen(ScreenOrientation::None)
+    ///     .into();
+    /// ```
+    pub fn screen(mut self, orientation: ScreenOrientation) -> Self {
         self.rotation = orientation;
         self
     }

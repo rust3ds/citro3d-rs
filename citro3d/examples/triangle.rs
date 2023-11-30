@@ -34,15 +34,15 @@ struct Vertex {
 
 static VERTICES: &[Vertex] = &[
     Vertex {
-        pos: Vec3::new(0.0, 0.5, 3.0),
+        pos: Vec3::new(0.0, 0.5, -3.0),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(-0.5, -0.5, 3.0),
+        pos: Vec3::new(-0.5, -0.5, -3.0),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(0.5, -0.5, 3.0),
+        pos: Vec3::new(0.5, -0.5, -3.0),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
 ];
