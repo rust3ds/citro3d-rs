@@ -6,6 +6,7 @@
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
 use citro3d::render::ClearFlags;
+use citro3d::texenv;
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
@@ -33,20 +34,21 @@ struct Vertex {
 
 static VERTICES: &[Vertex] = &[
     Vertex {
-        pos: Vec3::new(0.0, 0.5, 3.0),
+        pos: Vec3::new(0.0, 0.5, -3.0),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(-0.5, -0.5, 3.0),
+        pos: Vec3::new(-0.5, -0.5, -3.0),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        pos: Vec3::new(0.5, -0.5, 3.0),
+        pos: Vec3::new(0.5, -0.5, -3.0),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
 ];
 
 static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
+const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
 
 fn main() {
     let mut soc = Soc::new().expect("failed to get SOC");
@@ -79,15 +81,22 @@ fn main() {
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();
 
-    let mut program = shader::Program::new(vertex_shader).unwrap();
+    let program = shader::Program::new(vertex_shader).unwrap();
+    instance.bind_program(&program);
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
 
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_idx) = prepare_vbos(&mut buf_info, &vbo_data);
+    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
-    scene_init(&mut program);
+    // Configure the first fragment shading substage to just pass through the vertex color
+    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+    let stage0 = texenv::Stage::new(0).unwrap();
+    instance
+        .texenv(stage0)
+        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
@@ -100,18 +109,17 @@ fn main() {
 
         instance.render_frame_with(|instance| {
             let mut render_to = |target: &mut render::Target, projection| {
+                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+
                 instance
                     .select_render_target(target)
                     .expect("failed to set render target");
-
-                let clear_color: u32 = 0x7F_7F_7F_FF;
-                target.clear(ClearFlags::ALL, clear_color, 0);
 
                 instance.bind_vertex_uniform(projection_uniform_idx, projection);
 
                 instance.set_attr_info(&attr_info);
 
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_idx);
+                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             };
 
             let Projections {
@@ -127,15 +135,10 @@ fn main() {
     }
 }
 
-// sheeeesh, this sucks to type:
-fn prepare_vbos<'buf, 'info, 'vbo>(
-    buf_info: &'info mut buffer::Info,
-    vbo_data: &'vbo [Vertex],
-) -> (attrib::Info, buffer::Slice<'buf>)
-where
-    'info: 'buf,
-    'vbo: 'buf,
-{
+fn prepare_vbos<'a>(
+    buf_info: &'a mut buffer::Info,
+    vbo_data: &'a [Vertex],
+) -> (attrib::Info, buffer::Slice<'a>) {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
@@ -188,25 +191,5 @@ fn calculate_projections() -> Projections {
         left_eye,
         right_eye,
         center,
-    }
-}
-
-fn scene_init(program: &mut shader::Program) {
-    // Load the vertex shader, create a shader program and bind it
-    unsafe {
-        citro3d_sys::C3D_BindProgram(program.as_raw_mut());
-
-        // Configure the first fragment shading substage to just pass through the vertex color
-        // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-        let env = citro3d_sys::C3D_GetTexEnv(0);
-        citro3d_sys::C3D_TexEnvInit(env);
-        citro3d_sys::C3D_TexEnvSrc(
-            env,
-            citro3d_sys::C3D_Both,
-            ctru_sys::GPU_PRIMARY_COLOR,
-            0,
-            0,
-        );
-        citro3d_sys::C3D_TexEnvFunc(env, citro3d_sys::C3D_Both, ctru_sys::GPU_REPLACE);
     }
 }

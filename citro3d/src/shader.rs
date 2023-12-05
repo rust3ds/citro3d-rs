@@ -17,6 +17,7 @@ use crate::uniform;
 ///
 /// The PICA200 does not support user-programmable fragment shaders.
 #[doc(alias = "shaderProgram_s")]
+#[must_use]
 pub struct Program {
     program: ctru_sys::shaderProgram_s,
 }
@@ -102,18 +103,13 @@ impl Program {
     pub(crate) fn as_raw(&self) -> *const ctru_sys::shaderProgram_s {
         &self.program
     }
-
-    // TODO: pub(crate)
-    pub fn as_raw_mut(&mut self) -> *mut ctru_sys::shaderProgram_s {
-        &mut self.program
-    }
 }
 
 impl Drop for Program {
     #[doc(alias = "shaderProgramFree")]
     fn drop(&mut self) {
         unsafe {
-            let _ = ctru_sys::shaderProgramFree(self.as_raw_mut());
+            let _ = ctru_sys::shaderProgramFree(self.as_raw().cast_mut());
         }
     }
 }

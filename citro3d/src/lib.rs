@@ -15,10 +15,15 @@ pub mod error;
 pub mod math;
 pub mod render;
 pub mod shader;
+pub mod texenv;
 pub mod uniform;
+
+use std::cell::OnceCell;
+use std::fmt;
 
 pub use error::{Error, Result};
 
+use self::texenv::TexEnv;
 use self::uniform::Uniform;
 
 pub mod macros {
@@ -30,8 +35,15 @@ pub mod macros {
 /// should instantiate to use this library.
 #[non_exhaustive]
 #[must_use]
-#[derive(Debug)]
-pub struct Instance;
+pub struct Instance {
+    texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
+}
+
+impl fmt::Debug for Instance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Instance").finish_non_exhaustive()
+    }
+}
 
 impl Instance {
     /// Initialize the default `citro3d` instance.
@@ -51,7 +63,17 @@ impl Instance {
     #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
-            Ok(Self)
+            Ok(Self {
+                texenvs: [
+                    // thank goodness there's only six of them!
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                    OnceCell::new(),
+                ],
+            })
         } else {
             Err(Error::FailedToInitialize)
         }
@@ -73,7 +95,8 @@ impl Instance {
     }
 
     /// Render a frame. The passed in function/closure can mutate the instance,
-    /// such as to [select a render target](Self::select_render_target).
+    /// such as to [select a render target](Self::select_render_target)
+    /// or [bind a new shader program](Self::bind_program).
     #[doc(alias = "C3D_FrameBegin")]
     #[doc(alias = "C3D_FrameEnd")]
     pub fn render_frame_with(&mut self, f: impl FnOnce(&mut Self)) {
@@ -125,17 +148,26 @@ impl Instance {
 
     /// Render primitives from the current vertex array buffer.
     #[doc(alias = "C3D_DrawArrays")]
-    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, index: buffer::Slice) {
-        self.set_buffer_info(index.info());
+    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, vbo_data: buffer::Slice) {
+        self.set_buffer_info(vbo_data.info());
 
         // TODO: should we also require the attrib info directly here?
 
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
-                index.index(),
-                index.len(),
+                vbo_data.index(),
+                vbo_data.len(),
             );
+        }
+    }
+
+    /// Use the given [`shader::Program`] for subsequent draw calls.
+    pub fn bind_program(&mut self, program: &shader::Program) {
+        // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
+        // instead of mutating the pointee in any way that would cause UB
+        unsafe {
+            citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
     }
 
@@ -173,6 +205,27 @@ impl Instance {
     /// ```
     pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
         uniform.bind(self, shader::Type::Geometry, index);
+    }
+
+    /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use citro3d::texenv;
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let stage0 = texenv::Stage::new(0).unwrap();
+    /// let texenv0 = instance.texenv(stage0);
+    /// ```
+    #[doc(alias = "C3D_GetTexEnv")]
+    #[doc(alias = "C3D_TexEnvInit")]
+    pub fn texenv(&mut self, stage: texenv::Stage) -> &mut texenv::TexEnv {
+        let texenv = &mut self.texenvs[stage.0];
+        texenv.get_or_init(|| TexEnv::new(stage));
+        // We have to do this weird unwrap to get a mutable reference,
+        // since there is no `get_mut_or_init` or equivalent
+        texenv.get_mut().unwrap()
     }
 }
 
