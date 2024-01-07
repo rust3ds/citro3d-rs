@@ -18,9 +18,11 @@ pub mod shader;
 pub mod texenv;
 pub mod uniform;
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefMut};
 use std::fmt;
+use std::rc::Rc;
 
+use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
 
 use self::texenv::TexEnv;
@@ -37,7 +39,14 @@ pub mod macros {
 #[must_use]
 pub struct Instance {
     texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
+    queue: Rc<RenderQueue>,
 }
+
+/// Representation of `citro3d`'s internal render queue. This is something that
+/// lives in the global context, but it keeps references to resources that are
+/// used for rendering, so it's useful for us to have something to represent its
+/// lifetime.
+struct RenderQueue;
 
 impl fmt::Debug for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -73,10 +82,29 @@ impl Instance {
                     OnceCell::new(),
                     OnceCell::new(),
                 ],
+                queue: Rc::new(RenderQueue),
             })
         } else {
             Err(Error::FailedToInitialize)
         }
+    }
+
+    /// Create a new render target with the specified size, color format,
+    /// and depth format.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the target could not be created with the given parameters.
+    #[doc(alias = "C3D_RenderTargetCreate")]
+    #[doc(alias = "C3D_RenderTargetSetOutput")]
+    pub fn render_target<'screen>(
+        &self,
+        width: usize,
+        height: usize,
+        screen: RefMut<'screen, dyn Screen>,
+        depth_format: Option<render::DepthFormat>,
+    ) -> Result<render::Target<'screen>> {
+        render::Target::new(width, height, screen, depth_format, Rc::clone(&self.queue))
     }
 
     /// Select the given render target for drawing the frame.
@@ -229,11 +257,40 @@ impl Instance {
     }
 }
 
+// This only exists to be an alias, which admittedly is kinda silly. The default
+// impl should be equivalent though, since RenderQueue has a drop impl too.
 impl Drop for Instance {
     #[doc(alias = "C3D_Fini")]
+    fn drop(&mut self) {}
+}
+
+impl Drop for RenderQueue {
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_Fini();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ctru::services::gfx::Gfx;
+
+    use super::*;
+
+    #[test]
+    fn select_render_target() {
+        let gfx = Gfx::new().unwrap();
+        let screen = gfx.top_screen.borrow_mut();
+
+        let mut instance = Instance::new().unwrap();
+        let target = instance.render_target(10, 10, screen, None).unwrap();
+
+        instance.select_render_target(&target).unwrap();
+
+        // Check that we don't get a double-free or use-after-free by dropping
+        // the global instance before dropping the target.
+        drop(instance);
+        drop(target);
     }
 }

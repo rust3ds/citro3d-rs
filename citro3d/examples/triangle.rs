@@ -65,17 +65,20 @@ fn main() {
     let (mut top_left, mut top_right) = top_screen.split_mut();
 
     let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
-    let mut top_left_target =
-        render::Target::new(width, height, top_left, None).expect("failed to create render target");
+    let mut top_left_target = instance
+        .render_target(width, height, top_left, None)
+        .expect("failed to create render target");
 
     let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
-    let mut top_right_target = render::Target::new(width, height, top_right, None)
+    let mut top_right_target = instance
+        .render_target(width, height, top_right, None)
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
     let RawFrameBuffer { width, height, .. } = bottom_screen.raw_framebuffer();
 
-    let mut bottom_target = render::Target::new(width, height, bottom_screen, None)
+    let mut bottom_target = instance
+        .render_target(width, height, bottom_screen, None)
         .expect("failed to create bottom screen render target");
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();

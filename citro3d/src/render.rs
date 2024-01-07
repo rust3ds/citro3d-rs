@@ -2,6 +2,7 @@
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
 use std::cell::RefMut;
+use std::rc::Rc;
 
 use citro3d_sys::{
     C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE,
@@ -10,7 +11,7 @@ use ctru::services::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
-use crate::{Error, Result};
+use crate::{Error, RenderQueue, Result};
 
 mod transfer;
 
@@ -22,6 +23,7 @@ pub struct Target<'screen> {
     // This is unused after construction, but ensures unique access to the
     // screen this target writes to during rendering
     _screen: RefMut<'screen, dyn Screen>,
+    _queue: Rc<RenderQueue>,
 }
 
 impl Drop for Target<'_> {
@@ -34,19 +36,15 @@ impl Drop for Target<'_> {
 }
 
 impl<'screen> Target<'screen> {
-    /// Create a new render target with the specified size, color format,
-    /// and depth format.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the target could not be created.
-    #[doc(alias = "C3D_RenderTargetCreate")]
-    #[doc(alias = "C3D_RenderTargetSetOutput")]
-    pub fn new(
+    /// Create a new render target with the given parameters. This takes a
+    /// [`RenderQueue`] parameter to make sure this  [`Target`] doesn't outlive
+    /// the render queue.
+    pub(crate) fn new(
         width: usize,
         height: usize,
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<DepthFormat>,
+        queue: Rc<RenderQueue>,
     ) -> Result<Self> {
         let color_format: ColorFormat = screen.framebuffer_format().into();
 
@@ -80,6 +78,7 @@ impl<'screen> Target<'screen> {
         Ok(Self {
             raw,
             _screen: screen,
+            _queue: queue,
         })
     }
 
