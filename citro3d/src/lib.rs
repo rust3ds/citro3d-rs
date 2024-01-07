@@ -107,11 +107,14 @@ impl Instance {
         render::Target::new(width, height, screen, depth_format, Rc::clone(&self.queue))
     }
 
-    /// Select the given render target for drawing the frame.
+    /// Select the given render target for drawing the frame. This must be called
+    /// as pare of a render call (i.e. within the call to
+    /// [`render_frame_with`](Self::render_frame_with)).
     ///
     /// # Errors
     ///
-    /// Fails if the given target cannot be used for drawing.
+    /// Fails if the given target cannot be used for drawing, or called outside
+    /// the context of a frame render.
     #[doc(alias = "C3D_FrameDrawOn")]
     pub fn select_render_target(&mut self, target: &render::Target<'_>) -> Result<()> {
         let _ = self;
@@ -286,7 +289,9 @@ mod tests {
         let mut instance = Instance::new().unwrap();
         let target = instance.render_target(10, 10, screen, None).unwrap();
 
-        instance.select_render_target(&target).unwrap();
+        instance.render_frame_with(|instance| {
+            instance.select_render_target(&target).unwrap();
+        });
 
         // Check that we don't get a double-free or use-after-free by dropping
         // the global instance before dropping the target.
