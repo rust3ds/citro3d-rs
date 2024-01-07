@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -22,7 +23,7 @@ jobs:
 
       - uses: rust3ds/test-runner/setup@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2023-06-01
 
       - name: Build workspace docs
         run: cargo 3ds --verbose doc --verbose --no-deps --workspace
