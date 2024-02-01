@@ -111,7 +111,7 @@ fn main() {
             y: v[1],
             z: v[2],
         },
-        color: Vec3::new(i as f32 % 1., i as f32 % 1., i as f32 % 1.),
+        color: Vec3::new(1.0, 0.7, 0.5),
     }) {
         vbo_data.push(vert);
     }
@@ -134,6 +134,16 @@ fn main() {
         FVec3::new(0.0, 1.0, 0.0),
         CoordinateOrientation::RightHanded,
     );
+    let indecies_a = [
+        0, 3, 1, 1, 3, 2, // triangles making up the top (+y) facing side.
+        4, 5, 7, 5, 6, 7, // bottom (-y)
+        8, 11, 9, 9, 11, 10, // right (+x)
+        12, 13, 15, 13, 14, 15, // left (-x)
+        16, 19, 17, 17, 19, 18, // back (+z)
+        20, 21, 23, 21, 22, 23, // forward (-z)
+    ];
+    let mut indecies = Vec::with_capacity_in(indecies_a.len(), ctru::linear::LinearAllocator);
+    indecies.extend_from_slice(&indecies_a);
 
     while apt.main_loop() {
         hid.scan_input();
@@ -159,18 +169,12 @@ fn main() {
                 unsafe {
                     instance.draw_elements(
                         buffer::Primitive::Triangles,
-                        DrawingIndices::U16(&[
-                            0, 3, 1, 1, 3, 2, // triangles making up the top (+y) facing side.
-                            4, 5, 7, 5, 6, 7, // bottom (-y)
-                            8, 11, 9, 9, 11, 10, // right (+x)
-                            12, 13, 15, 13, 14, 15, // left (-x)
-                            16, 19, 17, 17, 19, 18, // back (+z)
-                            20, 21, 23, 21, 22, 23, // forward (-z)
-                        ]),
+                        &buf_info,
+                        DrawingIndices::U16(&indecies),
                     );
                 }
 
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                //instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             };
 
             let Projections {

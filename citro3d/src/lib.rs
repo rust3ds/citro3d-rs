@@ -24,6 +24,7 @@ pub mod render;
 pub mod shader;
 pub mod texenv;
 pub mod uniform;
+mod util;
 
 use std::cell::{OnceCell, RefMut};
 use std::fmt;
@@ -31,6 +32,7 @@ use std::rc::Rc;
 
 use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
+use util::is_linear_ptr;
 
 use self::texenv::TexEnv;
 use self::uniform::Uniform;
@@ -200,27 +202,40 @@ impl Instance {
     }
     /// Indexed drawing
     ///
+    /// Draws the vertices in `buf` indexed by `indices`. `indices` must be linearly allocated
+    ///
     /// # Safety
     /// If `indices` goes out of scope before the current frame ends it will cause a use-after-free (possibly by the GPU)
+    /// If `buf` does not contain all the vertices references by `indices` it will cause an invalid access by the GPU (this crashes citra)
+    ///
+    /// # Panics
+    /// If `indices` is not allocated in linear memory
     #[doc(alias = "C3D_DrawElements")]
     pub unsafe fn draw_elements<'a>(
         &mut self,
         primitive: buffer::Primitive,
+        buf: &buffer::Info,
         indices: impl Into<DrawingIndices<'a>>,
     ) {
+        self.set_buffer_info(buf);
         let indices: DrawingIndices<'a> = indices.into();
+        let elements = match indices {
+            DrawingIndices::U16(v) => v.as_ptr() as *const _,
+            DrawingIndices::U8(v) => v.as_ptr() as *const _,
+        };
+        assert!(
+            is_linear_ptr(elements),
+            "draw_elements requires linear allocated indices buffer"
+        );
         citro3d_sys::C3D_DrawElements(
             primitive as ctru_sys::GPU_Primitive_t,
             indices.len() as i32,
             // flag bit for short or byte
             match indices {
-                DrawingIndices::U16(_) => 1,
-                DrawingIndices::U8(_) => 0,
-            },
-            match indices {
-                DrawingIndices::U16(v) => v.as_ptr() as *const _,
-                DrawingIndices::U8(v) => v.as_ptr() as *const _,
-            },
+                DrawingIndices::U16(_) => citro3d_sys::C3D_UNSIGNED_SHORT,
+                DrawingIndices::U8(_) => citro3d_sys::C3D_UNSIGNED_BYTE,
+            } as i32,
+            elements,
         );
     }
 
