@@ -215,13 +215,13 @@ impl Instance {
         &mut self,
         primitive: buffer::Primitive,
         buf: &buffer::Info,
-        indices: impl Into<DrawingIndices<'a>>,
+        indices: impl Into<IndexType<'a>>,
     ) {
         self.set_buffer_info(buf);
-        let indices: DrawingIndices<'a> = indices.into();
+        let indices: IndexType<'a> = indices.into();
         let elements = match indices {
-            DrawingIndices::U16(v) => v.as_ptr() as *const _,
-            DrawingIndices::U8(v) => v.as_ptr() as *const _,
+            IndexType::U16(v) => v.as_ptr() as *const _,
+            IndexType::U8(v) => v.as_ptr() as *const _,
         };
         assert!(
             is_linear_ptr(elements),
@@ -232,8 +232,8 @@ impl Instance {
             indices.len() as i32,
             // flag bit for short or byte
             match indices {
-                DrawingIndices::U16(_) => citro3d_sys::C3D_UNSIGNED_SHORT,
-                DrawingIndices::U8(_) => citro3d_sys::C3D_UNSIGNED_BYTE,
+                IndexType::U16(_) => citro3d_sys::C3D_UNSIGNED_SHORT,
+                IndexType::U8(_) => citro3d_sys::C3D_UNSIGNED_BYTE,
             } as i32,
             elements,
         );
@@ -321,26 +321,26 @@ impl Drop for RenderQueue {
     }
 }
 
-pub enum DrawingIndices<'a> {
+pub enum IndexType<'a> {
     U16(&'a [u16]),
     U8(&'a [u8]),
 }
-impl DrawingIndices<'_> {
+impl IndexType<'_> {
     fn len(&self) -> usize {
         match self {
-            DrawingIndices::U16(a) => a.len(),
-            DrawingIndices::U8(a) => a.len(),
+            IndexType::U16(a) => a.len(),
+            IndexType::U8(a) => a.len(),
         }
     }
 }
 
-impl<'a> From<&'a [u8]> for DrawingIndices<'a> {
+impl<'a> From<&'a [u8]> for IndexType<'a> {
     fn from(v: &'a [u8]) -> Self {
         Self::U8(v)
     }
 }
 
-impl<'a> From<&'a [u16]> for DrawingIndices<'a> {
+impl<'a> From<&'a [u16]> for IndexType<'a> {
     fn from(v: &'a [u16]) -> Self {
         Self::U16(v)
     }

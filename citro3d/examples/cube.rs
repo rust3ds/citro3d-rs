@@ -9,7 +9,7 @@ use citro3d::math::{
 };
 use citro3d::render::ClearFlags;
 use citro3d::{attrib, buffer, render, shader};
-use citro3d::{texenv, DrawingIndices};
+use citro3d::{texenv, IndexType};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -170,7 +170,7 @@ fn main() {
                     instance.draw_elements(
                         buffer::Primitive::Triangles,
                         &buf_info,
-                        DrawingIndices::U16(&indecies),
+                        IndexType::U16(&indecies),
                     );
                 }
 
