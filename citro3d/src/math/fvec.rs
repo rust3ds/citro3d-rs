@@ -250,6 +250,32 @@ impl FVec3 {
     }
 }
 
+#[cfg(feature = "glam")]
+impl From<glam::Vec4> for FVec4 {
+    fn from(value: glam::Vec4) -> Self {
+        Self::new(value.x, value.y, value.z, value.w)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::Vec3> for FVec3 {
+    fn from(value: glam::Vec3) -> Self {
+        Self::new(value.x, value.y, value.z)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<FVec4> for glam::Vec4 {
+    fn from(value: FVec4) -> Self {
+        glam::Vec4::new(value.x(), value.y(), value.z(), value.w())
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<FVec3> for glam::Vec3 {
+    fn from(value: FVec3) -> Self {
+        glam::Vec3::new(value.x(), value.y(), value.z())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;

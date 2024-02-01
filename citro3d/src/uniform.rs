@@ -144,3 +144,17 @@ impl From<&Matrix4> for Uniform {
         (*value).into()
     }
 }
+
+#[cfg(feature = "glam")]
+impl From<glam::Vec4> for Uniform {
+    fn from(value: glam::Vec4) -> Self {
+        Self::Float(value.into())
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<glam::Mat4> for Uniform {
+    fn from(value: glam::Mat4) -> Self {
+        Self::Float4(value.into())
+    }
+}

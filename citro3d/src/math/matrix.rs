@@ -198,3 +198,17 @@ impl PartialEq<Matrix4> for Matrix4 {
     }
 }
 impl Eq for Matrix4 {}
+
+#[cfg(feature = "glam")]
+impl From<glam::Mat4> for Matrix4 {
+    fn from(mat: glam::Mat4) -> Self {
+        Matrix4::from_rows(core::array::from_fn(|i| mat.row(i).into()))
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<Matrix4> for glam::Mat4 {
+    fn from(mat: Matrix4) -> Self {
+        glam::Mat4::from_cols_array_2d(&mat.rows_xyzw()).transpose()
+    }
+}

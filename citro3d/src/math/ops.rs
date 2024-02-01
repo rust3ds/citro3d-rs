@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 use std::mem::MaybeUninit;
-use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[cfg(feature = "approx")]
 use approx::AbsDiffEq;
