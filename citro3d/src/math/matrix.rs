@@ -16,6 +16,20 @@ use super::{CoordinateOrientation, FVec3, FVec4};
 pub struct Matrix4(citro3d_sys::C3D_Mtx);
 
 impl Matrix4 {
+    /// Construct a Matrix4 from the cells
+    ///
+    /// # Note
+    /// This expects rows to be in WZYX order
+    pub fn from_cells_wzyx(cells: [f32; 16]) -> Self {
+        Self(citro3d_sys::C3D_Mtx { m: cells })
+    }
+    /// Construct a Matrix4 from its rows
+    pub fn from_rows(rows: [FVec4; 4]) -> Self {
+        Self(citro3d_sys::C3D_Mtx {
+            // Safety: FVec is repr(transparent)
+            r: unsafe { core::mem::transmute::<_, [citro3d_sys::C3D_FVec; 4]>(rows) },
+        })
+    }
     /// Create a new matrix from a raw citro3d_sys one
     pub fn from_raw(value: citro3d_sys::C3D_Mtx) -> Self {
         Self(value)
@@ -39,7 +53,7 @@ impl Matrix4 {
         unsafe { core::mem::transmute::<[citro3d_sys::C3D_FVec; 4], [FVec4; 4]>(self.0.r) }
     }
 
-    /// Get the rows in normal XYZW form
+    /// Get the rows in XYZW form
     pub fn rows_xyzw(self) -> [[f32; 4]; 4] {
         let mut rows = self.rows_wzyx();
         for r in &mut rows {
@@ -47,7 +61,7 @@ impl Matrix4 {
                 r.0.c.reverse();
             }
         }
-        // Safety: FVec has same layout as citro3d_sys version which is a union with [f32; 4] as one variant
+        // Safety: FVec has same layout as citro3d_sys::C3D_FVec which is a union with [f32; 4] as one variant
         unsafe { std::mem::transmute::<_, [[f32; 4]; 4]>(rows) }
     }
     /// Construct the zero matrix.
