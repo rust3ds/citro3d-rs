@@ -190,7 +190,6 @@ impl Instance {
         self.set_buffer_info(vbo_data.info());
 
         // TODO: should we also require the attrib info directly here?
-
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
@@ -198,6 +197,31 @@ impl Instance {
                 vbo_data.len(),
             );
         }
+    }
+    /// Indexed drawing
+    ///
+    /// # Safety
+    /// If `indices` goes out of scope before the current frame ends it will cause a use-after-free (possibly by the GPU)
+    #[doc(alias = "C3D_DrawElements")]
+    pub unsafe fn draw_elements<'a>(
+        &mut self,
+        primitive: buffer::Primitive,
+        indices: impl Into<DrawingIndices<'a>>,
+    ) {
+        let indices: DrawingIndices<'a> = indices.into();
+        citro3d_sys::C3D_DrawElements(
+            primitive as ctru_sys::GPU_Primitive_t,
+            indices.len() as i32,
+            // flag bit for short or byte
+            match indices {
+                DrawingIndices::U16(_) => 1,
+                DrawingIndices::U8(_) => 0,
+            },
+            match indices {
+                DrawingIndices::U16(v) => v.as_ptr() as *const _,
+                DrawingIndices::U8(v) => v.as_ptr() as *const _,
+            },
+        );
     }
 
     /// Use the given [`shader::Program`] for subsequent draw calls.
@@ -279,6 +303,31 @@ impl Drop for RenderQueue {
         unsafe {
             citro3d_sys::C3D_Fini();
         }
+    }
+}
+
+pub enum DrawingIndices<'a> {
+    U16(&'a [u16]),
+    U8(&'a [u8]),
+}
+impl DrawingIndices<'_> {
+    fn len(&self) -> usize {
+        match self {
+            DrawingIndices::U16(a) => a.len(),
+            DrawingIndices::U8(a) => a.len(),
+        }
+    }
+}
+
+impl<'a> From<&'a [u8]> for DrawingIndices<'a> {
+    fn from(v: &'a [u8]) -> Self {
+        Self::U8(v)
+    }
+}
+
+impl<'a> From<&'a [u16]> for DrawingIndices<'a> {
+    fn from(v: &'a [u16]) -> Self {
+        Self::U16(v)
     }
 }
 
