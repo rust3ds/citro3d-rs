@@ -3,8 +3,15 @@
 use std::fmt;
 
 /// A vector of `f32`s.
+///
+/// # Layout
+/// Note that this matches the PICA layout so is actually WZYX, this means using it
+/// in vertex data as an attribute it will be reversed
+///
+/// It is guaranteed to have the same layout as [`citro3d_sys::C3D_FVec`] in memory
 #[derive(Clone, Copy)]
 #[doc(alias = "C3D_FVec")]
+#[repr(transparent)]
 pub struct FVec<const N: usize>(pub(crate) citro3d_sys::C3D_FVec);
 
 /// A 3-vector of `f32`s.

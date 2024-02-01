@@ -5,7 +5,7 @@ use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 #[cfg(feature = "approx")]
 use approx::AbsDiffEq;
 
-use super::{FVec, FVec3, FVec4, Matrix, Matrix3, Matrix4};
+use super::{FVec, FVec3, FVec4, Matrix4};
 
 // region: FVec4 math operators
 
@@ -126,59 +126,50 @@ impl<const N: usize> AbsDiffEq for FVec<N> {
 
 // region: Matrix math operators
 
-impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Add<Rhs> for &Matrix<M, N> {
-    type Output = <Self as Deref>::Target;
+impl Add<Matrix4> for Matrix4 {
+    type Output = Matrix4;
 
     #[doc(alias = "Mtx_Add")]
-    fn add(self, rhs: Rhs) -> Self::Output {
+    fn add(self, rhs: Matrix4) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
-            citro3d_sys::Mtx_Add(out.as_mut_ptr(), self.as_raw(), rhs.borrow().as_raw());
-            Matrix::new(out.assume_init())
+            citro3d_sys::Mtx_Add(out.as_mut_ptr(), self.as_raw(), rhs.as_raw());
+            Matrix4::from_raw(out.assume_init())
         }
     }
 }
 
-impl<Rhs: Borrow<Self>, const M: usize, const N: usize> Sub<Rhs> for &Matrix<M, N> {
-    type Output = <Self as Deref>::Target;
+impl Sub<Matrix4> for Matrix4 {
+    type Output = Matrix4;
 
     #[doc(alias = "Mtx_Subtract")]
-    fn sub(self, rhs: Rhs) -> Self::Output {
+    fn sub(self, rhs: Matrix4) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
-            citro3d_sys::Mtx_Subtract(out.as_mut_ptr(), self.as_raw(), rhs.borrow().as_raw());
-            Matrix::new(out.assume_init())
+            citro3d_sys::Mtx_Subtract(out.as_mut_ptr(), self.as_raw(), rhs.as_raw());
+            Matrix4::from_raw(out.assume_init())
         }
     }
 }
 
-impl<const M: usize, const N: usize, const P: usize> Mul<&Matrix<N, P>> for &Matrix<M, N> {
-    type Output = Matrix<M, P>;
+impl Mul<Matrix4> for Matrix4 {
+    type Output = Matrix4;
 
     #[doc(alias = "Mtx_Multiply")]
-    fn mul(self, rhs: &Matrix<N, P>) -> Self::Output {
+    fn mul(self, rhs: Matrix4) -> Self::Output {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Multiply(out.as_mut_ptr(), self.as_raw(), rhs.as_raw());
-            Matrix::new(out.assume_init())
+            Matrix4::from_raw(out.assume_init())
         }
     }
 }
 
-impl<const M: usize, const N: usize, const P: usize> Mul<Matrix<N, P>> for &Matrix<M, N> {
-    type Output = Matrix<M, P>;
+impl Mul<Matrix4> for &Matrix4 {
+    type Output = Matrix4;
 
-    fn mul(self, rhs: Matrix<N, P>) -> Self::Output {
-        self * &rhs
-    }
-}
-
-impl Mul<FVec3> for &Matrix3 {
-    type Output = FVec3;
-
-    #[doc(alias = "Mtx_MultiplyFVec3")]
-    fn mul(self, rhs: FVec3) -> Self::Output {
-        FVec(unsafe { citro3d_sys::Mtx_MultiplyFVec3(self.as_raw(), rhs.0) })
+    fn mul(self, rhs: Matrix4) -> Self::Output {
+        *self * rhs
     }
 }
 
@@ -191,7 +182,7 @@ impl Mul<FVec4> for &Matrix4 {
     }
 }
 
-impl Mul<FVec3> for &Matrix<4, 3> {
+impl Mul<FVec3> for &Matrix4 {
     type Output = FVec4;
 
     #[doc(alias = "Mtx_MultiplyFVecH")]
@@ -202,17 +193,9 @@ impl Mul<FVec3> for &Matrix<4, 3> {
 
 // endregion
 
-impl<Rhs: Borrow<Self>, const M: usize, const N: usize> PartialEq<Rhs> for Matrix<M, N> {
-    fn eq(&self, other: &Rhs) -> bool {
-        self.as_rows() == other.borrow().as_rows()
-    }
-}
-
-impl<const M: usize, const N: usize> Eq for Matrix<M, N> {}
-
 #[cfg(feature = "approx")]
 #[doc(cfg(feature = "approx"))]
-impl<const M: usize, const N: usize> AbsDiffEq for Matrix<M, N> {
+impl AbsDiffEq for Matrix4 {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
@@ -222,18 +205,10 @@ impl<const M: usize, const N: usize> AbsDiffEq for Matrix<M, N> {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let lhs = self.as_rows();
-        let rhs = other.as_rows();
-
-        for row in 0..M {
-            for col in 0..N {
-                if !lhs[row][col].abs_diff_eq(&rhs[row][col], epsilon) {
-                    return false;
-                }
-            }
-        }
-
-        true
+        self.rows_wzyx()
+            .into_iter()
+            .zip(other.rows_wzyx().into_iter())
+            .all(|(l, r)| l.abs_diff_eq(&r, epsilon))
     }
 }
 

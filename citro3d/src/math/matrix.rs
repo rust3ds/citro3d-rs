@@ -1,84 +1,55 @@
 use std::mem::MaybeUninit;
 
-pub use private::Matrix;
+use super::{CoordinateOrientation, FVec3, FVec4};
 
-use super::{CoordinateOrientation, FVec3};
-
-mod private {
-    use std::fmt;
-
-    /// An `M`x`N` row-major matrix of `f32`s.
-    #[doc(alias = "C3D_Mtx")]
-    #[derive(Clone)]
-    pub struct Matrix<const M: usize, const N: usize>(citro3d_sys::C3D_Mtx);
-
-    impl<const M: usize, const N: usize> Matrix<M, N> {
-        const ROW_SIZE: () = assert!(M == 3 || M == 4);
-        const COLUMN_SIZE: () = assert!(N > 0 && N <= 4);
-
-        // This constructor validates, at compile time, that the
-        // constructed matrix is 3xN or 4xN matrix, where 0 < N ≤ 4.
-        // We put this struct in a submodule to enforce that nothing creates
-        // a Matrix without calling this constructor.
-        #[allow(clippy::let_unit_value)]
-        pub(crate) fn new(value: citro3d_sys::C3D_Mtx) -> Self {
-            let () = Self::ROW_SIZE;
-            let () = Self::COLUMN_SIZE;
-            Self(value)
-        }
-
-        pub(crate) fn as_raw(&self) -> *const citro3d_sys::C3D_Mtx {
-            &self.0
-        }
-
-        pub(crate) fn into_raw(self) -> citro3d_sys::C3D_Mtx {
-            self.0
-        }
-
-        pub(crate) fn as_mut(&mut self) -> *mut citro3d_sys::C3D_Mtx {
-            &mut self.0
-        }
-
-        /// Trim the matrix down to only the rows and columns we care about,
-        /// since the inner representation is always 4x4.
-        ///
-        /// NOTE: this probably shouldn't be used in hot paths since it copies
-        /// the underlying storage. For some use cases slicing might be better,
-        /// although the underlying slice would always contain extra values for
-        /// matrices smaller than 4x4.
-        pub(crate) fn as_rows(&self) -> [[f32; N]; M] {
-            let rows = unsafe { self.0.r }.map(|row| -> [f32; N] {
-                // Rows are stored in WZYX order, so we slice from back to front.
-                // UNWRAP: N ≤ 4, so slicing to a smaller array should always work
-                unsafe { row.c[(4 - N)..].try_into() }.unwrap()
-            });
-
-            // UNWRAP: M ≤ 4, so slicing to a smaller array should always work
-            rows[..M].try_into().unwrap()
-        }
-    }
-
-    impl<const M: usize, const N: usize> fmt::Debug for Matrix<M, N> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let inner = self.as_rows().map(|mut row| {
-                // Rows are stored in WZYX order which is opposite of how most people
-                // probably expect, so reverse each row in-place for debug printing
-                row.reverse();
-                row
-            });
-
-            let type_name = std::any::type_name::<Self>().split("::").last().unwrap();
-            f.debug_tuple(type_name).field(&inner).finish()
-        }
-    }
-}
-
-/// A 3x3 row-major matrix of `f32`s.
-pub type Matrix3 = Matrix<3, 3>;
 /// A 4x4 row-major matrix of `f32`s.
-pub type Matrix4 = Matrix<4, 4>;
+///
+/// # Layout details
+/// Rows are actually stored as WZYX in memory. There are helper functions
+/// for accessing the rows in XYZW form. The `Debug` implementation prints
+/// the shows in WZYX form
+///
+/// It is also guaranteed to have the same layout as [`citro3d_sys::C3D_Mtx`]
+#[doc(alias = "C3D_Mtx")]
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct Matrix4(citro3d_sys::C3D_Mtx);
 
-impl<const M: usize, const N: usize> Matrix<M, N> {
+impl Matrix4 {
+    /// Create a new matrix from a raw citro3d_sys one
+    pub fn from_raw(value: citro3d_sys::C3D_Mtx) -> Self {
+        Self(value)
+    }
+
+    pub fn as_raw(&self) -> &citro3d_sys::C3D_Mtx {
+        &self.0
+    }
+
+    pub fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Mtx {
+        &mut self.0
+    }
+
+    pub fn into_raw(self) -> citro3d_sys::C3D_Mtx {
+        self.0
+    }
+
+    /// Get the rows in raw (WZYX) form
+    pub fn rows_wzyx(self) -> [FVec4; 4] {
+        // Safety: FVec4 is repr(C) to allow transmute from C3D_Vec
+        unsafe { core::mem::transmute::<[citro3d_sys::C3D_FVec; 4], [FVec4; 4]>(self.0.r) }
+    }
+
+    /// Get the rows in normal XYZW form
+    pub fn rows_xyzw(self) -> [[f32; 4]; 4] {
+        let mut rows = self.rows_wzyx();
+        for r in &mut rows {
+            unsafe {
+                r.0.c.reverse();
+            }
+        }
+        // Safety: FVec has same layout as citro3d_sys version which is a union with [f32; 4] as one variant
+        unsafe { std::mem::transmute::<_, [[f32; 4]; 4]>(rows) }
+    }
     /// Construct the zero matrix.
     #[doc(alias = "Mtx_Zeros")]
     pub fn zero() -> Self {
@@ -86,17 +57,17 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Zeros(out.as_mut_ptr());
-            Self::new(out.assume_init())
+            Self::from_raw(out.assume_init())
         }
     }
 
     /// Transpose the matrix, swapping rows and columns.
     #[doc(alias = "Mtx_Transpose")]
-    pub fn transpose(mut self) -> Matrix<N, M> {
+    pub fn transpose(mut self) -> Matrix4 {
         unsafe {
-            citro3d_sys::Mtx_Transpose(self.as_mut());
+            citro3d_sys::Mtx_Transpose(self.as_raw_mut());
         }
-        Matrix::new(self.into_raw())
+        Matrix4::from_raw(self.into_raw())
     }
 
     // region: Matrix transformations
@@ -111,43 +82,39 @@ impl<const M: usize, const N: usize> Matrix<M, N> {
     /// directions.
     #[doc(alias = "Mtx_Translate")]
     pub fn translate(&mut self, x: f32, y: f32, z: f32) {
-        unsafe { citro3d_sys::Mtx_Translate(self.as_mut(), x, y, z, false) }
+        unsafe { citro3d_sys::Mtx_Translate(self.as_raw_mut(), x, y, z, false) }
     }
 
     /// Scale a transformation matrix by the given amounts in the X, Y, and Z directions.
     #[doc(alias = "Mtx_Scale")]
     pub fn scale(&mut self, x: f32, y: f32, z: f32) {
-        unsafe { citro3d_sys::Mtx_Scale(self.as_mut(), x, y, z) }
+        unsafe { citro3d_sys::Mtx_Scale(self.as_raw_mut(), x, y, z) }
     }
 
     /// Rotate a transformation matrix by the given angle around the given axis.
     #[doc(alias = "Mtx_Rotate")]
     pub fn rotate(&mut self, axis: FVec3, angle: f32) {
-        unsafe { citro3d_sys::Mtx_Rotate(self.as_mut(), axis.0, angle, false) }
+        unsafe { citro3d_sys::Mtx_Rotate(self.as_raw_mut(), axis.0, angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the X axis.
     #[doc(alias = "Mtx_RotateX")]
     pub fn rotate_x(&mut self, angle: f32) {
-        unsafe { citro3d_sys::Mtx_RotateX(self.as_mut(), angle, false) }
+        unsafe { citro3d_sys::Mtx_RotateX(self.as_raw_mut(), angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the Y axis.
     #[doc(alias = "Mtx_RotateY")]
     pub fn rotate_y(&mut self, angle: f32) {
-        unsafe { citro3d_sys::Mtx_RotateY(self.as_mut(), angle, false) }
+        unsafe { citro3d_sys::Mtx_RotateY(self.as_raw_mut(), angle, false) }
     }
 
     /// Rotate a transformation matrix by the given angle around the Z axis.
     #[doc(alias = "Mtx_RotateZ")]
     pub fn rotate_z(&mut self, angle: f32) {
-        unsafe { citro3d_sys::Mtx_RotateZ(self.as_mut(), angle, false) }
+        unsafe { citro3d_sys::Mtx_RotateZ(self.as_raw_mut(), angle, false) }
     }
 
-    // endregion
-}
-
-impl<const N: usize> Matrix<N, N> {
     /// Find the inverse of the matrix.
     ///
     /// # Errors
@@ -155,7 +122,7 @@ impl<const N: usize> Matrix<N, N> {
     /// If the matrix has no inverse, it will be returned unchanged as an [`Err`].
     #[doc(alias = "Mtx_Inverse")]
     pub fn inverse(mut self) -> Result<Self, Self> {
-        let determinant = unsafe { citro3d_sys::Mtx_Inverse(self.as_mut()) };
+        let determinant = unsafe { citro3d_sys::Mtx_Inverse(self.as_raw_mut()) };
         if determinant == 0.0 {
             Err(self)
         } else {
@@ -169,31 +136,17 @@ impl<const N: usize> Matrix<N, N> {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Identity(out.as_mut_ptr());
-            Self::new(out.assume_init())
+            Self::from_raw(out.assume_init())
         }
     }
-}
 
-impl Matrix3 {
-    /// Construct a 3x3 matrix with the given values on the diagonal.
-    #[doc(alias = "Mtx_Diagonal")]
-    pub fn diagonal(x: f32, y: f32, z: f32) -> Self {
-        let mut out = MaybeUninit::uninit();
-        unsafe {
-            citro3d_sys::Mtx_Diagonal(out.as_mut_ptr(), x, y, z, 0.0);
-            Self::new(out.assume_init())
-        }
-    }
-}
-
-impl Matrix4 {
     /// Construct a 4x4 matrix with the given values on the diagonal.
     #[doc(alias = "Mtx_Diagonal")]
     pub fn diagonal(x: f32, y: f32, z: f32, w: f32) -> Self {
         let mut out = MaybeUninit::uninit();
         unsafe {
             citro3d_sys::Mtx_Diagonal(out.as_mut_ptr(), x, y, z, w);
-            Self::new(out.assume_init())
+            Self::from_raw(out.assume_init())
         }
     }
 
@@ -215,7 +168,19 @@ impl Matrix4 {
                 camera_up.0,
                 coordinates.is_left_handed(),
             );
-            Self::new(out.assume_init())
+            Self::from_raw(out.assume_init())
         }
     }
 }
+
+impl core::fmt::Debug for Matrix4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Matrix4").field(&self.rows_wzyx()).finish()
+    }
+}
+impl PartialEq<Matrix4> for Matrix4 {
+    fn eq(&self, other: &Matrix4) -> bool {
+        self.rows_wzyx() == other.rows_wzyx()
+    }
+}
+impl Eq for Matrix4 {}

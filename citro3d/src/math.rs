@@ -9,7 +9,7 @@ mod ops;
 mod projection;
 
 pub use fvec::{FVec, FVec3, FVec4};
-pub use matrix::{Matrix, Matrix3, Matrix4};
+pub use matrix::Matrix4;
 pub use projection::{
     AspectRatio, ClipPlanes, CoordinateOrientation, Orthographic, Perspective, Projection,
     ScreenOrientation, StereoDisplacement,

@@ -209,7 +209,7 @@ impl From<Projection<Perspective>> for Matrix4 {
             }
         }
 
-        unsafe { Self::new(result.assume_init()) }
+        unsafe { Self::from_raw(result.assume_init()) }
     }
 }
 
@@ -285,7 +285,7 @@ impl From<Projection<Orthographic>> for Matrix4 {
                 clip_planes_z.far,
                 projection.coordinates.is_left_handed(),
             );
-            Self::new(out.assume_init())
+            Self::from_raw(out.assume_init())
         }
     }
 }

@@ -192,8 +192,8 @@ impl Instance {
     /// let mtx = Matrix::identity();
     /// instance.bind_vertex_uniform(idx, &mtx);
     /// ```
-    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
-        uniform.bind(self, shader::Type::Vertex, index);
+    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        uniform.into().bind(self, shader::Type::Vertex, index);
     }
 
     /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
@@ -210,8 +210,8 @@ impl Instance {
     /// let mtx = Matrix::identity();
     /// instance.bind_geometry_uniform(idx, &mtx);
     /// ```
-    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Uniform) {
-        uniform.bind(self, shader::Type::Geometry, index);
+    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        uniform.into().bind(self, shader::Type::Geometry, index);
     }
 
     /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
