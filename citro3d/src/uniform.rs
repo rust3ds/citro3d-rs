@@ -22,17 +22,23 @@ impl From<Index> for i32 {
     }
 }
 
-/// A shader uniform. This trait is implemented for types that can be bound to
-/// shaders to be used as a uniform input to the shader.
+/// A uniform which may be bound as input to a shader program
 pub enum Uniform {
+    /// Single float uniform (`.fvec name`)
     Float(FVec4),
+    /// Two element float uniform (`.fvec name[2]`)
     Float2([FVec4; 2]),
+    /// Three element float uniform (`.fvec name [3]`)
     Float3([FVec4; 3]),
+    /// Matrix/4 element float uniform (`.fvec name[4]`)
     Float4(Matrix4),
+    /// Bool uniform (`.bool name`)
     Bool(bool),
+    /// Integer uniform (`.ivec name`)
     Int(IVec),
 }
 impl Uniform {
+    /// Get range of valid indexes for this uniform to bind to
     pub fn index_range(&self) -> Range<Index> {
         // these indexes are from the uniform table in the shader see: https://www.3dbrew.org/wiki/SHBIN#Uniform_Table_Entry
         // the input registers then are excluded by libctru, see: https://github.com/devkitPro/libctru/blob/0da8705527f03b4b08ff7fee4dd1b7f28df37905/libctru/source/gpu/shbin.c#L93
@@ -45,6 +51,8 @@ impl Uniform {
             Uniform::Bool(_) => Index(0x68)..Index(0x79),
         }
     }
+    /// Get length of uniform, i.e. how many registers it will write to
+    #[allow(clippy::len_without_is_empty)] // is_empty doesn't make sense here
     pub fn len(&self) -> usize {
         match self {
             Uniform::Float(_) => 1,
