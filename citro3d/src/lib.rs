@@ -2,6 +2,13 @@
 #![test_runner(test_runner::run_gdb)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
+#![doc(html_root_url = "https://rust3ds.github.io/citro3d-rs/crates")]
+#![doc(
+    html_favicon_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"
+)]
+#![doc(
+    html_logo_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"
+)]
 
 //! Safe Rust bindings to `citro3d`. This crate wraps `citro3d-sys` to provide
 //! safer APIs for graphics programs targeting the 3DS.
