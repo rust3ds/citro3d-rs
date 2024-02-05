@@ -21,7 +21,7 @@ libc = "0.2.125"
 default = ["glam"]
 ## Enable this feature to use the `approx` crate for comparing vectors and matrices.
 approx = ["dep:approx"]
-# Enable for glam support in uniforms
+## Enable for glam support in uniforms
 glam = ["dep:glam"]
 
 [dev-dependencies]
