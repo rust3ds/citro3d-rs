@@ -21,7 +21,7 @@ pub use projection::{
 /// Uses the PICA layout of WZYX
 #[doc(alias = "C3D_IVec")]
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct IVec(citro3d_sys::C3D_IVec);
 
 impl IVec {
