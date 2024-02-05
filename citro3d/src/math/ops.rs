@@ -190,6 +190,12 @@ impl Mul<FVec3> for &Matrix4 {
     }
 }
 
+impl PartialEq<Matrix4> for Matrix4 {
+    fn eq(&self, other: &Matrix4) -> bool {
+        self.rows_wzyx() == other.rows_wzyx()
+    }
+}
+
 // endregion
 
 #[cfg(feature = "approx")]

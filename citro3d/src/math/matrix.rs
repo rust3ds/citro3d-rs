@@ -183,12 +183,6 @@ impl core::fmt::Debug for Matrix4 {
         f.debug_tuple("Matrix4").field(&self.rows_wzyx()).finish()
     }
 }
-impl PartialEq<Matrix4> for Matrix4 {
-    fn eq(&self, other: &Matrix4) -> bool {
-        self.rows_wzyx() == other.rows_wzyx()
-    }
-}
-impl Eq for Matrix4 {}
 
 #[cfg(feature = "glam")]
 impl From<glam::Mat4> for Matrix4 {
