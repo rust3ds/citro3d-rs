@@ -43,23 +43,23 @@ impl Uniform {
         // these indexes are from the uniform table in the shader see: https://www.3dbrew.org/wiki/SHBIN#Uniform_Table_Entry
         // the input registers then are excluded by libctru, see: https://github.com/devkitPro/libctru/blob/0da8705527f03b4b08ff7fee4dd1b7f28df37905/libctru/source/gpu/shbin.c#L93
         match self {
-            Uniform::Float(_) | Uniform::Float2(_) | Uniform::Float3(_) | Uniform::Float4(_) => {
+            Self::Float(_) | Self::Float2(_) | Self::Float3(_) | Self::Float4(_) => {
                 Index(0)..Index(0x60)
             }
-            Uniform::Int(_) => Index(0x60)..Index(0x64),
+            Self::Int(_) => Index(0x60)..Index(0x64),
             // this gap is intentional
-            Uniform::Bool(_) => Index(0x68)..Index(0x79),
+            Self::Bool(_) => Index(0x68)..Index(0x79),
         }
     }
     /// Get length of uniform, i.e. how many registers it will write to
     #[allow(clippy::len_without_is_empty)] // is_empty doesn't make sense here
     pub fn len(&self) -> usize {
         match self {
-            Uniform::Float(_) => 1,
-            Uniform::Float2(_) => 2,
-            Uniform::Float3(_) => 3,
-            Uniform::Float4(_) => 4,
-            Uniform::Bool(_) | Uniform::Int(_) => 1,
+            Self::Float(_) => 1,
+            Self::Float2(_) => 2,
+            Self::Float3(_) => 3,
+            Self::Float4(_) => 4,
+            Self::Bool(_) | Uniform::Int(_) => 1,
         }
     }
 
@@ -91,10 +91,10 @@ impl Uniform {
             }
         };
         match self {
-            Uniform::Bool(b) => unsafe {
+            Self::Bool(b) => unsafe {
                 citro3d_sys::C3D_BoolUnifSet(ty.into(), index.into(), b);
             },
-            Uniform::Int(i) => unsafe {
+            Self::Int(i) => unsafe {
                 citro3d_sys::C3D_IVUnifSet(
                     ty.into(),
                     index.into(),
@@ -104,12 +104,12 @@ impl Uniform {
                     i.w() as i32,
                 );
             },
-            Uniform::Float(f) => set_fvs(&[f]),
-            Uniform::Float2(fs) => {
+            Self::Float(f) => set_fvs(&[f]),
+            Self::Float2(fs) => {
                 set_fvs(&fs);
             }
-            Uniform::Float3(fs) => set_fvs(&fs),
-            Uniform::Float4(m) => {
+            Self::Float3(fs) => set_fvs(&fs),
+            Self::Float4(m) => {
                 set_fvs(&m.rows_wzyx());
             }
         }
