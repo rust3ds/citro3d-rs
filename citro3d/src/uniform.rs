@@ -23,6 +23,7 @@ impl From<Index> for i32 {
 }
 
 /// A uniform which may be bound as input to a shader program
+#[non_exhaustive]
 pub enum Uniform {
     /// Single float uniform (`.fvec name`)
     Float(FVec4),
