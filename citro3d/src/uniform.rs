@@ -27,16 +27,22 @@ impl From<Index> for i32 {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Uniform {
     /// Single float uniform (`.fvec name`)
+    #[doc(alias = "C3D_FVUnifSet")]
     Float(FVec4),
     /// Two element float uniform (`.fvec name[2]`)
+    #[doc(alias = "C3D_FVUnifMtx2x4")]
     Float2([FVec4; 2]),
     /// Three element float uniform (`.fvec name [3]`)
+    #[doc(alias = "C3D_FVUnifMtx3x4")]
     Float3([FVec4; 3]),
     /// Matrix/4 element float uniform (`.fvec name[4]`)
+    #[doc(alias = "C3D_FVUnifMtx4x4")]
     Float4(Matrix4),
     /// Bool uniform (`.bool name`)
+    #[doc(alias = "C3D_BoolUnifSet")]
     Bool(bool),
     /// Integer uniform (`.ivec name`)
+    #[doc(alias = "C3D_IVUnifSet")]
     Int(IVec),
 }
 impl Uniform {
