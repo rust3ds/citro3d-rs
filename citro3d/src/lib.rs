@@ -19,6 +19,8 @@
 pub mod attrib;
 pub mod buffer;
 pub mod error;
+pub mod light;
+pub mod material;
 pub mod math;
 pub mod render;
 pub mod shader;
@@ -27,6 +29,7 @@ pub mod uniform;
 
 use std::cell::{OnceCell, RefMut};
 use std::fmt;
+use std::pin::Pin;
 use std::rc::Rc;
 
 use ctru::services::gfx::Screen;
@@ -47,6 +50,7 @@ pub mod macros {
 pub struct Instance {
     texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
     queue: Rc<RenderQueue>,
+    light_env: Pin<Box<light::LightEnv>>,
 }
 
 /// Representation of `citro3d`'s internal render queue. This is something that
@@ -79,6 +83,12 @@ impl Instance {
     #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
+            let mut light_env = Pin::new(Box::new(light::LightEnv::new()));
+            unsafe {
+                // setup the light env slot, since this is a pointer copy it will stick around even with we swap
+                // out light_env later
+                citro3d_sys::C3D_LightEnvBind(light_env.as_raw_mut() as *mut _);
+            }
             Ok(Self {
                 texenvs: [
                     // thank goodness there's only six of them!
@@ -90,6 +100,7 @@ impl Instance {
                     OnceCell::new(),
                 ],
                 queue: Rc::new(RenderQueue),
+                light_env,
             })
         } else {
             Err(Error::FailedToInitialize)
@@ -207,6 +218,9 @@ impl Instance {
         unsafe {
             citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
+    }
+    pub fn light_env_mut(&mut self) -> &mut light::LightEnv {
+        &mut self.light_env
     }
 
     /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
