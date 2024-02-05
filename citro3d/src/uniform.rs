@@ -70,12 +70,11 @@ impl Uniform {
     pub(crate) fn bind(self, _instance: &mut Instance, ty: shader::Type, index: Index) {
         assert!(
             self.index_range().contains(&index),
-            "tried to bind uniform to an invalid index (index: {}, valid range: {}..{})",
-            index.0,
-            self.index_range().start.0,
-            self.index_range().end.0
+            "tried to bind uniform to an invalid index (index: {:?}, valid range: {:?})",
+            index,
+            self.index_range(),
         );
-        assert!(self.index_range().end.0 as usize >= self.len() + index.0 as usize, "tried to bind a uniform that would overflow the uniform buffer. index was {}, size was {} max is {}", index.0, self.len(), self.index_range().end.0);
+        assert!(self.index_range().end.0 as usize >= self.len() + index.0 as usize, "tried to bind a uniform that would overflow the uniform buffer. index was {:?}, size was {} max is {:?}", index, self.len(), self.index_range().end);
         let set_fvs = |fs: &[FVec4]| {
             for (off, f) in fs.iter().enumerate() {
                 unsafe {
