@@ -55,6 +55,11 @@ impl FVec4 {
         unsafe { self.0.__bindgen_anon_1.w }
     }
 
+    /// Wrap a raw [`citro3d_sys::C3D_FVec`]
+    pub fn from_raw(raw: citro3d_sys::C3D_FVec) -> Self {
+        Self(raw)
+    }
+
     /// Create a new [`FVec4`] from its components.
     ///
     /// # Example

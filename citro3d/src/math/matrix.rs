@@ -26,8 +26,7 @@ impl Matrix4 {
     /// Construct a Matrix4 from its rows
     pub fn from_rows(rows: [FVec4; 4]) -> Self {
         Self(citro3d_sys::C3D_Mtx {
-            // Safety: FVec is repr(transparent)
-            r: unsafe { core::mem::transmute::<_, [citro3d_sys::C3D_FVec; 4]>(rows) },
+            r: rows.map(|r| r.0),
         })
     }
     /// Create a new matrix from a raw citro3d_sys one
@@ -49,20 +48,12 @@ impl Matrix4 {
 
     /// Get the rows in raw (WZYX) form
     pub fn rows_wzyx(self) -> [FVec4; 4] {
-        // Safety: FVec4 is repr(C) to allow transmute from C3D_Vec
-        unsafe { core::mem::transmute::<[citro3d_sys::C3D_FVec; 4], [FVec4; 4]>(self.0.r) }
+        unsafe { self.0.r }.map(FVec4::from_raw)
     }
 
     /// Get the rows in XYZW form
     pub fn rows_xyzw(self) -> [[f32; 4]; 4] {
-        let mut rows = self.rows_wzyx();
-        for r in &mut rows {
-            unsafe {
-                r.0.c.reverse();
-            }
-        }
-        // Safety: FVec has same layout as citro3d_sys::C3D_FVec which is a union with [f32; 4] as one variant
-        unsafe { std::mem::transmute::<_, [[f32; 4]; 4]>(rows) }
+        self.rows_wzyx().map(|r| [r.x(), r.y(), r.z(), r.w()])
     }
     /// Construct the zero matrix.
     #[doc(alias = "Mtx_Zeros")]
