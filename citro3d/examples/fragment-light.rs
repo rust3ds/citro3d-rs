@@ -36,27 +36,80 @@ struct Vertex {
     normal: Vec3,
 }
 
-static VERTICES: &[Vertex] = &[
-    Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-    },
-    Vertex {
-        pos: Vec3::new(-0.5, -0.5, -3.0),
-        normal: Vec3::new(0.0, 1.0, -1.0),
-    },
-    Vertex {
-        pos: Vec3::new(0.5, -0.5, -3.0),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-    },
-];
+impl Vertex {
+    const fn new(pos: Vec3, normal: Vec3) -> Self {
+        Self { pos, normal }
+    }
+}
+
 static SHADER_BYTES: &[u8] = include_shader!("assets/frag-shader.pica");
+
+const VERTICES: &[Vertex] = &[
+    // First face (PZ)
+    // First triangle
+    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
+    // Second ace (MZ)
+    // First triangle
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
+    // Third ace (PX)
+    // First triangle
+    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
+    // Fourth ace (MX)
+    // First triangle
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
+    // Fith ace (PY)
+    // First triangle
+    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
+    // Sixth ace (MY)
+    // First triangle
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
+    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
+    // Second triangle
+    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
+    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
+];
 
 fn main() {
     let mut soc = Soc::new().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
-    let gfx = Gfx::new().expect("Couldn't obtain GFX controller");
+    let gfx = Gfx::with_formats_shared(
+        ctru::services::gspgpu::FramebufferFormat::Rgba8,
+        ctru::services::gspgpu::FramebufferFormat::Rgba8,
+    )
+    .expect("Couldn't obtain GFX controller");
     let mut hid = Hid::new().expect("Couldn't obtain HID controller");
     let apt = Apt::new().expect("Couldn't obtain APT controller");
 
@@ -67,18 +120,33 @@ fn main() {
     let (mut top_left, mut top_right) = top_screen.split_mut();
 
     let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
-    let mut top_left_target =
-        render::Target::new(width, height, top_left, None).expect("failed to create render target");
+    let mut top_left_target = render::Target::new(
+        width,
+        height,
+        top_left,
+        Some(render::DepthFormat::Depth24Stencil8),
+    )
+    .expect("failed to create render target");
 
     let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
-    let mut top_right_target = render::Target::new(width, height, top_right, None)
-        .expect("failed to create render target");
+    let mut top_right_target = render::Target::new(
+        width,
+        height,
+        top_right,
+        Some(render::DepthFormat::Depth24Stencil8),
+    )
+    .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
     let RawFrameBuffer { width, height, .. } = bottom_screen.raw_framebuffer();
 
-    let mut bottom_target = render::Target::new(width, height, bottom_screen, None)
-        .expect("failed to create bottom screen render target");
+    let mut bottom_target = render::Target::new(
+        width,
+        height,
+        bottom_screen,
+        Some(render::DepthFormat::Depth24Stencil8),
+    )
+    .expect("failed to create bottom screen render target");
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
     let vertex_shader = shader.get(0).unwrap();
@@ -95,17 +163,17 @@ fn main() {
     light_env.connect_lut(LightLutId::D0, LutInput::LightNormal, LutData::phong(30.0));
     light_env.set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),
-        diffuse: Some(Color::new(0.4, 0.4, 0.4)),
+        diffuse: Some(Color::new(1.0, 0.4, 1.0)),
         specular0: Some(Color::new(0.8, 0.8, 0.8)),
         ..Default::default()
     });
     let light = light_env.create_light().unwrap();
     let light = light_env.light_mut(light).unwrap();
     light.set_color(1.0, 1.0, 1.0);
-    light.set_position(FVec3::new(0.0, 0.0, -4.0));
+    light.set_position(FVec3::new(0.0, 0.5, -3.0));
     let mut c = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
-    c.translate(0.0, 0.0, -4.0);
+    c.translate(0.0, 0.0, -2.0);
     instance.bind_vertex_uniform(model_idx, &c);
 
     // Configure the first fragment shading substage to just pass through the vertex color
@@ -139,6 +207,7 @@ fn main() {
                     .expect("failed to set render target");
 
                 instance.bind_vertex_uniform(projection_uniform_idx, projection);
+                instance.bind_vertex_uniform(model_idx, &c);
 
                 instance.set_attr_info(&attr_info);
 
@@ -155,6 +224,9 @@ fn main() {
             render_to(&mut top_right_target, &right_eye);
             render_to(&mut bottom_target, &center);
         });
+        c.translate(0.0, 0.0, 2.0);
+        c.rotate_y(1.0f32.to_radians());
+        c.translate(0.0, 0.0, -2.0);
     }
 }
 
