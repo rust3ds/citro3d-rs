@@ -4,7 +4,10 @@
 
 use std::{mem::MaybeUninit, pin::Pin};
 
-use crate::{material::Material, math::FVec4};
+use crate::{
+    material::Material,
+    math::{FVec3, FVec4},
+};
 
 #[derive(Default)]
 struct LightEnvStorage {
@@ -124,8 +127,9 @@ impl Light {
     fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Light {
         &mut self.0
     }
-    pub fn set_position(&mut self, mut p: FVec4) {
-        unsafe { citro3d_sys::C3D_LightPosition(self.as_raw_mut(), (&mut p.0) as *mut _) }
+    pub fn set_position(&mut self, p: FVec3) {
+        let mut p = FVec4::new(p.x(), p.y(), p.z(), 1.0);
+        unsafe { citro3d_sys::C3D_LightPosition(self.as_raw_mut(), &mut p.0) }
     }
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
         unsafe { citro3d_sys::C3D_LightColor(self.as_raw_mut(), r, g, b) }

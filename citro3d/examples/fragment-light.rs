@@ -3,7 +3,7 @@ use citro3d::{
     attrib, buffer,
     light::{LightEnv, LightLutId, LutData, LutInput},
     material::{Color, Material},
-    math::{AspectRatio, ClipPlanes, FVec4, Matrix4, Projection, StereoDisplacement},
+    math::{AspectRatio, ClipPlanes, FVec3, FVec4, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
     shader, texenv,
 };
@@ -170,7 +170,7 @@ fn main() {
     let light = light_env.create_light().unwrap();
     let light = light_env.light_mut(light).unwrap();
     light.set_color(1.0, 1.0, 1.0);
-    light.set_position(FVec4::new(0.0, 0.0, -0.5, 1.0));
+    light.set_position(FVec3::new(0.0, 0.0, -0.5));
     let mut c = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
     c.translate(0.0, 0.0, -2.0);
