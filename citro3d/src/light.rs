@@ -1,4 +1,4 @@
-//!
+//! Bindings for accessing the lighting part of the GPU pipeline
 //!
 //! What does anything in this module mean? inspect this diagram: https://raw.githubusercontent.com/wwylele/misc-3ds-diagram/master/pica-pipeline.svg
 
@@ -9,9 +9,29 @@ use crate::{
     math::{FVec3, FVec4},
 };
 
+/// Index for one of the 8 hardware lights in the GPU pipeline
+///
+/// Usually you don't want to construct one of these directly but use [`LightEnv::create_light`]
+// Note we use a u8 here since usize is overkill and it saves a few bytes
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LightIndex(u8);
+
+const NB_LIGHTS: usize = 8;
+
+impl LightIndex {
+    /// Manually create a `LightIndex` with a specific index
+    ///
+    /// # Panics
+    /// if `idx` out of range for the number of lights (>=8)
+    pub fn new(idx: usize) -> Self {
+        assert!(idx < NB_LIGHTS);
+        Self(idx as u8)
+    }
+}
+
 #[derive(Default)]
 struct LightEnvStorage {
-    lights: [Option<Light>; 8],
+    lights: [Option<Light>; NB_LIGHTS],
     luts: [Option<LutData>; 6],
 }
 
@@ -55,10 +75,10 @@ impl LightEnv {
         core::array::from_fn(|i| self.store.lights[i].as_ref())
     }
 
-    pub fn light_mut(&mut self, idx: usize) -> Option<&mut Light> {
-        self.store.lights[idx].as_mut()
+    pub fn light_mut(&mut self, idx: LightIndex) -> Option<&mut Light> {
+        self.store.lights[idx.0 as usize].as_mut()
     }
-    pub fn create_light(&mut self) -> Option<usize> {
+    pub fn create_light(&mut self) -> Option<LightIndex> {
         let idx = self
             .lights()
             .iter()
@@ -79,7 +99,7 @@ impl LightEnv {
             r as usize, idx,
             "citro3d chose a different light to us? this shouldn't be possible"
         );
-        Some(idx)
+        Some(LightIndex::new(idx))
     }
     ///
     pub fn connect_lut(&mut self, id: LightLutId, input: LutInput, data: LutData) {
