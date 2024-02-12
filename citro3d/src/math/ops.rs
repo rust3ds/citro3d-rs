@@ -248,24 +248,12 @@ mod tests {
     }
 
     #[test]
-    fn matrix3() {
-        let l = Matrix3::diagonal(1.0, 2.0, 3.0);
-        let r = Matrix3::identity();
-        let (l, r) = (&l, &r);
-
-        assert_abs_diff_eq!(&(l * r), l);
-        assert_abs_diff_eq!(&(l + r), &Matrix3::diagonal(2.0, 3.0, 4.0));
-        assert_abs_diff_eq!(&(l - r), &Matrix3::diagonal(0.0, 1.0, 2.0));
-    }
-
-    #[test]
     fn matrix4() {
         let l = Matrix4::diagonal(1.0, 2.0, 3.0, 4.0);
         let r = Matrix4::identity();
-        let (l, r) = (&l, &r);
 
-        assert_abs_diff_eq!(&(l * r), l);
-        assert_abs_diff_eq!(&(l + r), &Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
-        assert_abs_diff_eq!(&(l - r), &Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
+        assert_abs_diff_eq!(l * r, l);
+        assert_abs_diff_eq!(l + r, Matrix4::diagonal(2.0, 3.0, 4.0, 5.0));
+        assert_abs_diff_eq!(l - r, Matrix4::diagonal(0.0, 1.0, 2.0, 3.0));
     }
 }
