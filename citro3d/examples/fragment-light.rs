@@ -28,77 +28,216 @@ impl Vec3 {
         Self { x, y, z }
     }
 }
+#[derive(Copy, Clone)]
+#[repr(C)]
+struct Vec2 {
+    x: f32,
+    y: f32,
+}
+
+impl Vec2 {
+    const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 struct Vertex {
     pos: Vec3,
     normal: Vec3,
+    uv: Vec2,
 }
 
 impl Vertex {
-    const fn new(pos: Vec3, normal: Vec3) -> Self {
-        Self { pos, normal }
+    const fn new(pos: Vec3, normal: Vec3, uv: Vec2) -> Self {
+        Self { pos, normal, uv }
     }
 }
 
 static SHADER_BYTES: &[u8] = include_shader!("assets/frag-shader.pica");
 
 const VERTICES: &[Vertex] = &[
-    // First face (PZ)
-    // First triangle
-    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, 0.0, 1.0)),
-    // Second ace (MZ)
-    // First triangle
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, 0.0, -1.0)),
-    // Third ace (PX)
-    // First triangle
-    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(1.0, 0.0, 0.0)),
-    // Fourth ace (MX)
-    // First triangle
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(-1.0, 0.0, 0.0)),
-    // Fith ace (PY)
-    // First triangle
-    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(0.5, 0.5, 0.5), Vec3::new(0.0, 1.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, 0.5, -0.5), Vec3::new(0.0, 1.0, 0.0)),
-    // Sixth ace (MY)
-    // First triangle
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
-    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
-    // Second triangle
-    Vertex::new(Vec3::new(0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, 0.5), Vec3::new(0.0, -1.0, 0.0)),
-    Vertex::new(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.0, -1.0, 0.0)),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, 0.5),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(0.0, 0.0, -1.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, -0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, -0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, 0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, -0.5),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, 0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, 0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, 0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, -0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(-1.0, 0.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, -0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, 0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, 0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, 0.5, -0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, 0.5, -0.5),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, -0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(1.0, 0.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, 0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(0.5, -0.5, 0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(1.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, 0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(0.0, 1.0),
+    ),
+    Vertex::new(
+        Vec3::new(-0.5, -0.5, -0.5),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(0.0, 0.0),
+    ),
 ];
 
 fn main() {
@@ -239,6 +378,7 @@ fn prepare_vbos<'a>(
 
     let reg0 = attrib::Register::new(0).unwrap();
     let reg1 = attrib::Register::new(1).unwrap();
+    let reg2 = attrib::Register::new(2).unwrap();
 
     attr_info
         .add_loader(reg0, attrib::Format::Float, 3)
@@ -246,6 +386,10 @@ fn prepare_vbos<'a>(
 
     attr_info
         .add_loader(reg1, attrib::Format::Float, 3)
+        .unwrap();
+
+    attr_info
+        .add_loader(reg2, attrib::Format::Float, 2)
         .unwrap();
 
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
