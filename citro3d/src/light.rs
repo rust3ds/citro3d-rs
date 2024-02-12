@@ -161,6 +161,9 @@ impl Light {
 unsafe impl Send for Light {}
 unsafe impl Sync for Light {}
 
+unsafe impl Send for LightEnv {}
+unsafe impl Sync for LightEnv {}
+
 #[repr(transparent)]
 pub struct LutData(citro3d_sys::C3D_LightLut);
 
