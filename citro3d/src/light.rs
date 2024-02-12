@@ -156,6 +156,11 @@ impl Light {
     }
 }
 
+// Safety: I am 99% sure these are safe. That 1% is if citro3d does something weird I missed
+// which is not impossible
+unsafe impl Send for Light {}
+unsafe impl Sync for Light {}
+
 #[repr(transparent)]
 pub struct LutData(citro3d_sys::C3D_LightLut);
 
