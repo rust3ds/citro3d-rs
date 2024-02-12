@@ -2,7 +2,9 @@
 //!
 //! What does anything in this module mean? inspect this diagram: https://raw.githubusercontent.com/wwylele/misc-3ds-diagram/master/pica-pipeline.svg
 
-use std::{mem::MaybeUninit, pin::Pin};
+use std::{marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
+
+use pin_array::PinArray;
 
 use crate::{
     material::Material,
@@ -27,12 +29,29 @@ impl LightIndex {
         assert!(idx < NB_LIGHTS);
         Self(idx as u8)
     }
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+}
+
+#[derive(Default)]
+struct LightLutStorage {
+    spot: Option<LutData>,
+    diffuse_atten: Option<LutData>,
+    _pin: PhantomPinned,
 }
 
 #[derive(Default)]
 struct LightEnvStorage {
     lights: [Option<Light>; NB_LIGHTS],
     luts: [Option<LutData>; 6],
+    _pin: PhantomPinned,
+}
+
+impl LightEnvStorage {
+    fn lights_mut(self: Pin<&mut Self>) -> Pin<&mut [Option<Light>; NB_LIGHTS]> {
+        unsafe { Pin::map_unchecked_mut(self, |s| &mut s.lights) }
+    }
 }
 
 pub struct LightEnv {
@@ -41,21 +60,30 @@ pub struct LightEnv {
     ///
     /// Note this is `Pin` as well as `Box` as `raw` means we are _actually_ self-referential which
     /// is horrible but the best bad option in this case
-    store: Pin<Box<LightEnvStorage>>,
+    lights: LightArray,
+    luts: [Option<LutData>; 6],
+    _pin: PhantomPinned,
 }
 
-pub struct Light(citro3d_sys::C3D_Light);
+pub struct Light {
+    raw: citro3d_sys::C3D_Light,
+    spot: Option<LutData>,
+    diffuse_atten: Option<LutData>,
+    _pin: PhantomPinned,
+}
 
 impl Default for LightEnv {
     fn default() -> Self {
         let raw = unsafe {
-            let mut env = MaybeUninit::uninit();
+            let mut env = MaybeUninit::zeroed();
             citro3d_sys::C3D_LightEnvInit(env.as_mut_ptr());
             env.assume_init()
         };
         Self {
             raw,
-            store: Pin::new(Default::default()),
+            lights: Default::default(),
+            luts: Default::default(),
+            _pin: Default::default(),
         }
     }
 }
@@ -63,7 +91,7 @@ impl LightEnv {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn set_material(&mut self, mat: Material) {
+    pub fn set_material(self: Pin<&mut Self>, mat: Material) {
         let raw = mat.to_raw();
         // Safety: This takes a pointer but it actually memcpy's it so this doesn't dangle
         unsafe {
@@ -71,14 +99,21 @@ impl LightEnv {
         }
     }
 
-    pub fn lights(&self) -> [Option<&Light>; 8] {
-        core::array::from_fn(|i| self.store.lights[i].as_ref())
+    pub fn lights(&self) -> &LightArray {
+        &self.lights
     }
 
-    pub fn light_mut(&mut self, idx: LightIndex) -> Option<&mut Light> {
-        self.store.lights[idx.0 as usize].as_mut()
+    pub fn lights_mut(self: Pin<&mut Self>) -> Pin<&mut LightArray> {
+        unsafe { self.map_unchecked_mut(|s| &mut s.lights) }
     }
-    pub fn create_light(&mut self) -> Option<LightIndex> {
+
+    pub fn light_mut(self: Pin<&mut Self>, idx: LightIndex) -> Option<Pin<&mut Light>> {
+        self.lights_mut()
+            .get_pin(idx.0 as usize)
+            .unwrap()
+            .as_pin_mut()
+    }
+    pub fn create_light(mut self: Pin<&mut Self>) -> Option<LightIndex> {
         let idx = self
             .lights()
             .iter()
@@ -86,14 +121,23 @@ impl LightEnv {
             .find(|(_, n)| n.is_none())
             .map(|(n, _)| n)?;
 
-        self.store.lights[idx] = Some(Light(unsafe { MaybeUninit::zeroed().assume_init() }));
+        self.as_mut()
+            .lights_mut()
+            .get_pin(idx)
+            .unwrap()
+            .set(Some(Light::new(unsafe {
+                MaybeUninit::zeroed().assume_init()
+            })));
 
-        let r = unsafe {
-            citro3d_sys::C3D_LightInit(
-                self.store.lights[idx].as_mut().unwrap().as_raw_mut(),
-                self.as_raw_mut() as *mut _,
-            )
+        let target = unsafe {
+            self.as_mut()
+                .lights_mut()
+                .get_pin(idx)
+                .unwrap()
+                .map_unchecked_mut(|p| p.as_mut().unwrap())
         };
+        let r =
+            unsafe { citro3d_sys::C3D_LightInit(target.as_raw_mut(), self.as_raw_mut() as *mut _) };
         assert!(r >= 0, "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?");
         assert_eq!(
             r as usize, idx,
@@ -102,7 +146,7 @@ impl LightEnv {
         Some(LightIndex::new(idx))
     }
     ///
-    pub fn connect_lut(&mut self, id: LightLutId, input: LutInput, data: LutData) {
+    pub fn connect_lut(mut self: Pin<&mut Self>, id: LightLutId, input: LutInput, data: LutData) {
         let idx = match id {
             LightLutId::D0 => Some(0),
             LightLutId::D1 => Some(1),
@@ -113,11 +157,17 @@ impl LightEnv {
             LightLutId::ReflectRed => Some(5),
             LightLutId::DistanceAttenuation => None,
         };
-        let lut = idx.map(|i| self.store.luts[i].insert(data));
-        let raw = &mut self.raw;
-        let lut = match lut {
-            Some(l) => (&mut l.0) as *mut _,
-            None => core::ptr::null_mut(),
+        let (raw, lut) = unsafe {
+            // this is needed to do structural borrowing as otherwise
+            // the compiler rejects the reborrow needed with the pin
+            let me = self.as_mut().get_unchecked_mut();
+            let lut = idx.map(|i| me.luts[i].insert(data));
+            let raw = &mut me.raw;
+            let lut = match lut {
+                Some(l) => (&mut l.0) as *mut _,
+                None => core::ptr::null_mut(),
+            };
+            (raw, lut)
         };
         unsafe {
             citro3d_sys::C3D_LightEnvLut(raw, id as u32, input as u32, false, lut);
@@ -128,12 +178,21 @@ impl LightEnv {
         &self.raw
     }
 
-    pub fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_LightEnv {
-        &mut self.raw
+    pub fn as_raw_mut(self: Pin<&mut Self>) -> &mut citro3d_sys::C3D_LightEnv {
+        unsafe { &mut self.get_unchecked_mut().raw }
     }
 }
 
 impl Light {
+    fn new(raw: citro3d_sys::C3D_Light) -> Self {
+        Self {
+            raw,
+            spot: Default::default(),
+            diffuse_atten: Default::default(),
+            _pin: Default::default(),
+        }
+    }
+
     fn from_raw_ref(l: &citro3d_sys::C3D_Light) -> &Self {
         unsafe { (l as *const _ as *const Self).as_ref().unwrap() }
     }
@@ -141,25 +200,25 @@ impl Light {
         unsafe { (l as *mut _ as *mut Self).as_mut().unwrap() }
     }
     fn as_raw(&self) -> &citro3d_sys::C3D_Light {
-        &self.0
+        &self.raw
     }
 
-    fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Light {
-        &mut self.0
+    fn as_raw_mut(self: Pin<&mut Self>) -> &mut citro3d_sys::C3D_Light {
+        unsafe { &mut self.get_unchecked_mut().raw }
     }
-    pub fn set_position(&mut self, p: FVec3) {
+    pub fn set_position(self: Pin<&mut Self>, p: FVec3) {
         let mut p = FVec4::new(p.x(), p.y(), p.z(), 1.0);
         unsafe { citro3d_sys::C3D_LightPosition(self.as_raw_mut(), &mut p.0) }
     }
-    pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
+    pub fn set_color(self: Pin<&mut Self>, r: f32, g: f32, b: f32) {
         unsafe { citro3d_sys::C3D_LightColor(self.as_raw_mut(), r, g, b) }
     }
     #[doc(alias = "C3D_LightEnable")]
-    pub fn set_enabled(&mut self, enabled: bool) {
+    pub fn set_enabled(self: Pin<&mut Self>, enabled: bool) {
         unsafe { citro3d_sys::C3D_LightEnable(self.as_raw_mut(), enabled) }
     }
     #[doc(alias = "C3D_LightShadowEnable")]
-    pub fn set_shadow(&mut self, shadow: bool) {
+    pub fn set_shadow(self: Pin<&mut Self>, shadow: bool) {
         unsafe { citro3d_sys::C3D_LightShadowEnable(self.as_raw_mut(), shadow) }
     }
 }
@@ -216,3 +275,5 @@ pub enum LightLutId {
     ReflectRed = ctru_sys::GPU_LUT_RR,
     DistanceAttenuation = ctru_sys::GPU_LUT_DA,
 }
+
+type LightArray = PinArray<Option<Light>, NB_LIGHTS>;

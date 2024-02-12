@@ -16,6 +16,7 @@ ctru-rs = { git = "https://github.com/rust3ds/ctru-rs.git" }
 ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 document-features = "0.2.7"
 libc = "0.2.125"
+pin_array = { version = "0.1.0" }
 
 [features]
 default = ["glam"]

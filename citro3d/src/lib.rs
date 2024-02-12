@@ -83,11 +83,11 @@ impl Instance {
     #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
-            let mut light_env = Pin::new(Box::new(light::LightEnv::new()));
+            let mut light_env = Box::pin(light::LightEnv::new());
             unsafe {
                 // setup the light env slot, since this is a pointer copy it will stick around even with we swap
                 // out light_env later
-                citro3d_sys::C3D_LightEnvBind(light_env.as_raw_mut() as *mut _);
+                citro3d_sys::C3D_LightEnvBind(light_env.as_mut().as_raw_mut());
             }
             Ok(Self {
                 texenvs: [
@@ -219,8 +219,8 @@ impl Instance {
             citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
     }
-    pub fn light_env_mut(&mut self) -> &mut light::LightEnv {
-        &mut self.light_env
+    pub fn light_env_mut(&mut self) -> Pin<&mut light::LightEnv> {
+        self.light_env.as_mut()
     }
 
     /// Bind a uniform to the given `index` in the vertex shader for the next draw call.

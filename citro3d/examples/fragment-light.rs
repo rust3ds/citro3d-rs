@@ -298,18 +298,20 @@ fn main() {
 
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
-    let light_env = instance.light_env_mut();
-    light_env.connect_lut(LightLutId::D0, LutInput::LightNormal, LutData::phong(30.0));
-    light_env.set_material(Material {
+    let mut light_env = instance.light_env_mut();
+    light_env
+        .as_mut()
+        .connect_lut(LightLutId::D0, LutInput::LightNormal, LutData::phong(30.0));
+    light_env.as_mut().set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),
         diffuse: Some(Color::new(1.0, 0.4, 1.0)),
         specular0: Some(Color::new(0.8, 0.8, 0.8)),
         ..Default::default()
     });
-    let light = light_env.create_light().unwrap();
-    let light = light_env.light_mut(light).unwrap();
-    light.set_color(1.0, 1.0, 1.0);
-    light.set_position(FVec3::new(0.0, 0.0, -0.5));
+    let light = light_env.as_mut().create_light().unwrap();
+    let mut light = light_env.as_mut().light_mut(light).unwrap();
+    light.as_mut().set_color(1.0, 1.0, 1.0);
+    light.as_mut().set_position(FVec3::new(0.0, 0.0, -0.5));
     let mut c = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
     c.translate(0.0, 0.0, -2.0);
