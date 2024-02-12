@@ -154,6 +154,14 @@ impl Light {
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
         unsafe { citro3d_sys::C3D_LightColor(self.as_raw_mut(), r, g, b) }
     }
+    #[doc(alias = "C3D_LightEnable")]
+    pub fn set_enabled(&mut self, enabled: bool) {
+        unsafe { citro3d_sys::C3D_LightEnable(self.as_raw_mut(), enabled) }
+    }
+    #[doc(alias = "C3D_LightShadowEnable")]
+    pub fn set_shadow(&mut self, shadow: bool) {
+        unsafe { citro3d_sys::C3D_LightShadowEnable(self.as_raw_mut(), shadow) }
+    }
 }
 
 // Safety: I am 99% sure these are safe. That 1% is if citro3d does something weird I missed
