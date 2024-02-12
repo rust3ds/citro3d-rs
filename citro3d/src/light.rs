@@ -4,7 +4,7 @@
 
 use std::{mem::MaybeUninit, pin::Pin};
 
-use crate::{material::Material, math::FVec3};
+use crate::{material::Material, math::FVec4};
 
 #[derive(Default)]
 struct LightEnvStorage {
@@ -62,9 +62,15 @@ impl LightEnv {
             .enumerate()
             .find(|(_, n)| n.is_none())
             .map(|(n, _)| n)?;
-        let light = &mut self.store.lights[idx];
-        let env = &mut self.raw;
-        let r = unsafe { citro3d_sys::C3D_LightInit(light as *mut _ as *mut _, env as *mut _) };
+
+        self.store.lights[idx] = Some(Light(unsafe { MaybeUninit::zeroed().assume_init() }));
+
+        let r = unsafe {
+            citro3d_sys::C3D_LightInit(
+                self.store.lights[idx].as_mut().unwrap().as_raw_mut(),
+                self.as_raw_mut() as *mut _,
+            )
+        };
         assert!(r >= 0, "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?");
         assert_eq!(
             r as usize, idx,
@@ -118,7 +124,7 @@ impl Light {
     fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Light {
         &mut self.0
     }
-    pub fn set_position(&mut self, mut p: FVec3) {
+    pub fn set_position(&mut self, mut p: FVec4) {
         unsafe { citro3d_sys::C3D_LightPosition(self.as_raw_mut(), (&mut p.0) as *mut _) }
     }
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
