@@ -1,6 +1,23 @@
 //! Bindings for accessing the lighting part of the GPU pipeline
 //!
-//! What does anything in this module mean? inspect this diagram: https://raw.githubusercontent.com/wwylele/misc-3ds-diagram/master/pica-pipeline.svg
+//! The hardware at play is shown in [this diagram][hardware], you should probably have
+//! it open as a reference for the documentation in this module.
+//!
+//! # Hardware lights
+//! There are 8 lights in the GPU's pipeline each of which have 4 colour fields and 1 spotlight colour,
+//! you can set all of them at once with [`LightEnv::set_material`]. When rendering for example you call
+//! `set_material` in your preparation code before the actual draw call.
+//!
+//! For things like specular lighting we need to go a bit deeper
+//!
+//! # LUTS
+//! LUTS are lookup tables, in this case for the GPU. They are created ahead of time and stored in [`LutData`]'s,
+//! [`LutData::from_fn`] essentially memoises the given function with the input changing depending on what
+//! input it is bound to when setting it on the [`LightEnv`].
+//!
+//!
+//!
+//! [hardware]: https://raw.githubusercontent.com/wwylele/misc-3ds-diagram/master/pica-pipeline.svg
 
 use std::{marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
 
@@ -173,6 +190,9 @@ impl LightEnv {
             citro3d_sys::C3D_LightEnvLut(raw, id as u32, input as u32, false, lut);
         }
     }
+    pub fn set_fresnel(mut self: Pin<&mut Self>, sel: FresnelSelector) {
+        unsafe { citro3d_sys::C3D_LightEnvFresnel(self.as_raw_mut(), sel as _) }
+    }
 
     pub fn as_raw(&self) -> &citro3d_sys::C3D_LightEnv {
         &self.raw
@@ -313,6 +333,17 @@ pub enum LightLutId {
     ReflectGreen = ctru_sys::GPU_LUT_RG,
     ReflectRed = ctru_sys::GPU_LUT_RR,
     DistanceAttenuation = ctru_sys::GPU_LUT_DA,
+}
+#[repr(u32)]
+pub enum FresnelSelector {
+    /// No fresnel selection
+    None = ctru_sys::GPU_NO_FRESNEL,
+    /// Use as selector for primary colour unit alpha
+    PrimaryAlpha = ctru_sys::GPU_PRI_ALPHA_FRESNEL,
+    /// Use as selector for secondary colour unit alpha
+    SecondaryAlpha = ctru_sys::GPU_SEC_ALPHA_FRESNEL,
+    /// Use as selector for both colour units
+    Both = ctru_sys::GPU_PRI_SEC_ALPHA_FRESNEL,
 }
 
 type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
