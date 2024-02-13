@@ -231,15 +231,53 @@ unsafe impl Sync for Light {}
 unsafe impl Send for LightEnv {}
 unsafe impl Sync for LightEnv {}
 
+#[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct LutData(citro3d_sys::C3D_LightLut);
 
+impl PartialEq for LutData {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.data == other.0.data
+    }
+}
+impl Eq for LutData {}
+
+#[cfg(test)]
 extern "C" fn c_powf(a: f32, b: f32) -> f32 {
     a.powf(b)
 }
 
+const LUT_SZ: usize = 512;
+
 impl LutData {
-    pub fn phong(shininess: f32) -> Self {
+    pub fn from_fn(mut f: impl FnMut(f32) -> f32, negative: bool) -> Self {
+        let base: i32 = 128;
+        let diff = if negative { 0 } else { base };
+        let min = -128 + diff;
+        let max = base + diff;
+        assert_eq!(min.abs_diff(max), 2 * base as u32);
+        let mut data = [0.0f32; LUT_SZ];
+        for i in min..=max {
+            let x = i as f32 / max as f32;
+            let v = f(x);
+            let idx = if negative { i & 0xFF } else { i } as usize;
+            if i < max {
+                data[idx] = v;
+            }
+            if i > min {
+                data[idx + 255] = v - data[idx - 1];
+            }
+        }
+        let lut = unsafe {
+            let mut lut = MaybeUninit::zeroed();
+            citro3d_sys::LightLut_FromArray(lut.as_mut_ptr(), data.as_mut_ptr());
+            lut.assume_init()
+        };
+        Self(lut)
+    }
+
+    #[cfg(test)]
+    fn phong_citro3d(shininess: f32) -> Self {
         let lut = unsafe {
             let mut lut = MaybeUninit::uninit();
             citro3d_sys::LightLut_FromFunc(lut.as_mut_ptr(), Some(c_powf), shininess, false);
@@ -249,18 +287,19 @@ impl LutData {
     }
 }
 
+/// This is used to decide what the input should be to a [`LutData`]
 #[repr(u32)]
 pub enum LutInput {
     CosPhi = ctru_sys::GPU_LUTINPUT_CP,
-    /// Light vector * normal
+    /// Dot product of the light and normal vectors
     LightNormal = ctru_sys::GPU_LUTINPUT_LN,
-    /// normal * half vector
+    /// Half the normal
     NormalHalf = ctru_sys::GPU_LUTINPUT_NH,
-    /// normal * view
+    /// Dot product of the view and normal
     NormalView = ctru_sys::GPU_LUTINPUT_NV,
-    /// light * spotlight
+    /// Dot product of the spotlight colour and light vector
     LightSpotLight = ctru_sys::GPU_LUTINPUT_SP,
-    /// view * half vector
+    /// Half the view vector
     ViewHalf = ctru_sys::GPU_LUTINPUT_VH,
 }
 
@@ -277,3 +316,15 @@ pub enum LightLutId {
 }
 
 type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
+
+#[cfg(test)]
+mod tests {
+    use super::LutData;
+
+    #[test]
+    fn lut_data_phong_matches_for_own_and_citro3d() {
+        let c3d = LutData::phong_citro3d(30.0);
+        let rs = LutData::from_fn(|i| i.powf(30.0), false);
+        assert_eq!(c3d, rs);
+    }
+}

@@ -241,6 +241,13 @@ const VERTICES: &[Vertex] = &[
 ];
 
 fn main() {
+    {
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            std::fs::write("panic.log", info.to_string());
+            prev(info);
+        }));
+    }
     let mut soc = Soc::new().expect("failed to get SOC");
     drop(soc.redirect_to_3dslink(true, true));
 
@@ -299,9 +306,11 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
     let mut light_env = instance.light_env_mut();
-    light_env
-        .as_mut()
-        .connect_lut(LightLutId::D0, LutInput::LightNormal, LutData::phong(30.0));
+    light_env.as_mut().connect_lut(
+        LightLutId::D0,
+        LutInput::LightNormal,
+        LutData::from_fn(|i| i.powf(30.0), false),
+    );
     light_env.as_mut().set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),
         diffuse: Some(Color::new(1.0, 0.4, 1.0)),
