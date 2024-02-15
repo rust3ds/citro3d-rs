@@ -1,7 +1,7 @@
 #![feature(allocator_api)]
 use citro3d::{
     attrib, buffer,
-    light::{FresnelSelector, LightEnv, LightLutId, LutData, LutInput},
+    light::{FresnelSelector, LightEnv, LightLut, LightLutId, LutInput},
     material::{Color, Material},
     math::{AspectRatio, ClipPlanes, FVec3, FVec4, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
@@ -309,7 +309,7 @@ fn main() {
     light_env.as_mut().connect_lut(
         LightLutId::D0,
         LutInput::LightNormal,
-        LutData::from_fn(|v| v.powf(10.0), false),
+        LightLut::from_fn(|v| v.powf(10.0), false),
     );
     light_env.as_mut().set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),

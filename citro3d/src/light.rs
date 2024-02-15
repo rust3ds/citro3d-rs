@@ -53,15 +53,15 @@ impl LightIndex {
 
 #[derive(Default)]
 struct LightLutStorage {
-    spot: Option<LutData>,
-    diffuse_atten: Option<LutData>,
+    spot: Option<LightLut>,
+    diffuse_atten: Option<LightLut>,
     _pin: PhantomPinned,
 }
 
 #[derive(Default)]
 struct LightEnvStorage {
     lights: [Option<Light>; NB_LIGHTS],
-    luts: [Option<LutData>; 6],
+    luts: [Option<LightLut>; 6],
     _pin: PhantomPinned,
 }
 
@@ -78,14 +78,14 @@ pub struct LightEnv {
     /// Note this is `Pin` as well as `Box` as `raw` means we are _actually_ self-referential which
     /// is horrible but the best bad option in this case
     lights: LightArray,
-    luts: [Option<LutData>; 6],
+    luts: [Option<LightLut>; 6],
     _pin: PhantomPinned,
 }
 
 pub struct Light {
     raw: citro3d_sys::C3D_Light,
-    spot: Option<LutData>,
-    diffuse_atten: Option<LutData>,
+    spot: Option<LightLut>,
+    diffuse_atten: Option<LightLut>,
     _pin: PhantomPinned,
 }
 
@@ -182,7 +182,7 @@ impl LightEnv {
         mut self: Pin<&mut Self>,
         id: LightLutId,
         input: LutInput,
-    ) -> Option<LutData> {
+    ) -> Option<LightLut> {
         let idx = Self::lut_id_to_index(id);
         let me = unsafe { self.as_mut().get_unchecked_mut() };
         let lut = idx.and_then(|i| me.luts[i].take());
@@ -199,7 +199,7 @@ impl LightEnv {
         }
         lut
     }
-    pub fn connect_lut(mut self: Pin<&mut Self>, id: LightLutId, input: LutInput, data: LutData) {
+    pub fn connect_lut(mut self: Pin<&mut Self>, id: LightLutId, input: LutInput, data: LightLut) {
         let idx = Self::lut_id_to_index(id);
         let (raw, lut) = unsafe {
             // this is needed to do structural borrowing as otherwise
@@ -280,16 +280,16 @@ unsafe impl Sync for LightEnv {}
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
-pub struct LutData(citro3d_sys::C3D_LightLut);
+pub struct LightLut(citro3d_sys::C3D_LightLut);
 
-impl PartialEq for LutData {
+impl PartialEq for LightLut {
     fn eq(&self, other: &Self) -> bool {
         self.0.data == other.0.data
     }
 }
-impl Eq for LutData {}
+impl Eq for LightLut {}
 
-impl std::hash::Hash for LutData {
+impl std::hash::Hash for LightLut {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.data.hash(state);
     }
@@ -302,7 +302,7 @@ extern "C" fn c_powf(a: f32, b: f32) -> f32 {
 
 type LutArray = [u32; 256];
 
-impl LutData {
+impl LightLut {
     pub fn from_fn(mut f: impl FnMut(f32) -> f32, negative: bool) -> Self {
         const LUT_BUF_SZ: usize = 512;
         let base: i32 = 128;
@@ -397,12 +397,12 @@ type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
 
 #[cfg(test)]
 mod tests {
-    use super::LutData;
+    use super::LightLut;
 
     #[test]
     fn lut_data_phong_matches_for_own_and_citro3d() {
-        let c3d = LutData::phong_citro3d(30.0);
-        let rs = LutData::from_fn(|i| i.powf(30.0), false);
+        let c3d = LightLut::phong_citro3d(30.0);
+        let rs = LightLut::from_fn(|i| i.powf(30.0), false);
         assert_eq!(c3d, rs);
     }
 }
