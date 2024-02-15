@@ -38,7 +38,7 @@
 //!
 //! [hardware]: https://raw.githubusercontent.com/wwylele/misc-3ds-diagram/master/pica-pipeline.svg
 
-use std::{marker::PhantomPinned, mem::MaybeUninit, pin::Pin};
+use std::{marker::PhantomPinned, mem::MaybeUninit, ops::Range, pin::Pin};
 
 use pin_array::PinArray;
 
@@ -104,7 +104,7 @@ pub struct LightEnv {
 pub struct Light {
     raw: citro3d_sys::C3D_Light,
     spot: Option<LightLut>,
-    diffuse_atten: Option<LightLut>,
+    diffuse_atten: Option<LightLutDistAtten>,
     _pin: PhantomPinned,
 }
 
@@ -287,6 +287,30 @@ impl Light {
     pub fn set_shadow(self: Pin<&mut Self>, shadow: bool) {
         unsafe { citro3d_sys::C3D_LightShadowEnable(self.as_raw_mut(), shadow) }
     }
+    pub fn set_distance_attenutation(mut self: Pin<&mut Self>, lut: Option<LightLutDistAtten>) {
+        {
+            let me = unsafe { self.as_mut().get_unchecked_mut() };
+            me.diffuse_atten = lut;
+        }
+        // this is a bit of a mess because we need to be _reallly_ careful we don't trip aliasing rules
+        // reusing `me` here I think trips them because we have multiple live mutable references to
+        // the same region
+        let (raw, c_lut) = {
+            let me = unsafe { self.as_mut().get_unchecked_mut() };
+            let raw = &mut me.raw;
+            let c_lut = me.diffuse_atten.as_mut().map(|d| &mut d.raw);
+            (raw, c_lut)
+        };
+        unsafe {
+            citro3d_sys::C3D_LightDistAttn(
+                raw,
+                match c_lut {
+                    Some(l) => l,
+                    None => std::ptr::null_mut(),
+                },
+            );
+        }
+    }
 }
 
 // Safety: I am 99% sure these are safe. That 1% is if citro3d does something weird I missed
@@ -323,11 +347,11 @@ extern "C" fn c_powf(a: f32, b: f32) -> f32 {
 }
 
 type LutArray = [u32; 256];
+const LUT_BUF_SZ: usize = 512;
 
 impl LightLut {
     /// Create a LUT by memoizing a function
     pub fn from_fn(mut f: impl FnMut(f32) -> f32, negative: bool) -> Self {
-        const LUT_BUF_SZ: usize = 512;
         let base: i32 = 128;
         let diff = if negative { 0 } else { base };
         let min = -128 + diff;
@@ -371,6 +395,22 @@ impl LightLut {
             lut.assume_init()
         };
         Self(lut)
+    }
+}
+
+pub struct LightLutDistAtten {
+    raw: citro3d_sys::C3D_LightLutDA,
+}
+
+impl LightLutDistAtten {
+    pub fn new(range: Range<f32>, mut f: impl FnMut(f32) -> f32) -> Self {
+        let mut raw: citro3d_sys::C3D_LightLutDA = unsafe { MaybeUninit::zeroed().assume_init() };
+        let dist = range.end - range.start;
+        raw.scale = 1.0 / dist;
+        raw.bias = -range.start * raw.scale;
+        let lut = LightLut::from_fn(|x| f(range.start + dist * x), false);
+        raw.lut = citro3d_sys::C3D_LightLut { data: *lut.data() };
+        Self { raw }
     }
 }
 

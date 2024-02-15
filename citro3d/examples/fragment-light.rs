@@ -1,7 +1,9 @@
 #![feature(allocator_api)]
+use std::f32::consts::PI;
+
 use citro3d::{
     attrib, buffer,
-    light::{FresnelSelector, LightEnv, LightLut, LightLutId, LutInput},
+    light::{FresnelSelector, LightEnv, LightLut, LightLutDistAtten, LightLutId, LutInput},
     material::{Color, Material},
     math::{AspectRatio, ClipPlanes, FVec3, FVec4, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
@@ -321,6 +323,11 @@ fn main() {
     let mut light = light_env.as_mut().light_mut(light).unwrap();
     light.as_mut().set_color(1.0, 1.0, 1.0);
     light.as_mut().set_position(FVec3::new(0.0, 0.0, -0.5));
+    light
+        .as_mut()
+        .set_distance_attenutation(Some(LightLutDistAtten::new(0.0..400.0, |d| {
+            (1.0 / (4.0 * PI * d * d)).min(1.0)
+        })));
     let mut c = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
     c.translate(0.0, 0.0, -2.0);
