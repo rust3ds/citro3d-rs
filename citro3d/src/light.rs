@@ -162,9 +162,8 @@ impl LightEnv {
         );
         Some(LightIndex::new(idx))
     }
-    ///
-    pub fn connect_lut(mut self: Pin<&mut Self>, id: LightLutId, input: LutInput, data: LutData) {
-        let idx = match id {
+    fn lut_id_to_index(id: LightLutId) -> Option<usize> {
+        match id {
             LightLutId::D0 => Some(0),
             LightLutId::D1 => Some(1),
             LightLutId::SpotLightAttenuation => None,
@@ -173,7 +172,35 @@ impl LightEnv {
             LightLutId::ReflectGreen => Some(4),
             LightLutId::ReflectRed => Some(5),
             LightLutId::DistanceAttenuation => None,
-        };
+        }
+    }
+    /// Attempt to disconnect a light lut
+    ///
+    /// # Note
+    /// This function will not panic if the lut does not exist for `id` and `input`, it will just return `None`
+    pub fn disconnect_lut(
+        mut self: Pin<&mut Self>,
+        id: LightLutId,
+        input: LutInput,
+    ) -> Option<LutData> {
+        let idx = Self::lut_id_to_index(id);
+        let me = unsafe { self.as_mut().get_unchecked_mut() };
+        let lut = idx.and_then(|i| me.luts[i].take());
+        if let Some(lut) = lut {
+            unsafe {
+                citro3d_sys::C3D_LightEnvLut(
+                    &mut me.raw,
+                    id as u32,
+                    input as u32,
+                    false,
+                    std::ptr::null_mut(),
+                );
+            }
+        }
+        lut
+    }
+    pub fn connect_lut(mut self: Pin<&mut Self>, id: LightLutId, input: LutInput, data: LutData) {
+        let idx = Self::lut_id_to_index(id);
         let (raw, lut) = unsafe {
             // this is needed to do structural borrowing as otherwise
             // the compiler rejects the reborrow needed with the pin
@@ -323,6 +350,7 @@ pub enum LutInput {
     ViewHalf = ctru_sys::GPU_LUTINPUT_VH,
 }
 
+#[derive(Clone, Copy)]
 #[repr(u32)]
 pub enum LightLutId {
     D0 = ctru_sys::GPU_LUT_D0,
