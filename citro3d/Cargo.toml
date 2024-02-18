@@ -6,6 +6,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+glam = { version = "0.24.2", optional = true }
 approx = { version = "0.5.1", optional = true }
 bitflags = "1.3.2"
 bytemuck = { version = "1.10.0", features = ["extern_crate_std"] }
@@ -17,9 +18,11 @@ document-features = "0.2.7"
 libc = "0.2.125"
 
 [features]
-default = []
+default = ["glam"]
 ## Enable this feature to use the `approx` crate for comparing vectors and matrices.
 approx = ["dep:approx"]
+## Enable for glam support in uniforms
+glam = ["dep:glam"]
 
 [dev-dependencies]
 test-runner = { git = "https://github.com/rust3ds/test-runner.git" }

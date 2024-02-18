@@ -3,8 +3,15 @@
 use std::fmt;
 
 /// A vector of `f32`s.
+///
+/// # Layout
+/// Note that this matches the PICA layout so is actually WZYX, this means using it
+/// in vertex data as an attribute it will be reversed
+///
+/// It is guaranteed to have the same layout as [`citro3d_sys::C3D_FVec`] in memory
 #[derive(Clone, Copy)]
 #[doc(alias = "C3D_FVec")]
+#[repr(transparent)]
 pub struct FVec<const N: usize>(pub(crate) citro3d_sys::C3D_FVec);
 
 /// A 3-vector of `f32`s.
@@ -46,6 +53,11 @@ impl FVec4 {
     #[doc(alias = "r")]
     pub fn w(self) -> f32 {
         unsafe { self.0.__bindgen_anon_1.w }
+    }
+
+    /// Wrap a raw [`citro3d_sys::C3D_FVec`]
+    pub fn from_raw(raw: citro3d_sys::C3D_FVec) -> Self {
+        Self(raw)
     }
 
     /// Create a new [`FVec4`] from its components.
@@ -240,6 +252,32 @@ impl FVec3 {
     #[doc(alias = "FVec3_Normalize")]
     pub fn normalize(self) -> Self {
         Self(unsafe { citro3d_sys::FVec3_Normalize(self.0) })
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<glam::Vec4> for FVec4 {
+    fn from(value: glam::Vec4) -> Self {
+        Self::new(value.x, value.y, value.z, value.w)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::Vec3> for FVec3 {
+    fn from(value: glam::Vec3) -> Self {
+        Self::new(value.x, value.y, value.z)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<FVec4> for glam::Vec4 {
+    fn from(value: FVec4) -> Self {
+        glam::Vec4::new(value.x(), value.y(), value.z(), value.w())
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<FVec3> for glam::Vec3 {
+    fn from(value: FVec3) -> Self {
+        glam::Vec3::new(value.x(), value.y(), value.z())
     }
 }
 
