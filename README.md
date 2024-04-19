@@ -8,9 +8,9 @@ library, to write homebrew graphical programs for the Nintendo 3DS.
 ## Crates
 
 * [`citro3d-sys`](./citro3d-sys) - C bindings to `libcitro3d`
-  ([docs](https://rust3ds.github.io/citro3d-rs/crates/citro3d))
-* [`citro3d`](./citro3d) - safe Rust wrappers for `citro3d-sys` (WIP)
   ([docs](https://rust3ds.github.io/citro3d-rs/crates/citro3d_sys))
+* [`citro3d`](./citro3d) - safe Rust wrappers for `citro3d-sys` (WIP)
+  ([docs](https://rust3ds.github.io/citro3d-rs/crates/citro3d))
 * [`citro3d-macros`](./citro3d-macros/) – helper proc-macros for `citro3d`
 
 ## License
