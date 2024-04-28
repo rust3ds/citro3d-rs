@@ -7,7 +7,7 @@ use super::Matrix4;
 /// See specific `Kind` implementations for constructors, e.g.
 /// [`Projection::perspective`] and [`Projection::orthographic`].
 ///
-/// To use the resulting projection, convert it to a [`Matrix`](super::Matrix) with [`From`]/[`Into`].
+/// To use the resulting projection, convert it to a [`Matrix4`] with [`From`]/[`Into`].
 #[derive(Clone, Debug)]
 pub struct Projection<Kind> {
     coordinates: CoordinateOrientation,
@@ -151,7 +151,7 @@ impl Projection<Perspective> {
         right_eye: StereoDisplacement,
     ) -> (Matrix4, Matrix4) {
         // TODO: we might be able to avoid this clone if there was a conversion
-        // from &Self to Matrix instead of Self... but it's probably fine for now
+        // from &Self to Matrix4 instead of Self... but it's probably fine for now
         let left = self.clone().stereo(left_eye);
         let right = self.stereo(right_eye);
         // Also, we could consider just returning (Self, Self) here? idk
