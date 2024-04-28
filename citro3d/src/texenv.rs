@@ -85,7 +85,7 @@ bitflags! {
 #[doc(alias = "GPU_TEVSRC")]
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
-#[repr(u32)]
+#[repr(u8)]
 #[non_exhaustive]
 pub enum Source {
     PrimaryColor = ctru_sys::GPU_PRIMARY_COLOR,
@@ -104,7 +104,7 @@ pub enum Source {
 #[doc(alias = "GPU_COMBINEFUNC")]
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
-#[repr(u32)]
+#[repr(u8)]
 #[non_exhaustive]
 pub enum CombineFunc {
     Replace = ctru_sys::GPU_REPLACE,

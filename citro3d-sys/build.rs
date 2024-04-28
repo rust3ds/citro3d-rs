@@ -93,6 +93,7 @@ fn main() {
             "-DARM11 ",
             "-D_3DS ",
             "-D__3DS__ ",
+            "-fshort-enums",
         ])
         .parse_callbacks(Box::new(CustomCallbacks))
         .generate()

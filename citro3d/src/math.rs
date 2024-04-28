@@ -46,6 +46,7 @@ impl IVec {
 }
 
 /// A quaternion, internally represented the same way as [`FVec`].
+#[allow(dead_code)]
 #[doc(alias = "C3D_FQuat")]
 pub struct FQuat(citro3d_sys::C3D_FQuat);
 

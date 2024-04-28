@@ -100,7 +100,7 @@ impl<'screen> Target<'screen> {
 bitflags::bitflags! {
     /// Indicate whether color, depth buffer, or both values should be cleared.
     #[doc(alias = "C3D_ClearBits")]
-    pub struct ClearFlags: u32 {
+    pub struct ClearFlags: u8 {
         /// Clear the color of the render target.
         const COLOR = citro3d_sys::C3D_CLEAR_COLOR;
         /// Clear the depth buffer value of the render target.
@@ -111,7 +111,7 @@ bitflags::bitflags! {
 }
 
 /// The color format to use when rendering on the GPU.
-#[repr(u32)]
+#[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 #[doc(alias = "GPU_COLORBUF")]
 pub enum ColorFormat {
@@ -141,7 +141,7 @@ impl From<FramebufferFormat> for ColorFormat {
 }
 
 /// The depth buffer format to use when rendering.
-#[repr(u32)]
+#[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 #[doc(alias = "GPU_DEPTHBUF")]
 #[doc(alias = "C3D_DEPTHTYPE")]

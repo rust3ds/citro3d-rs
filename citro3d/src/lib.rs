@@ -141,7 +141,7 @@ impl Instance {
         unsafe {
             citro3d_sys::C3D_FrameBegin(
                 // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW.try_into().unwrap(),
+                citro3d_sys::C3D_FRAME_SYNCDRAW,
             );
         }
 
