@@ -31,7 +31,7 @@ impl Flags {
 /// NOTE: this a distinct type from [`ColorFormat`] because they are not implicitly
 /// convertible to one another. Use [`From::from`] to get the [`Format`] corresponding
 /// to a given [`ColorFormat`].
-#[repr(u32)]
+#[repr(u8)]
 #[doc(alias = "GX_TRANSFER_FORMAT")]
 pub enum Format {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha.

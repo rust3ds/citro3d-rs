@@ -49,7 +49,7 @@ impl Slice<'_> {
 }
 
 /// The geometric primitive to draw (i.e. what shapes the buffer data describes).
-#[repr(u32)]
+#[repr(u16)]
 #[derive(Debug, Clone, Copy)]
 #[doc(alias = "GPU_Primitive_t")]
 pub enum Primitive {

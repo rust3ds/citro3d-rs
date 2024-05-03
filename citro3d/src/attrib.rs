@@ -38,11 +38,12 @@ impl Register {
 /// An attribute index. This is the attribute's actual index in the input buffer,
 /// and may correspond to any [`Register`] (or multiple) as input in the shader
 /// program.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct Index(u8);
 
 /// The data format of an attribute.
-#[repr(u32)]
+#[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 #[doc(alias = "GPU_FORMATS")]
 pub enum Format {
@@ -54,6 +55,12 @@ pub enum Format {
     Float = ctru_sys::GPU_FLOAT,
     /// A short integer, i.e. [`i16`].
     Short = ctru_sys::GPU_SHORT,
+}
+
+impl From<Format> for u8 {
+    fn from(value: Format) -> Self {
+        value as u8
+    }
 }
 
 // SAFETY: the RWLock ensures unique access when mutating the global struct, and
@@ -117,7 +124,7 @@ impl Info {
         // SAFETY: the &mut self.0 reference is only used to access fields in
         // the attribute info, not stored somewhere for later use
         let ret = unsafe {
-            citro3d_sys::AttrInfo_AddLoader(&mut self.0, register.0, format as u32, count.into())
+            citro3d_sys::AttrInfo_AddLoader(&mut self.0, register.0, format.into(), count.into())
         };
 
         let Ok(idx) = ret.try_into() else {

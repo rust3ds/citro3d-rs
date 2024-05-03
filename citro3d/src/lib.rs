@@ -141,7 +141,7 @@ impl Instance {
         unsafe {
             citro3d_sys::C3D_FrameBegin(
                 // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW.try_into().unwrap(),
+                citro3d_sys::C3D_FRAME_SYNCDRAW,
             );
         }
 
@@ -216,11 +216,11 @@ impl Instance {
     /// ```
     /// # let _runner = test_runner::GdbRunner::default();
     /// # use citro3d::uniform;
-    /// # use citro3d::math::Matrix;
+    /// # use citro3d::math::Matrix4;
     /// #
     /// # let mut instance = citro3d::Instance::new().unwrap();
     /// let idx = uniform::Index::from(0);
-    /// let mtx = Matrix::identity();
+    /// let mtx = Matrix4::identity();
     /// instance.bind_vertex_uniform(idx, &mtx);
     /// ```
     pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
@@ -234,11 +234,11 @@ impl Instance {
     /// ```
     /// # let _runner = test_runner::GdbRunner::default();
     /// # use citro3d::uniform;
-    /// # use citro3d::math::Matrix;
+    /// # use citro3d::math::Matrix4;
     /// #
     /// # let mut instance = citro3d::Instance::new().unwrap();
     /// let idx = uniform::Index::from(0);
-    /// let mtx = Matrix::identity();
+    /// let mtx = Matrix4::identity();
     /// instance.bind_geometry_uniform(idx, &mtx);
     /// ```
     pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {

@@ -20,15 +20,15 @@ pub fn GX_TRANSFER_RAW_COPY(raw_copy: bool) -> u32 {
 
 #[inline]
 pub fn GX_TRANSFER_IN_FORMAT(format: GX_TRANSFER_FORMAT) -> u32 {
-    format << 8
+    (format as u32) << 8
 }
 
 #[inline]
 pub fn GX_TRANSFER_OUT_FORMAT(format: GX_TRANSFER_FORMAT) -> u32 {
-    format << 12
+    (format as u32) << 12
 }
 
 #[inline]
 pub fn GX_TRANSFER_SCALING(scale: GX_TRANSFER_SCALE) -> u32 {
-    scale << 24
+    (scale as u32) << 24
 }
