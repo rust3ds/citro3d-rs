@@ -11,9 +11,15 @@ libc = "0.2.116"
 ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 
 [build-dependencies]
-bindgen = { version = "0.68.1", features = ["experimental"] }
 cc = "1.0.83"
 doxygen-rs = "0.4.2"
+
+[build-dependencies.bindgen]
+# Use 0.* so that we take the same version ctru-sys uses by default
+version = "0.*"
+features = ["experimental"]
+git = "https://github.com/ian-h-chamberlain/rust-bindgen.git"
+rev = "fa88e08fb5abf8d17e596243846016776ac32c2f"
 
 [dev-dependencies]
 shim-3ds = { git = "https://github.com/rust3ds/shim-3ds.git" }
