@@ -65,7 +65,6 @@ fn main() {
         .ctypes_prefix("::libc")
         .prepend_enum_name(false)
         .fit_macro_constants(true)
-        .raw_line("use ctru_sys::*;")
         .must_use_type("Result")
         .blocklist_type("u(8|16|32|64)")
         .opaque_type("(GPU|GFX)_.*")
@@ -74,6 +73,10 @@ fn main() {
         .allowlist_file(".*/tex3ds[.]h")
         .blocklist_file(".*/3ds/.*[.]h")
         .blocklist_file(".*/sys/.*[.]h")
+        .blocklist_type("FILE")
+        // ctru-sys already generates one of these, let's reuse it instead of
+        // regenerating another one in citro3d-sys bindings.
+        .blocklist_type("__BindgenBitfieldUnit")
         .wrap_static_fns(true)
         .wrap_static_fns_path(out_dir.join(static_fns_path))
         .clang_args([
