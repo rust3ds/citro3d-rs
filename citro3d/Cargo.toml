@@ -25,7 +25,7 @@ approx = ["dep:approx"]
 glam = ["dep:glam"]
 
 [dev-dependencies]
-test-runner = { git = "https://github.com/rust3ds/test-runner.git" }
+test-runner = { git = "https://github.com/rust3ds/ctru-rs.git" }
 
 [dev-dependencies.citro3d]
 # Basically, this works like `cargo 3ds test --features ...` for building tests
