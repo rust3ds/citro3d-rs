@@ -70,32 +70,15 @@ impl LightIndex {
     }
 }
 
-#[derive(Default)]
-struct LightLutStorage {
-    spot: Option<LightLut>,
-    diffuse_atten: Option<LightLut>,
-    _pin: PhantomPinned,
-}
-
-#[derive(Default)]
-struct LightEnvStorage {
-    lights: [Option<Light>; NB_LIGHTS],
-    luts: [Option<LightLut>; 6],
-    _pin: PhantomPinned,
-}
-
-impl LightEnvStorage {
-    fn lights_mut(self: Pin<&mut Self>) -> Pin<&mut [Option<Light>; NB_LIGHTS]> {
-        unsafe { Pin::map_unchecked_mut(self, |s| &mut s.lights) }
-    }
-}
+type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
 
 pub struct LightEnv {
     raw: citro3d_sys::C3D_LightEnv,
     /// The actual light data pointed to by the lights element of `raw`
     ///
-    /// Note this is `Pin` as well as `Box` as `raw` means we are _actually_ self-referential which
-    /// is horrible but the best bad option in this case
+    /// Note this is `Pin` as well, because `raw` means we are _actually_ self-referential which
+    /// is horrible but the best bad option in this case. Moving the one of these elements would
+    /// break the pointers in `raw`
     lights: LightArray,
     luts: [Option<LightLut>; 6],
     _pin: PhantomPinned,
@@ -103,7 +86,8 @@ pub struct LightEnv {
 
 pub struct Light {
     raw: citro3d_sys::C3D_Light,
-    spot: Option<LightLut>,
+    // todo: implement spotlight support
+    _spot: Option<LightLut>,
     diffuse_atten: Option<LightLutDistAtten>,
     _pin: PhantomPinned,
 }
@@ -172,8 +156,12 @@ impl LightEnv {
                 .unwrap()
                 .map_unchecked_mut(|p| p.as_mut().unwrap())
         };
-        let r =
-            unsafe { citro3d_sys::C3D_LightInit(target.as_raw_mut(), self.as_raw_mut() as *mut _) };
+        let r = unsafe {
+            citro3d_sys::C3D_LightInit(
+                target.get_unchecked_mut().as_raw_mut(),
+                self.as_raw_mut() as *mut _,
+            )
+        };
         assert!(r >= 0, "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?");
         assert_eq!(
             r as usize, idx,
@@ -205,7 +193,7 @@ impl LightEnv {
         let idx = Self::lut_id_to_index(id);
         let me = unsafe { self.as_mut().get_unchecked_mut() };
         let lut = idx.and_then(|i| me.luts[i].take());
-        if let Some(lut) = lut {
+        if lut.is_some() {
             unsafe {
                 citro3d_sys::C3D_LightEnvLut(
                     &mut me.raw,
@@ -236,7 +224,7 @@ impl LightEnv {
             citro3d_sys::C3D_LightEnvLut(raw, id as u8, input as u8, false, lut);
         }
     }
-    pub fn set_fresnel(mut self: Pin<&mut Self>, sel: FresnelSelector) {
+    pub fn set_fresnel(self: Pin<&mut Self>, sel: FresnelSelector) {
         unsafe { citro3d_sys::C3D_LightEnvFresnel(self.as_raw_mut(), sel as _) }
     }
 
@@ -253,39 +241,39 @@ impl Light {
     fn new(raw: citro3d_sys::C3D_Light) -> Self {
         Self {
             raw,
-            spot: Default::default(),
+            _spot: Default::default(),
             diffuse_atten: Default::default(),
             _pin: Default::default(),
         }
     }
 
-    fn from_raw_ref(l: &citro3d_sys::C3D_Light) -> &Self {
-        unsafe { (l as *const _ as *const Self).as_ref().unwrap() }
-    }
-    fn from_raw_mut(l: &mut citro3d_sys::C3D_Light) -> &mut Self {
-        unsafe { (l as *mut _ as *mut Self).as_mut().unwrap() }
-    }
-    fn as_raw(&self) -> &citro3d_sys::C3D_Light {
+    /// Get a reference to the underlying raw `C3D_Light`
+    pub fn as_raw(&self) -> &citro3d_sys::C3D_Light {
         &self.raw
     }
 
-    fn as_raw_mut(self: Pin<&mut Self>) -> &mut citro3d_sys::C3D_Light {
-        unsafe { &mut self.get_unchecked_mut().raw }
+    /// Get a raw mut to the raw `C3D_Light`
+    ///
+    /// note: This does not take Pin<&mut Self>, if you need the raw from a pinned light you must use `unsafe` and ensure you uphold the pinning
+    /// restrictions of the original `Light`
+    pub fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Light {
+        &mut self.raw
     }
+
     pub fn set_position(self: Pin<&mut Self>, p: FVec3) {
         let mut p = FVec4::new(p.x(), p.y(), p.z(), 1.0);
-        unsafe { citro3d_sys::C3D_LightPosition(self.as_raw_mut(), &mut p.0) }
+        unsafe { citro3d_sys::C3D_LightPosition(self.get_unchecked_mut().as_raw_mut(), &mut p.0) }
     }
     pub fn set_color(self: Pin<&mut Self>, r: f32, g: f32, b: f32) {
-        unsafe { citro3d_sys::C3D_LightColor(self.as_raw_mut(), r, g, b) }
+        unsafe { citro3d_sys::C3D_LightColor(self.get_unchecked_mut().as_raw_mut(), r, g, b) }
     }
     #[doc(alias = "C3D_LightEnable")]
     pub fn set_enabled(self: Pin<&mut Self>, enabled: bool) {
-        unsafe { citro3d_sys::C3D_LightEnable(self.as_raw_mut(), enabled) }
+        unsafe { citro3d_sys::C3D_LightEnable(self.get_unchecked_mut().as_raw_mut(), enabled) }
     }
     #[doc(alias = "C3D_LightShadowEnable")]
     pub fn set_shadow(self: Pin<&mut Self>, shadow: bool) {
-        unsafe { citro3d_sys::C3D_LightShadowEnable(self.as_raw_mut(), shadow) }
+        unsafe { citro3d_sys::C3D_LightShadowEnable(self.get_unchecked_mut().as_raw_mut(), shadow) }
     }
     pub fn set_distance_attenutation(mut self: Pin<&mut Self>, lut: Option<LightLutDistAtten>) {
         {
@@ -455,8 +443,6 @@ pub enum FresnelSelector {
     /// Use as selector for both colour units
     Both = ctru_sys::GPU_PRI_SEC_ALPHA_FRESNEL,
 }
-
-type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
 
 #[cfg(test)]
 mod tests {
