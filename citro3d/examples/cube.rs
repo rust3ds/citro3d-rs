@@ -8,8 +8,7 @@ use citro3d::math::{
     AspectRatio, ClipPlanes, CoordinateOrientation, FVec3, Matrix4, Projection, StereoDisplacement,
 };
 use citro3d::render::ClearFlags;
-use citro3d::{attrib, buffer, render, shader};
-use citro3d::{texenv, IndexType};
+use citro3d::{attrib, buffer, render, shader, texenv};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -86,17 +85,20 @@ fn main() {
     let (mut top_left, mut top_right) = top_screen.split_mut();
 
     let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
-    let mut top_left_target =
-        render::Target::new(width, height, top_left, None).expect("failed to create render target");
+    let mut top_left_target = instance
+        .render_target(width, height, top_left, None)
+        .expect("failed to create render target");
 
     let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
-    let mut top_right_target = render::Target::new(width, height, top_right, None)
+    let mut top_right_target = instance
+        .render_target(width, height, top_right, None)
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
     let RawFrameBuffer { width, height, .. } = bottom_screen.raw_framebuffer();
 
-    let mut bottom_target = render::Target::new(width, height, bottom_screen, None)
+    let mut bottom_target = instance
+        .render_target(width, height, bottom_screen, None)
         .expect("failed to create bottom screen render target");
 
     let shader = shader::Library::from_bytes(SHADER_BYTES).unwrap();
@@ -111,13 +113,17 @@ fn main() {
             y: v[1],
             z: v[2],
         },
-        color: Vec3::new(1.0, 0.7, 0.5),
+        color: {
+            // Give each vertex a slightly different color just to highlight edges/corners
+            let value = i as f32 / VERTS.len() as f32;
+            Vec3::new(1.0, 0.7 * value, 0.5)
+        },
     }) {
         vbo_data.push(vert);
     }
 
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
+    let (attr_info, vbo_slice) = prepare_vbos(&mut buf_info, &vbo_data);
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -134,7 +140,7 @@ fn main() {
         FVec3::new(0.0, 1.0, 0.0),
         CoordinateOrientation::RightHanded,
     );
-    let indecies_a = [
+    let indices: &[u8] = &[
         0, 3, 1, 1, 3, 2, // triangles making up the top (+y) facing side.
         4, 5, 7, 5, 6, 7, // bottom (-y)
         8, 11, 9, 9, 11, 10, // right (+x)
@@ -142,8 +148,7 @@ fn main() {
         16, 19, 17, 17, 19, 18, // back (+z)
         20, 21, 23, 21, 22, 23, // forward (-z)
     ];
-    let mut indecies = Vec::with_capacity_in(indecies_a.len(), ctru::linear::LinearAllocator);
-    indecies.extend_from_slice(&indecies_a);
+    let indices = vbo_slice.index_buffer(indices).unwrap();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -160,21 +165,12 @@ fn main() {
                     .select_render_target(target)
                     .expect("failed to set render target");
 
-                instance.bind_vertex_uniform(
-                    projection_uniform_idx,
-                    &(projection * camera_transform.clone()),
-                );
+                instance.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
 
                 instance.set_attr_info(&attr_info);
                 unsafe {
-                    instance.draw_elements(
-                        buffer::Primitive::Triangles,
-                        &buf_info,
-                        IndexType::U16(&indecies),
-                    );
+                    instance.draw_elements(buffer::Primitive::Triangles, &buf_info, &indices);
                 }
-
-                //instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             };
 
             let Projections {

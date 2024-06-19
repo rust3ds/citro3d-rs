@@ -1,5 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner::run_gdb)]
+#![feature(allocator_api)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![doc(html_root_url = "https://rust3ds.github.io/citro3d-rs/crates")]
@@ -24,15 +25,14 @@ pub mod render;
 pub mod shader;
 pub mod texenv;
 pub mod uniform;
-mod util;
 
 use std::cell::{OnceCell, RefMut};
 use std::fmt;
 use std::rc::Rc;
 
+use ctru::linear::LinearAllocation;
 use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
-use util::is_linear_ptr;
 
 use self::texenv::TexEnv;
 use self::uniform::Uniform;
@@ -40,6 +40,12 @@ use self::uniform::Uniform;
 pub mod macros {
     //! Helper macros for working with shaders.
     pub use citro3d_macros::*;
+}
+
+mod private {
+    pub trait Sealed {}
+    impl Sealed for u8 {}
+    impl Sealed for u16 {}
 }
 
 /// The single instance for using `citro3d`. This is the base type that an application
@@ -205,36 +211,33 @@ impl Instance {
     /// Draws the vertices in `buf` indexed by `indices`. `indices` must be linearly allocated
     ///
     /// # Safety
-    /// If `indices` goes out of scope before the current frame ends it will cause a use-after-free (possibly by the GPU)
-    /// If `buf` does not contain all the vertices references by `indices` it will cause an invalid access by the GPU (this crashes citra)
+    // TODO: #41 might be able to solve this:
+    /// If `indices` goes out of scope before the current frame ends it will cause a
+    /// use-after-free (possibly by the GPU).
     ///
     /// # Panics
-    /// If `indices` is not allocated in linear memory
+    ///
+    /// If the given index buffer is too long to have its length converted to `i32`.
     #[doc(alias = "C3D_DrawElements")]
-    pub unsafe fn draw_elements<'a>(
+    pub unsafe fn draw_elements<I, Indices>(
         &mut self,
         primitive: buffer::Primitive,
         buf: &buffer::Info,
-        indices: impl Into<IndexType<'a>>,
-    ) {
+        indices: &Indices,
+    ) where
+        I: buffer::Index,
+        Indices: AsRef<[I]> + LinearAllocation,
+    {
         self.set_buffer_info(buf);
-        let indices: IndexType<'a> = indices.into();
-        let elements = match indices {
-            IndexType::U16(v) => v.as_ptr() as *const _,
-            IndexType::U8(v) => v.as_ptr() as *const _,
-        };
-        assert!(
-            is_linear_ptr(elements),
-            "draw_elements requires linear allocated indices buffer"
-        );
+
+        let indices = indices.as_ref();
+        let elements = indices.as_ptr().cast();
+
         citro3d_sys::C3D_DrawElements(
             primitive as ctru_sys::GPU_Primitive_t,
-            indices.len() as i32,
+            indices.len().try_into().unwrap(),
             // flag bit for short or byte
-            match indices {
-                IndexType::U16(_) => citro3d_sys::C3D_UNSIGNED_SHORT,
-                IndexType::U8(_) => citro3d_sys::C3D_UNSIGNED_BYTE,
-            } as i32,
+            I::TYPE,
             elements,
         );
     }
@@ -318,31 +321,6 @@ impl Drop for RenderQueue {
         unsafe {
             citro3d_sys::C3D_Fini();
         }
-    }
-}
-
-pub enum IndexType<'a> {
-    U16(&'a [u16]),
-    U8(&'a [u8]),
-}
-impl IndexType<'_> {
-    fn len(&self) -> usize {
-        match self {
-            IndexType::U16(a) => a.len(),
-            IndexType::U8(a) => a.len(),
-        }
-    }
-}
-
-impl<'a> From<&'a [u8]> for IndexType<'a> {
-    fn from(v: &'a [u8]) -> Self {
-        Self::U8(v)
-    }
-}
-
-impl<'a> From<&'a [u16]> for IndexType<'a> {
-    fn from(v: &'a [u16]) -> Self {
-        Self::U16(v)
     }
 }
 
