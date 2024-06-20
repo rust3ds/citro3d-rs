@@ -122,8 +122,10 @@ fn main() {
         vbo_data.push(vert);
     }
 
+    let attr_info = build_attrib_info();
+
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_slice) = prepare_vbos(&mut buf_info, &vbo_data);
+    let vbo_slice = buf_info.add(&vbo_data, &attr_info).unwrap();
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -148,7 +150,7 @@ fn main() {
         16, 19, 17, 17, 19, 18, // back (+z)
         20, 21, 23, 21, 22, 23, // forward (-z)
     ];
-    let indices = vbo_slice.index_buffer(indices).unwrap();
+    let index_buffer = vbo_slice.index_buffer(indices).unwrap();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -169,7 +171,7 @@ fn main() {
 
                 instance.set_attr_info(&attr_info);
                 unsafe {
-                    instance.draw_elements(buffer::Primitive::Triangles, &buf_info, &indices);
+                    instance.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
                 }
             };
 
@@ -186,10 +188,7 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(
-    buf_info: &'a mut buffer::Info,
-    vbo_data: &'a [Vertex],
-) -> (attrib::Info, buffer::Slice<'a>) {
+fn build_attrib_info() -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
@@ -204,9 +203,7 @@ fn prepare_vbos<'a>(
         .add_loader(reg1, attrib::Format::Float, 3)
         .unwrap();
 
-    let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
-
-    (attr_info, buf_idx)
+    attr_info
 }
 
 struct Projections {

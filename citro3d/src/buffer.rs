@@ -57,7 +57,7 @@ impl Slice<'_> {
     /// Returns an error if:
     /// - any of the given indices are out of bounds.
     /// - the given slice is too long for its length to fit in a `libc::c_int`.
-    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Vec<I, LinearAllocator>, Error>
+    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Indices<I>, Error>
     where
         I: Index + Copy + Into<libc::c_int>,
     {
@@ -83,14 +83,20 @@ impl Slice<'_> {
     ///
     /// If any indices are outside this buffer it can cause an invalid access by the GPU
     /// (this crashes citra).
-    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(
-        &self,
-        indices: &[I],
-    ) -> Vec<I, LinearAllocator> {
-        let mut buf = Vec::with_capacity_in(indices.len(), LinearAllocator);
-        buf.extend_from_slice(indices);
-        buf
+    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(&self, indices: &[I]) -> Indices<I> {
+        let mut buffer = Vec::with_capacity_in(indices.len(), LinearAllocator);
+        buffer.extend_from_slice(indices);
+        Indices {
+            buffer,
+            _slice: *self,
+        }
     }
+}
+
+/// An index buffer for indexed drawing. See [`Slice::index_buffer`] to obtain one.
+pub struct Indices<'buf, I> {
+    pub(crate) buffer: Vec<I, LinearAllocator>,
+    _slice: Slice<'buf>,
 }
 
 /// A type that can be used as an index for indexed drawing.

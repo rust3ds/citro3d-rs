@@ -30,10 +30,10 @@ use std::cell::{OnceCell, RefMut};
 use std::fmt;
 use std::rc::Rc;
 
-use ctru::linear::LinearAllocation;
 use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
 
+use self::buffer::{Index, Indices};
 use self::texenv::TexEnv;
 use self::uniform::Uniform;
 
@@ -219,18 +219,15 @@ impl Instance {
     ///
     /// If the given index buffer is too long to have its length converted to `i32`.
     #[doc(alias = "C3D_DrawElements")]
-    pub unsafe fn draw_elements<I, Indices>(
+    pub unsafe fn draw_elements<I: Index>(
         &mut self,
         primitive: buffer::Primitive,
-        buf: &buffer::Info,
-        indices: &Indices,
-    ) where
-        I: buffer::Index,
-        Indices: AsRef<[I]> + LinearAllocation,
-    {
-        self.set_buffer_info(buf);
+        vbo_data: buffer::Slice,
+        indices: &Indices<I>,
+    ) {
+        self.set_buffer_info(vbo_data.info());
 
-        let indices = indices.as_ref();
+        let indices = &indices.buffer;
         let elements = indices.as_ptr().cast();
 
         citro3d_sys::C3D_DrawElements(

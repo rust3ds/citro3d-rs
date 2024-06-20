@@ -212,7 +212,7 @@ impl AbsDiffEq for Matrix4 {
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         self.rows_wzyx()
             .into_iter()
-            .zip(other.rows_wzyx().into_iter())
+            .zip(other.rows_wzyx())
             .all(|(l, r)| l.abs_diff_eq(&r, epsilon))
     }
 }

@@ -1,6 +1,5 @@
 //! General-purpose error and result types returned by public APIs of this crate.
 
-use core::fmt;
 use std::ffi::NulError;
 use std::num::TryFromIntError;
 use std::sync::TryLockError;
