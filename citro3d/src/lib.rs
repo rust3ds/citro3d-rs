@@ -24,6 +24,7 @@ pub mod render;
 pub mod shader;
 pub mod texenv;
 pub mod uniform;
+pub mod enums;
 
 use std::cell::{OnceCell, RefMut};
 use std::fmt;
