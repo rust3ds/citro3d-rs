@@ -75,11 +75,14 @@ fn include_shader_impl(input: TokenStream) -> Result<TokenStream, Box<dyn Error>
     // The cwd can change depending on whether this is running in a doctest or not:
     // https://users.rust-lang.org/t/which-directory-does-a-proc-macro-run-from/71917
     //
-    // But the span's `source_file()` seems to always be relative to the cwd.
+    // But the span's `local_file()` seems to always be relative to the cwd.
     let cwd = env::current_dir()
         .map_err(|err| format!("unable to determine current directory: {err}"))?;
 
-    let invoking_source_file = shader_source_filename.span().source_file().path();
+    let invoking_source_file = shader_source_filename
+        .span()
+        .local_file()
+        .expect("no source file");
     let Some(invoking_source_dir) = invoking_source_file.parent() else {
         return Ok(quote! {
             compile_error!(
