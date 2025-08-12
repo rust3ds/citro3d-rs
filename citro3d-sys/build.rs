@@ -58,7 +58,7 @@ fn main() {
         .header(three_ds_h.to_str().unwrap())
         .header(citro3d_h.to_str().unwrap())
         .header(tex3ds_h.to_str().unwrap())
-        .rust_target(RustTarget::Nightly)
+        .rust_target(RustTarget::nightly())
         .use_core()
         .trust_clang_mangling(false)
         .layout_tests(false)

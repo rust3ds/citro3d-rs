@@ -175,7 +175,7 @@ impl Library {
 
     /// Get the [`Entrypoint`] at the given index, if present.
     #[must_use]
-    pub fn get(&self, index: usize) -> Option<Entrypoint> {
+    pub fn get(&self, index: usize) -> Option<Entrypoint<'_>> {
         if index < self.len() {
             Some(Entrypoint {
                 ptr: unsafe { (*self.0).DVLE.add(index) },

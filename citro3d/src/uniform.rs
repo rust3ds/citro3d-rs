@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::math::{FVec4, IVec, Matrix4};
-use crate::{shader, Instance};
+use crate::{Instance, shader};
 
 /// The index of a uniform within a [`shader::Program`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -82,7 +82,13 @@ impl Uniform {
             index,
             self.index_range(),
         );
-        assert!(self.index_range().end.0 as usize >= self.len() + index.0 as usize, "tried to bind a uniform that would overflow the uniform buffer. index was {:?}, size was {} max is {:?}", index, self.len(), self.index_range().end);
+        assert!(
+            self.index_range().end.0 as usize >= self.len() + index.0 as usize,
+            "tried to bind a uniform that would overflow the uniform buffer. index was {:?}, size was {} max is {:?}",
+            index,
+            self.len(),
+            self.index_range().end
+        );
         let set_fvs = |fs: &[FVec4]| {
             for (off, f) in fs.iter().enumerate() {
                 unsafe {
