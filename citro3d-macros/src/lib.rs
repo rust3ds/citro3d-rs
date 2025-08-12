@@ -79,7 +79,10 @@ fn include_shader_impl(input: TokenStream) -> Result<TokenStream, Box<dyn Error>
     let cwd = env::current_dir()
         .map_err(|err| format!("unable to determine current directory: {err}"))?;
 
-    let invoking_source_file = shader_source_filename.span().source_file().path();
+    let invoking_source_file = shader_source_filename
+        .span()
+        .local_file()
+        .expect("source file not found");
     let Some(invoking_source_dir) = invoking_source_file.parent() else {
         return Ok(quote! {
             compile_error!(

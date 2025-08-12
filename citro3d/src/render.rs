@@ -5,7 +5,7 @@ use std::cell::RefMut;
 use std::rc::Rc;
 
 use citro3d_sys::{
-    C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete, C3D_DEPTHTYPE,
+    C3D_DEPTHTYPE, C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete,
 };
 use ctru::services::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
