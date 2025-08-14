@@ -223,20 +223,22 @@ impl Instance {
         &mut self,
         primitive: buffer::Primitive,
         vbo_data: buffer::Slice,
-        indices: &Indices<I>,
+        indices: &Indices<'_, I>,
     ) {
         self.set_buffer_info(vbo_data.info());
 
         let indices = &indices.buffer;
         let elements = indices.as_ptr().cast();
 
-        citro3d_sys::C3D_DrawElements(
-            primitive as ctru_sys::GPU_Primitive_t,
-            indices.len().try_into().unwrap(),
-            // flag bit for short or byte
-            I::TYPE,
-            elements,
-        );
+        unsafe {
+            citro3d_sys::C3D_DrawElements(
+                primitive as ctru_sys::GPU_Primitive_t,
+                indices.len().try_into().unwrap(),
+                // flag bit for short or byte
+                I::TYPE,
+                elements,
+            );
+        }
     }
 
     /// Use the given [`shader::Program`] for subsequent draw calls.

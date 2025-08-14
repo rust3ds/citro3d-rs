@@ -7,8 +7,8 @@ use std::mem::MaybeUninit;
 
 use ctru::linear::LinearAllocator;
 
-use crate::attrib;
 use crate::Error;
+use crate::attrib;
 
 /// Vertex buffer info. This struct is used to describe the shape of the buffer
 /// data to be sent to the GPU for rendering.
@@ -57,7 +57,7 @@ impl Slice<'_> {
     /// Returns an error if:
     /// - any of the given indices are out of bounds.
     /// - the given slice is too long for its length to fit in a `libc::c_int`.
-    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Indices<I>, Error>
+    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Indices<'_, I>, Error>
     where
         I: Index + Copy + Into<libc::c_int>,
     {
@@ -83,7 +83,7 @@ impl Slice<'_> {
     ///
     /// If any indices are outside this buffer it can cause an invalid access by the GPU
     /// (this crashes citra).
-    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(&self, indices: &[I]) -> Indices<I> {
+    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(&self, indices: &[I]) -> Indices<'_, I> {
         let mut buffer = Vec::with_capacity_in(indices.len(), LinearAllocator);
         buffer.extend_from_slice(indices);
         Indices {
