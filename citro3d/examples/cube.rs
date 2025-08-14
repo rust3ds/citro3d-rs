@@ -1,5 +1,4 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
+//! This example demonstrates drawing a coloured cube using indexed rendering.
 
 #![feature(allocator_api)]
 
