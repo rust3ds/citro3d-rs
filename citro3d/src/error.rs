@@ -36,6 +36,13 @@ pub enum Error {
     InvalidName,
     /// The requested resource could not be found.
     NotFound,
+    /// Attempted to use an index that was out of bounds.
+    IndexOutOfBounds {
+        /// The index used.
+        idx: libc::c_int,
+        /// The length of the collection.
+        len: libc::c_int,
+    },
 }
 
 impl From<TryFromIntError> for Error {

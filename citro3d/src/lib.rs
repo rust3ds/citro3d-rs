@@ -1,5 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner::run_gdb)]
+#![feature(allocator_api)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![doc(html_root_url = "https://rust3ds.github.io/citro3d-rs/crates")]
@@ -32,12 +33,19 @@ use std::rc::Rc;
 use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
 
+use self::buffer::{Index, Indices};
 use self::texenv::TexEnv;
 use self::uniform::Uniform;
 
 pub mod macros {
     //! Helper macros for working with shaders.
     pub use citro3d_macros::*;
+}
+
+mod private {
+    pub trait Sealed {}
+    impl Sealed for u8 {}
+    impl Sealed for u16 {}
 }
 
 /// The single instance for using `citro3d`. This is the base type that an application
@@ -190,12 +198,45 @@ impl Instance {
         self.set_buffer_info(vbo_data.info());
 
         // TODO: should we also require the attrib info directly here?
-
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
                 vbo_data.index(),
                 vbo_data.len(),
+            );
+        }
+    }
+    /// Indexed drawing
+    ///
+    /// Draws the vertices in `buf` indexed by `indices`. `indices` must be linearly allocated
+    ///
+    /// # Safety
+    // TODO: #41 might be able to solve this:
+    /// If `indices` goes out of scope before the current frame ends it will cause a
+    /// use-after-free (possibly by the GPU).
+    ///
+    /// # Panics
+    ///
+    /// If the given index buffer is too long to have its length converted to `i32`.
+    #[doc(alias = "C3D_DrawElements")]
+    pub unsafe fn draw_elements<I: Index>(
+        &mut self,
+        primitive: buffer::Primitive,
+        vbo_data: buffer::Slice,
+        indices: &Indices<'_, I>,
+    ) {
+        self.set_buffer_info(vbo_data.info());
+
+        let indices = &indices.buffer;
+        let elements = indices.as_ptr().cast();
+
+        unsafe {
+            citro3d_sys::C3D_DrawElements(
+                primitive as ctru_sys::GPU_Primitive_t,
+                indices.len().try_into().unwrap(),
+                // flag bit for short or byte
+                I::TYPE,
+                elements,
             );
         }
     }

@@ -5,6 +5,9 @@
 
 use std::mem::MaybeUninit;
 
+use ctru::linear::LinearAllocator;
+
+use crate::Error;
 use crate::attrib;
 
 /// Vertex buffer info. This struct is used to describe the shape of the buffer
@@ -46,6 +49,68 @@ impl Slice<'_> {
     pub fn info(&self) -> &Info {
         self.buf_info
     }
+
+    /// Get an index buffer for this slice using the given indices.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - any of the given indices are out of bounds.
+    /// - the given slice is too long for its length to fit in a `libc::c_int`.
+    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Indices<'_, I>, Error>
+    where
+        I: Index + Copy + Into<libc::c_int>,
+    {
+        if libc::c_int::try_from(indices.len()).is_err() {
+            return Err(Error::InvalidSize);
+        }
+
+        for &idx in indices {
+            let idx = idx.into();
+            let len = self.len();
+            if idx >= len {
+                return Err(Error::IndexOutOfBounds { idx, len });
+            }
+        }
+
+        Ok(unsafe { self.index_buffer_unchecked(indices) })
+    }
+
+    /// Get an index buffer for this slice using the given indices without
+    /// bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// If any indices are outside this buffer it can cause an invalid access by the GPU
+    /// (this crashes citra).
+    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(&self, indices: &[I]) -> Indices<'_, I> {
+        let mut buffer = Vec::with_capacity_in(indices.len(), LinearAllocator);
+        buffer.extend_from_slice(indices);
+        Indices {
+            buffer,
+            _slice: *self,
+        }
+    }
+}
+
+/// An index buffer for indexed drawing. See [`Slice::index_buffer`] to obtain one.
+pub struct Indices<'buf, I> {
+    pub(crate) buffer: Vec<I, LinearAllocator>,
+    _slice: Slice<'buf>,
+}
+
+/// A type that can be used as an index for indexed drawing.
+pub trait Index: crate::private::Sealed {
+    /// The data type of the index, as used by [`citro3d_sys::C3D_DrawElements`]'s `type_` parameter.
+    const TYPE: libc::c_int;
+}
+
+impl Index for u8 {
+    const TYPE: libc::c_int = citro3d_sys::C3D_UNSIGNED_BYTE as _;
+}
+
+impl Index for u16 {
+    const TYPE: libc::c_int = citro3d_sys::C3D_UNSIGNED_SHORT as _;
 }
 
 /// The geometric primitive to draw (i.e. what shapes the buffer data describes).
