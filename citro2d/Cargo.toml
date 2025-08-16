@@ -1,0 +1,21 @@
+[package]
+name = "citro2d"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+document-features = "0.2.7"
+ctru-rs = { git = "https://github.com/rust3ds/ctru-rs.git" }
+ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
+citro2d-sys = { path = "../citro2d-sys" }
+citro3d = { version = "0.1.0", path = "../citro3d" }
+citro3d-sys = { version = "0.1.0", path = "../citro3d-sys" }
+
+[dev-dependencies]
+test-runner = { git = "https://github.com/rust3ds/ctru-rs.git" }
+
+[package.metadata.docs.rs]
+all-features = true
+default-target = "armv6k-nintendo-3ds"
+targs = []
+cargo-args = ["-Z", "build-std"]

@@ -3,7 +3,7 @@
 ⚠️ WIP ⚠️
 
 Rust bindings and safe wrapper to the [citro3d](https://github.com/devkitPro/citro3d)
-library, to write homebrew graphical programs for the Nintendo 3DS.
+and [citro2d](https://github.com/devkitPro/citro2d) library, to write homebrew graphical programs for the Nintendo 3DS.
 
 ## Crates
 
@@ -15,5 +15,5 @@ library, to write homebrew graphical programs for the Nintendo 3DS.
 
 ## License
 
-* `citro3d-sys` is licensed under Zlib
+* `citro3d-sys` and `citro2d-sys` is licensed under Zlib
 * `citro3d` and `citro3d-macros` are dual-licensed under MIT or Apache-2.0
