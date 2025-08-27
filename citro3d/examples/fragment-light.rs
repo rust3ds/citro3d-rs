@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 
 use citro3d::{
     attrib, buffer,
-    light::{LightLut, LightLutDistAtten, LightLutId, LutInput},
+    light::{DistanceAttenuation, Lut, LutId, LutInput, Spotlight},
     material::{Color, Material},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
@@ -304,9 +304,9 @@ fn main() {
     // Setup the global lighting environment, using an exponential lookup-table.
     let mut light_env = instance.light_env_mut();
     light_env.as_mut().connect_lut(
-        LightLutId::D0,
+        LutId::D0,
         LutInput::LightNormal,
-        LightLut::from_fn(|v| v.powf(20.0), false),
+        Lut::from_fn(|v| v.powf(20.0), false),
     );
     light_env.as_mut().set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),
@@ -319,13 +319,29 @@ fn main() {
     let light = light_env.as_mut().create_light().unwrap();
     let mut light = light_env.as_mut().light_mut(light).unwrap();
     light.as_mut().set_color(1.0, 1.0, 1.0); // White color
-    light.as_mut().set_position(FVec3::new(0.0, 0.0, -0.5)); // Approximately emitting from the camera
+    light.as_mut().set_position(FVec3::new(0.0, 0.0, -1.0)); // Approximately emitting from the camera
     // Set how the light attenuates over distance.
     // This particular LUT is optimized to work between 0 and 10 units of distance from the light point.
     light
         .as_mut()
-        .set_distance_attenutation(Some(LightLutDistAtten::new(0.0..10.0, |d| {
-            (1.0 / (1.0 * PI * d * d)).min(1.0)
+        .set_distance_attenutation(Some(DistanceAttenuation::new(0.0..10.0, |d| {
+            (1.0 / (2.0 * PI * d * d)).min(1.0)
+        })));
+
+    // Subtle spotlight pointed at the top of the cube.
+    let light = light_env.as_mut().create_light().unwrap();
+    let mut light = light_env.as_mut().light_mut(light).unwrap();
+    light.as_mut().set_color(0.5, 0.5, 0.5);
+    light
+        .as_mut()
+        .set_spotlight(Some(Spotlight::new_with_cutoff(PI / 8.0))); // Spotlight angle of PI/6
+    light
+        .as_mut()
+        .set_spotlight_direction(FVec3::new(0.0, 0.4, -1.0)); // Slightly tilted upwards
+    light
+        .as_mut()
+        .set_distance_attenutation(Some(DistanceAttenuation::new(0.0..10.0, |d| {
+            (1.0 / (0.5 * PI * d * d)).min(1.0) // We use a less aggressive attenuation to highlight the spotlight
         })));
 
     // Setup the rotating view of the cube
