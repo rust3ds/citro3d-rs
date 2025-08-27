@@ -298,14 +298,15 @@ fn main() {
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
-
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
+
+    // Setup the global lighting environment, using an exponential lookup-table.
     let mut light_env = instance.light_env_mut();
     light_env.as_mut().connect_lut(
         LightLutId::D0,
         LutInput::LightNormal,
-        LightLut::from_fn(|v| v.powf(10.0), false),
+        LightLut::from_fn(|v| v.powf(20.0), false),
     );
     light_env.as_mut().set_material(Material {
         ambient: Some(Color::new(0.2, 0.2, 0.2)),
@@ -313,19 +314,25 @@ fn main() {
         specular0: Some(Color::new(0.8, 0.8, 0.8)),
         ..Default::default()
     });
+
+    // Create a new light instance.
     let light = light_env.as_mut().create_light().unwrap();
     let mut light = light_env.as_mut().light_mut(light).unwrap();
-    light.as_mut().set_color(1.0, 1.0, 1.0);
-    light.as_mut().set_position(FVec3::new(0.0, 0.0, -0.5));
+    light.as_mut().set_color(1.0, 1.0, 1.0); // White color
+    light.as_mut().set_position(FVec3::new(0.0, 0.0, -0.5)); // Approximately emitting from the camera
+    // Set how the light attenuates over distance.
+    // This particular LUT is optimized to work between 0 and 10 units of distance from the light point.
     light
         .as_mut()
-        .set_distance_attenutation(Some(LightLutDistAtten::new(0.0..400.0, |d| {
-            (1.0 / (4.0 * PI * d * d)).min(1.0)
+        .set_distance_attenutation(Some(LightLutDistAtten::new(0.0..10.0, |d| {
+            (1.0 / (1.0 * PI * d * d)).min(1.0)
         })));
-    let mut c = Matrix4::identity();
+
+    // Setup the rotating view of the cube
+    let mut view = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
-    c.translate(0.0, 0.0, -2.0);
-    instance.bind_vertex_uniform(model_idx, c);
+    view.translate(0.0, 0.0, -2.0);
+    instance.bind_vertex_uniform(model_idx, view);
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -358,7 +365,7 @@ fn main() {
                     .expect("failed to set render target");
 
                 instance.bind_vertex_uniform(projection_uniform_idx, projection);
-                instance.bind_vertex_uniform(model_idx, c);
+                instance.bind_vertex_uniform(model_idx, view);
 
                 instance.set_attr_info(&attr_info);
 
@@ -375,9 +382,11 @@ fn main() {
             render_to(&mut top_right_target, &right_eye);
             render_to(&mut bottom_target, &center);
         });
-        c.translate(0.0, 0.0, 2.0);
-        c.rotate_y(1.0f32.to_radians());
-        c.translate(0.0, 0.0, -2.0);
+
+        // Rotate the modelView
+        view.translate(0.0, 0.0, 2.0);
+        view.rotate_y(1.0f32.to_radians());
+        view.translate(0.0, 0.0, -2.0);
     }
 }
 
