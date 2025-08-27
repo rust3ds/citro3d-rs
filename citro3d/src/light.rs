@@ -162,7 +162,10 @@ impl LightEnv {
                 self.as_raw_mut() as *mut _,
             )
         };
-        assert!(r >= 0, "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?");
+        assert!(
+            r >= 0,
+            "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?"
+        );
         assert_eq!(
             r as usize, idx,
             "citro3d chose a different light to us? this shouldn't be possible"

@@ -3,9 +3,9 @@ use std::f32::consts::PI;
 
 use citro3d::{
     attrib, buffer,
-    light::{FresnelSelector, LightEnv, LightLut, LightLutDistAtten, LightLutId, LutInput},
+    light::{LightLut, LightLutDistAtten, LightLutId, LutInput},
     material::{Color, Material},
-    math::{AspectRatio, ClipPlanes, FVec3, FVec4, Matrix4, Projection, StereoDisplacement},
+    math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
     shader, texenv,
 };
@@ -14,7 +14,6 @@ use ctru::services::{
     apt::Apt,
     gfx::{Gfx, RawFrameBuffer, Screen, TopScreen3D},
     hid::{Hid, KeyPad},
-    soc::Soc,
 };
 
 #[repr(C)]
@@ -243,15 +242,7 @@ const VERTICES: &[Vertex] = &[
 ];
 
 fn main() {
-    {
-        let prev = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |info| {
-            std::fs::write("panic.log", info.to_string());
-            prev(info);
-        }));
-    }
-    let mut soc = Soc::new().expect("failed to get SOC");
-    drop(soc.redirect_to_3dslink(true, true));
+    ctru::set_panic_hook(true);
 
     let gfx = Gfx::with_formats_shared(
         ctru::services::gspgpu::FramebufferFormat::Rgba8,
@@ -334,7 +325,7 @@ fn main() {
     let mut c = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
     c.translate(0.0, 0.0, -2.0);
-    instance.bind_vertex_uniform(model_idx, &c);
+    instance.bind_vertex_uniform(model_idx, c);
 
     // Configure the first fragment shading substage to just pass through the vertex color
     // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -367,7 +358,7 @@ fn main() {
                     .expect("failed to set render target");
 
                 instance.bind_vertex_uniform(projection_uniform_idx, projection);
-                instance.bind_vertex_uniform(model_idx, &c);
+                instance.bind_vertex_uniform(model_idx, c);
 
                 instance.set_attr_info(&attr_info);
 
