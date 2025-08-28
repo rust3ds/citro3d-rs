@@ -86,7 +86,6 @@ pub struct LightEnv {
 
 pub struct Light {
     raw: citro3d_sys::C3D_Light,
-    // todo: implement spotlight support
     spotlight: Option<Spotlight>,
     distance_attenuation: Option<DistanceAttenuation>,
     _pin: PhantomPinned,
@@ -468,9 +467,9 @@ impl Spotlight {
 
     /// Creates a new directional spotlight with drastic cutoff.
     ///
-    /// Within the cutoff angle (in radians), intensity is 1.
+    /// Within the cutoff angle (in radians), from the direction of the spotlight, intensity is 1.
     /// Outside, intensity is 0.
-    pub fn new_with_cutoff(cutoff_angle: f32) -> Self {
+    pub fn with_cutoff(cutoff_angle: f32) -> Self {
         let lut = Lut::from_fn(
             |angle| {
                 if angle >= cutoff_angle.cos() {
