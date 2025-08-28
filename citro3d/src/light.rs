@@ -382,6 +382,8 @@ impl Lut {
         // This data buffer is double the actual LUT length since we also store
         // the deltas between values to use for interpolation (in the second half of the indices).
         let mut data = [0.0f32; LUT_LEN as usize * 2];
+        let mut last_idx: usize = 0;
+
         for i in start..=end {
             let x = i as f32 * scale;
             let v = f(x);
@@ -394,14 +396,10 @@ impl Lut {
             }
 
             if i > start {
-                // When negative is true, because of the 0xFF thing, value x = 0.0 corresponds to idx = 0.
-                // Seems like the original C code doesn't really handle this detail.
-                if idx == 0 {
-                    data[idx + LUT_LEN as usize - 1] = v - data[255];
-                } else {
-                    data[idx + LUT_LEN as usize - 1] = v - data[idx - 1];
-                }
+                data[idx + LUT_LEN as usize - 1] = v - data[last_idx];
             }
+
+            last_idx = idx;
         }
 
         let lut = unsafe {
