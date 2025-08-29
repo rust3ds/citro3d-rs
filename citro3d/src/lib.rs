@@ -260,6 +260,11 @@ impl Instance {
             citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
     }
+
+    pub fn light_env(&self) -> Pin<&light::LightEnv> {
+        self.light_env.as_ref()
+    }
+
     pub fn light_env_mut(&mut self) -> Pin<&mut light::LightEnv> {
         self.light_env.as_mut()
     }

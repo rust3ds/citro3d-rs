@@ -174,6 +174,19 @@ impl LightEnv {
         Some(LightIndex::new(idx))
     }
 
+    pub fn destroy_light(mut self: Pin<&mut Self>, idx: LightIndex) {
+        self.as_mut()
+            .lights_mut()
+            .get_pin(idx.0 as usize)
+            .unwrap()
+            .set(None);
+
+        // Set the environment as dirty to update the changes (light data would still be available in GPU memory).
+        let env = self.as_raw_mut();
+        env.lights[idx.0 as usize] = std::ptr::null_mut();
+        env.flags |= citro3d_sys::C3DF_LightEnv_LCDirty as u32;
+    }
+
     fn lut_id_to_index(id: LutId) -> Option<usize> {
         match id {
             LutId::D0 => Some(0),
