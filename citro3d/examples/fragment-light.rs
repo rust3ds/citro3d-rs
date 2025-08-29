@@ -329,12 +329,12 @@ fn main() {
         })));
 
     // Subtle spotlight pointed at the top of the cube.
-    let light = light_env.as_mut().create_light().unwrap();
-    let mut light = light_env.as_mut().light_mut(light).unwrap();
+    let light_idx = light_env.as_mut().create_light().unwrap();
+    let mut light = light_env.as_mut().light_mut(light_idx).unwrap();
     light.as_mut().set_color(0.5, 0.5, 0.5);
     light
         .as_mut()
-        .set_spotlight(Some(Spotlight::new_with_cutoff(PI / 8.0))); // Spotlight angle of PI/6
+        .set_spotlight(Some(Spotlight::with_cutoff(PI / 8.0))); // Spotlight angle of PI/6
     light
         .as_mut()
         .set_spotlight_direction(FVec3::new(0.0, 0.4, -1.0)); // Slightly tilted upwards

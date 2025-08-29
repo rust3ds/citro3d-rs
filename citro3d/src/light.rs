@@ -110,6 +110,7 @@ impl LightEnv {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn set_material(self: Pin<&mut Self>, mat: Material) {
         let raw = mat.to_raw();
         // Safety: This takes a pointer but it actually memcpy's it so this doesn't dangle
@@ -132,12 +133,13 @@ impl LightEnv {
             .unwrap()
             .as_pin_mut()
     }
+
     pub fn create_light(mut self: Pin<&mut Self>) -> Option<LightIndex> {
         let idx = self
             .lights()
             .iter()
             .enumerate()
-            .find(|(_, n)| n.is_none())
+            .find(|(_, l)| l.is_none())
             .map(|(n, _)| n)?;
 
         self.as_mut()
@@ -171,6 +173,7 @@ impl LightEnv {
         );
         Some(LightIndex::new(idx))
     }
+
     fn lut_id_to_index(id: LutId) -> Option<usize> {
         match id {
             LutId::D0 => Some(0),
@@ -183,6 +186,7 @@ impl LightEnv {
             LutId::DistanceAttenuation => None,
         }
     }
+
     /// Attempt to disconnect a light lut
     ///
     /// # Note
@@ -204,6 +208,7 @@ impl LightEnv {
         }
         lut
     }
+
     pub fn connect_lut(mut self: Pin<&mut Self>, id: LutId, input: LutInput, data: Lut) {
         let idx = Self::lut_id_to_index(id);
         let (raw, lut) = unsafe {
@@ -218,10 +223,12 @@ impl LightEnv {
             };
             (raw, lut)
         };
+
         unsafe {
             citro3d_sys::C3D_LightEnvLut(raw, id as u8, input as u8, false, lut);
         }
     }
+
     pub fn set_fresnel(self: Pin<&mut Self>, sel: FresnelSelector) {
         unsafe { citro3d_sys::C3D_LightEnvFresnel(self.as_raw_mut(), sel as _) }
     }
@@ -291,6 +298,7 @@ impl Light {
             let c_lut = me.distance_attenuation.as_mut().map(|d| &mut d.raw);
             (raw, c_lut)
         };
+
         unsafe {
             citro3d_sys::C3D_LightDistAttn(
                 raw,
@@ -314,25 +322,40 @@ impl Light {
             let c_lut = me.spotlight.as_mut().map(|d| &mut d.lut.0);
             (raw, c_lut)
         };
-        unsafe {
-            citro3d_sys::C3D_LightSpotLut(
-                raw,
-                match c_lut {
-                    Some(l) => l,
-                    None => std::ptr::null_mut(), // TODO: this causes and ARM exception if the light is used.
-                },
-            );
+
+        match c_lut {
+            Some(l) => unsafe {
+                citro3d_sys::C3D_LightSpotLut(raw, l);
+            },
+            None => unsafe {
+                citro3d_sys::C3D_LightSpotLut(raw, std::ptr::null_mut());
+
+                // The "Spotlight-Dirty" flag in Citro3D is used to check whether the LUT has to be loaded onto the GPU.
+                // However, if a spotlight is set and immediately unset, the bit stays dirty, and the passed null pointer is accessed.
+                // Distance attenuation is not affected by the same issue since the lut is not set if the pointer is null.
+                //
+                // Here, we manually unset the dirty bit to make sure no null pointer is accessed.
+                // Reference: https://github.com/devkitPro/citro3d/blob/9f21cf7b380ce6f9e01a0420f19f0763e5443ca7/source/lightenv.c#L120
+                raw.flags &= !citro3d_sys::C3DF_Light_SPDirty;
+            },
         }
     }
 
     pub fn set_spotlight_direction(self: Pin<&mut Self>, direction: FVec3) {
         unsafe {
-            citro3d_sys::C3D_LightSpotDir(
-                self.get_unchecked_mut().as_raw_mut(),
-                direction.x(),
-                direction.y(),
-                direction.z(),
-            )
+            // References:
+            //  https://github.com/devkitPro/citro3d/blob/9f21cf7b380ce6f9e01a0420f19f0763e5443ca7/source/light.c#L116
+            //  https://github.com/devkitPro/libctru/blob/e09a49a08fa469bc08fb62e9d29bfe6407c0232a/libctru/include/3ds/gpu/enums.h#L395
+            let raw = self.get_unchecked_mut().as_raw_mut();
+            let spot_enabled = (*raw.parent).conf.config[1] & (0b1 << (raw.id + 8));
+
+            citro3d_sys::C3D_LightSpotDir(raw, direction.x(), direction.y(), direction.z());
+
+            // For internal Citro3D reasons, setting the spotlight direction also enables the spotlight itself (even if no LUT was set).
+            // To avoid unexpected behaviour and crashes, we disable the spotlight if it were not enabled before.
+            if spot_enabled != 0 {
+                citro3d_sys::C3D_LightSpotEnable(raw, false);
+            }
         }
     }
 }
