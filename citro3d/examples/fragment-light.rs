@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 
 use citro3d::{
     attrib, buffer,
-    light::{DistanceAttenuation, Lut, LutId, LutInput, Spotlight},
+    light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Spotlight},
     material::{Color, Material},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
@@ -302,7 +302,7 @@ fn main() {
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
     // Setup the global lighting environment, using an exponential lookup-table.
-    let mut light_env = instance.light_env_mut();
+    let mut light_env = LightEnv::new_pinned();
     light_env.as_mut().connect_lut(
         LutId::D0,
         LutInput::LightNormal,
@@ -343,6 +343,9 @@ fn main() {
         .set_distance_attenutation(Some(DistanceAttenuation::new(0.0..10.0, |d| {
             (1.0 / (0.5 * PI * d * d)).min(1.0) // We use a less aggressive attenuation to highlight the spotlight
         })));
+
+    // Bind the lighting environment for use
+    instance.bind_light_env(Some(light_env));
 
     // Setup the rotating view of the cube
     let mut view = Matrix4::identity();

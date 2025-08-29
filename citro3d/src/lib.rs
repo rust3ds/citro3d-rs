@@ -37,6 +37,7 @@ use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
 
 use self::buffer::{Index, Indices};
+use self::light::LightEnv;
 use self::texenv::TexEnv;
 use self::uniform::Uniform;
 
@@ -58,7 +59,7 @@ mod private {
 pub struct Instance {
     texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
     queue: Rc<RenderQueue>,
-    light_env: Pin<Box<light::LightEnv>>,
+    light_env: Option<Pin<Box<LightEnv>>>,
 }
 
 /// Representation of `citro3d`'s internal render queue. This is something that
@@ -91,12 +92,6 @@ impl Instance {
     #[doc(alias = "C3D_Init")]
     pub fn with_cmdbuf_size(size: usize) -> Result<Self> {
         if unsafe { citro3d_sys::C3D_Init(size) } {
-            let mut light_env = Box::pin(light::LightEnv::new());
-            unsafe {
-                // setup the light env slot, since this is a pointer copy it will stick around even with we swap
-                // out light_env later
-                citro3d_sys::C3D_LightEnvBind(light_env.as_mut().as_raw_mut());
-            }
             Ok(Self {
                 texenvs: [
                     // thank goodness there's only six of them!
@@ -108,7 +103,7 @@ impl Instance {
                     OnceCell::new(),
                 ],
                 queue: Rc::new(RenderQueue),
-                light_env,
+                light_env: None,
             })
         } else {
             Err(Error::FailedToInitialize)
@@ -261,12 +256,33 @@ impl Instance {
         }
     }
 
-    pub fn light_env(&self) -> Pin<&light::LightEnv> {
-        self.light_env.as_ref()
+    /// Binds a new [`LightEnv`], returning the previous one (if present).
+    pub fn bind_light_env(
+        &mut self,
+        new_env: Option<Pin<Box<LightEnv>>>,
+    ) -> Option<Pin<Box<LightEnv>>> {
+        let old_env = self.light_env.take();
+        self.light_env = new_env;
+
+        unsafe {
+            // setup the light env slot, since this is a pointer copy it will stick around even with we swap
+            // out light_env later
+            citro3d_sys::C3D_LightEnvBind(
+                self.light_env
+                    .as_mut()
+                    .map_or(std::ptr::null_mut(), |env| env.as_mut().as_raw_mut()),
+            );
+        }
+
+        old_env
     }
 
-    pub fn light_env_mut(&mut self) -> Pin<&mut light::LightEnv> {
-        self.light_env.as_mut()
+    pub fn light_env(&self) -> Option<Pin<&LightEnv>> {
+        self.light_env.as_ref().map(|env| env.as_ref())
+    }
+
+    pub fn light_env_mut(&mut self) -> Option<Pin<&mut LightEnv>> {
+        self.light_env.as_mut().map(|env| env.as_mut())
     }
 
     /// Bind a uniform to the given `index` in the vertex shader for the next draw call.

@@ -91,24 +91,22 @@ pub struct Light {
     _pin: PhantomPinned,
 }
 
-impl Default for LightEnv {
-    fn default() -> Self {
-        let raw = unsafe {
-            let mut env = MaybeUninit::zeroed();
-            citro3d_sys::C3D_LightEnvInit(env.as_mut_ptr());
-            env.assume_init()
-        };
-        Self {
-            raw,
-            lights: Default::default(),
-            luts: Default::default(),
-            _pin: Default::default(),
-        }
-    }
-}
 impl LightEnv {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new_pinned() -> Pin<Box<LightEnv>> {
+        Box::pin({
+            let raw = unsafe {
+                let mut env = MaybeUninit::zeroed();
+                citro3d_sys::C3D_LightEnvInit(env.as_mut_ptr());
+                env.assume_init()
+            };
+
+            Self {
+                raw,
+                lights: Default::default(),
+                luts: Default::default(),
+                _pin: Default::default(),
+            }
+        })
     }
 
     pub fn set_material(self: Pin<&mut Self>, mat: Material) {
