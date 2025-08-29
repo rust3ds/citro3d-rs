@@ -47,9 +47,9 @@ use crate::{
     math::{FVec3, FVec4},
 };
 
-/// Index for one of the 8 hardware lights in the GPU pipeline
+/// Index for one of the 8 hardware lights in the [lighting environment](LightEnv).
 ///
-/// Usually you don't want to construct one of these directly but use [`LightEnv::create_light`]
+/// Usually you don't want to construct one of these directly but use [`LightEnv::create_light`].
 // Note we use a u8 here since usize is overkill and it saves a few bytes
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LightIndex(u8);
@@ -65,6 +65,8 @@ impl LightIndex {
         assert!(idx < NB_LIGHTS);
         Self(idx as u8)
     }
+
+    /// Converts the index back into a raw integer.
     pub fn as_usize(self) -> usize {
         self.0 as usize
     }
@@ -72,6 +74,9 @@ impl LightIndex {
 
 type LightArray = PinArray<Option<Light>, NB_LIGHTS>;
 
+/// Lighting environment, passed as one of the fragment stages.
+///
+/// A [`LightEnv`] is comprised of 8 different [lights](Light) governed by the same lighting algorithm.
 pub struct LightEnv {
     raw: citro3d_sys::C3D_LightEnv,
     /// The actual light data pointed to by the lights element of `raw`
@@ -84,6 +89,9 @@ pub struct LightEnv {
     _pin: PhantomPinned,
 }
 
+/// Light source, used by a [`LightEnv`].
+///
+/// Lights can be simple omnidirectional point lights or setup with a directional [spotlight](Light::set_spotlight) effect.
 pub struct Light {
     raw: citro3d_sys::C3D_Light,
     spotlight: Option<Spotlight>,
@@ -92,6 +100,10 @@ pub struct Light {
 }
 
 impl LightEnv {
+    /// Constructs a new lighting environment.
+    ///
+    /// Due to the internal representation of a lighting environment,
+    /// the lighting environment and the various lights are all pinned objects.
     pub fn new_pinned() -> Pin<Box<LightEnv>> {
         Box::pin({
             let raw = unsafe {
@@ -109,6 +121,10 @@ impl LightEnv {
         })
     }
 
+    /// Setup the environment material.
+    ///
+    /// This material is inherited by all internal lights.
+    #[doc(alias = "C3D_LightEnvMaterial")]
     pub fn set_material(self: Pin<&mut Self>, mat: Material) {
         let raw = mat.to_raw();
         // Safety: This takes a pointer but it actually memcpy's it so this doesn't dangle
@@ -117,14 +133,17 @@ impl LightEnv {
         }
     }
 
+    /// Returns a reference to the array of (pinned) lights.
     pub fn lights(&self) -> &LightArray {
         &self.lights
     }
 
+    /// Returns a mutable reference to the array of (pinned) lights.
     pub fn lights_mut(self: Pin<&mut Self>) -> Pin<&mut LightArray> {
         unsafe { self.map_unchecked_mut(|s| &mut s.lights) }
     }
 
+    /// Returns a mutable reference to the light at a particular index.
     pub fn light_mut(self: Pin<&mut Self>, idx: LightIndex) -> Option<Pin<&mut Light>> {
         self.lights_mut()
             .get_pin(idx.0 as usize)
@@ -132,6 +151,10 @@ impl LightEnv {
             .as_pin_mut()
     }
 
+    /// Sets up a new light source and returns its index for use.
+    ///
+    /// If no more light sources can be created, [`None`] is returned.
+    #[doc(alias = "C3D_LightInit")]
     pub fn create_light(mut self: Pin<&mut Self>) -> Option<LightIndex> {
         let idx = self
             .lights()
@@ -161,6 +184,7 @@ impl LightEnv {
                 self.as_raw_mut() as *mut _,
             )
         };
+
         assert!(
             r >= 0,
             "C3D_LightInit should only fail if there are no free light slots but we checked that already, how did this happen?"
@@ -169,9 +193,11 @@ impl LightEnv {
             r as usize, idx,
             "citro3d chose a different light to us? this shouldn't be possible"
         );
+
         Some(LightIndex::new(idx))
     }
 
+    /// Uninitalizes and disables the light at a specific index.
     pub fn destroy_light(mut self: Pin<&mut Self>, idx: LightIndex) {
         self.as_mut()
             .lights_mut()
@@ -189,7 +215,7 @@ impl LightEnv {
         match id {
             LutId::D0 => Some(0),
             LutId::D1 => Some(1),
-            LutId::SpotLightAttenuation => None,
+            LutId::Spotlight => None,
             LutId::Fresnel => Some(2),
             LutId::ReflectBlue => Some(3),
             LutId::ReflectGreen => Some(4),
@@ -198,14 +224,15 @@ impl LightEnv {
         }
     }
 
-    /// Attempt to disconnect a light lut
+    /// Attempts to disconnect a light lookup-table.
     ///
-    /// # Note
-    /// This function will not panic if the lut does not exist for `id` and `input`, it will just return `None`
+    /// This function returns [`None`] if no LUT was connected for `id` and `input`.
+    /// Otherwise, returns the disconnected LUT.
     pub fn disconnect_lut(mut self: Pin<&mut Self>, id: LutId, input: LutInput) -> Option<Lut> {
         let idx = Self::lut_id_to_index(id);
         let me = unsafe { self.as_mut().get_unchecked_mut() };
         let lut = idx.and_then(|i| me.luts[i].take());
+
         if lut.is_some() {
             unsafe {
                 citro3d_sys::C3D_LightEnvLut(
@@ -217,9 +244,12 @@ impl LightEnv {
                 );
             }
         }
+
         lut
     }
 
+    /// Connects a light lookup-table at the given index, with a given input.
+    #[doc(alias = "C3D_LightEnvLut")]
     pub fn connect_lut(mut self: Pin<&mut Self>, id: LutId, input: LutInput, data: Lut) {
         let idx = Self::lut_id_to_index(id);
         let (raw, lut) = unsafe {
@@ -240,14 +270,18 @@ impl LightEnv {
         }
     }
 
+    /// Sets the fresnel for the lighting environment.
+    #[doc(alias = "C3D_LightEnvFresnel")]
     pub fn set_fresnel(self: Pin<&mut Self>, sel: FresnelSelector) {
         unsafe { citro3d_sys::C3D_LightEnvFresnel(self.as_raw_mut(), sel as _) }
     }
 
+    /// Returns a reference to the raw Citro3D representation.
     pub fn as_raw(&self) -> &citro3d_sys::C3D_LightEnv {
         &self.raw
     }
 
+    /// Returns a mutable reference to the raw Citro3D representation.
     pub fn as_raw_mut(self: Pin<&mut Self>) -> &mut citro3d_sys::C3D_LightEnv {
         unsafe { &mut self.get_unchecked_mut().raw }
     }
@@ -263,38 +297,50 @@ impl Light {
         }
     }
 
-    /// Get a reference to the underlying raw `C3D_Light`
+    /// Returns a reference to the raw Citro3D representation.
     pub fn as_raw(&self) -> &citro3d_sys::C3D_Light {
         &self.raw
     }
 
-    /// Get a raw mut to the raw `C3D_Light`
+    /// Returns a mutable reference to the raw Citro3D representation.
     ///
-    /// note: This does not take Pin<&mut Self>, if you need the raw from a pinned light you must use `unsafe` and ensure you uphold the pinning
-    /// restrictions of the original `Light`
+    /// # Notes
+    ///
+    /// This does not take Pin<&mut Self> and rather borrows the value directly.
+    /// If you need the raw from a pinned light you must use `unsafe` and ensure you uphold the pinning
+    /// restrictions of the original `Light`.
     pub fn as_raw_mut(&mut self) -> &mut citro3d_sys::C3D_Light {
         &mut self.raw
     }
 
+    /// Sets the position, in 3D space, of the light source.
+    #[doc(alias = "C3D_LightPosition")]
     pub fn set_position(self: Pin<&mut Self>, p: FVec3) {
         let mut p = FVec4::new(p.x(), p.y(), p.z(), 1.0);
         unsafe { citro3d_sys::C3D_LightPosition(self.get_unchecked_mut().as_raw_mut(), &mut p.0) }
     }
 
+    /// Sets the color of the light source.
+    #[doc(alias = "C3D_LightColor")]
     pub fn set_color(self: Pin<&mut Self>, r: f32, g: f32, b: f32) {
         unsafe { citro3d_sys::C3D_LightColor(self.get_unchecked_mut().as_raw_mut(), r, g, b) }
     }
 
+    /// Enables/disables the light source.
     #[doc(alias = "C3D_LightEnable")]
     pub fn set_enabled(self: Pin<&mut Self>, enabled: bool) {
         unsafe { citro3d_sys::C3D_LightEnable(self.get_unchecked_mut().as_raw_mut(), enabled) }
     }
 
+    /// Enables/disables the light source's shadow emission.
     #[doc(alias = "C3D_LightShadowEnable")]
     pub fn set_shadow(self: Pin<&mut Self>, shadow: bool) {
         unsafe { citro3d_sys::C3D_LightShadowEnable(self.get_unchecked_mut().as_raw_mut(), shadow) }
     }
 
+    /// Sets the [distance attenuation](DistanceAttenuation) behaviour of the light.
+    #[doc(alias = "C3D_LightDistAttn")]
+    #[doc(alias = "C3D_LightDistAttnEnable")]
     pub fn set_distance_attenutation(mut self: Pin<&mut Self>, lut: Option<DistanceAttenuation>) {
         {
             let me = unsafe { self.as_mut().get_unchecked_mut() };
@@ -321,6 +367,9 @@ impl Light {
         }
     }
 
+    /// Sets the [spotlight](Spotlight) behaviour of the light.
+    #[doc(alias = "C3D_LightSpotLut")]
+    #[doc(alias = "C3D_LightSpotEnable")]
     pub fn set_spotlight(mut self: Pin<&mut Self>, lut: Option<Spotlight>) {
         {
             let me = unsafe { self.as_mut().get_unchecked_mut() };
@@ -352,6 +401,8 @@ impl Light {
         }
     }
 
+    /// Sets the spotlight direction of the light (relatively to the light's source [position](set_position)).
+    #[doc(alias = "C3D_LightSpotDir")]
     pub fn set_spotlight_direction(self: Pin<&mut Self>, direction: FVec3) {
         unsafe {
             // References:
@@ -371,9 +422,10 @@ impl Light {
     }
 }
 
-/// Lookup table for light data
+/// Lookup-table for light data.
 ///
-/// For more refer to the module documentation
+/// Lighting behaviour is memoized by a LUT which is used during the fragment stage by the GPU.
+/// This struct represents a generic LUT, which can be used for different parts of the lighting environment.
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct Lut(citro3d_sys::C3D_LightLut);
@@ -402,7 +454,14 @@ const LUT_HALF_LEN: i32 = LUT_LEN / 2;
 type LutArray = [u32; LUT_LEN as usize];
 
 impl Lut {
-    /// Create a LUT by memoizing a function
+    /// Create a LUT by memoizing a function.
+    ///
+    /// # Notes
+    ///
+    /// The input of the function is a number between `0.0` and `1.0`, or `-1.0` and `1.0` if `negative` is asserted.
+    /// The input is sampled 256 times for interpolation.
+    /// What the input actually represents depends on the [`LutInput`] used when binding the LUT.
+    #[doc(alias = "LightLut_FromFn")]
     pub fn from_fn(mut f: impl FnMut(f32) -> f32, negative: bool) -> Self {
         let (start, end, scale) = if negative {
             (-LUT_HALF_LEN, LUT_HALF_LEN, 1.0 / LUT_HALF_LEN as f32)
@@ -443,12 +502,12 @@ impl Lut {
         Self(lut)
     }
 
-    /// Get a reference to the underlying data
+    /// Returns a reference to the raw LUT data.
     pub fn data(&self) -> &LutArray {
         &self.0.data
     }
 
-    /// Get a mutable reference to the underlying data
+    /// Returns a mutable reference to the raw LUT data.
     pub fn data_mut(&mut self) -> &mut LutArray {
         &mut self.0.data
     }
@@ -464,11 +523,19 @@ impl Lut {
     }
 }
 
+/// Lookup-table (plus some additional information) to handle distance attenuation of a light source.
+#[doc(alias = "C3D_LightLutDA")]
 pub struct DistanceAttenuation {
     raw: citro3d_sys::C3D_LightLutDA,
 }
 
 impl DistanceAttenuation {
+    /// Creates a new distance attenuation table relative to a range of the clip space and a function based on the distance.
+    ///
+    /// # Notes
+    ///
+    /// The function takes only positive values as input.
+    /// Refer to [`Lut::from_fn`] for more information.
     pub fn new(range: Range<f32>, mut f: impl FnMut(f32) -> f32) -> Self {
         let mut raw: citro3d_sys::C3D_LightLutDA = unsafe { MaybeUninit::zeroed().assume_init() };
         let dist = range.end - range.start;
@@ -480,6 +547,7 @@ impl DistanceAttenuation {
     }
 }
 
+/// Lookup-table to handle the spotlight area of a light source.
 pub struct Spotlight {
     lut: Lut,
 }
@@ -488,11 +556,12 @@ impl Spotlight {
     /// Creates a new directional spotlight.
     ///
     /// The input of the `f` function is the cosine of angle from the direction of the spotlight,
-    /// while the output (between 0 and 1) is the intensity of the light in that point.
+    /// while the output (between `0.0` and `1.0`) is the intensity of the light in that point.
     ///
     /// # Notes
     ///
     /// The function takes negative and positive values as input.
+    /// Refer to [`Lut::from_fn`] for more information.
     pub fn new(f: impl FnMut(f32) -> f32) -> Self {
         Self {
             lut: Lut::from_fn(f, true),
@@ -520,44 +589,63 @@ impl Spotlight {
 }
 
 /// This is used to decide what the input should be to a [`Lut`]
+#[doc(alias = "GPU_LIGHTLUTINPUT")]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
 pub enum LutInput {
+    /// Cosine of the angle from the light direction (spotlights).
     CosPhi = ctru_sys::GPU_LUTINPUT_CP,
-    /// Dot product of the light and normal vectors
+    /// Dot product of the light and normal vectors.
     LightNormal = ctru_sys::GPU_LUTINPUT_LN,
-    /// Half the normal
+    /// Half the normal.
     NormalHalf = ctru_sys::GPU_LUTINPUT_NH,
-    /// Dot product of the view and normal
+    /// Dot product of the view and normal.
     NormalView = ctru_sys::GPU_LUTINPUT_NV,
-    /// Dot product of the spotlight colour and light vector
+    /// Dot product of the spotlight colour and light vector.
     LightSpotLight = ctru_sys::GPU_LUTINPUT_SP,
-    /// Half the view vector
+    /// Half the view vector.
     ViewHalf = ctru_sys::GPU_LUTINPUT_VH,
 }
 
+/// Identifier/index for the various LUTs associated to a [`LightEnv`].
+///
+/// # Notes
+///
+/// `Spotlight` and `DistanceAttenuation` are associated to specific light sources,
+/// and thus are not associated to an internal lighting index.
+#[doc(alias = "GPU_LIGHTLUTID")]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
 pub enum LutId {
+    /// Specular 0.
     D0 = ctru_sys::GPU_LUT_D0,
+    /// Specular 1.
     D1 = ctru_sys::GPU_LUT_D1,
-    SpotLightAttenuation = ctru_sys::GPU_LUT_SP,
+    /// Spotlight attenuation (used for [`Spotlight`]).
+    Spotlight = ctru_sys::GPU_LUT_SP,
+    /// Fresnel.
     Fresnel = ctru_sys::GPU_LUT_FR,
+    /// Blue reflection component.
     ReflectBlue = ctru_sys::GPU_LUT_RB,
+    /// Green reflection component.
     ReflectGreen = ctru_sys::GPU_LUT_RG,
+    /// Red reflection component.
     ReflectRed = ctru_sys::GPU_LUT_RR,
+    /// Distance attenuation (used for [`DistanceAttenuation`]).
     DistanceAttenuation = ctru_sys::GPU_LUT_DA,
 }
+
+#[doc(alias = "GPU_FRESNELSEL")]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
 pub enum FresnelSelector {
-    /// No fresnel selection
+    /// No fresnel selection.
     None = ctru_sys::GPU_NO_FRESNEL,
-    /// Use as selector for primary colour unit alpha
+    /// Use as selector for primary colour unit alpha.
     PrimaryAlpha = ctru_sys::GPU_PRI_ALPHA_FRESNEL,
-    /// Use as selector for secondary colour unit alpha
+    /// Use as selector for secondary colour unit alpha.
     SecondaryAlpha = ctru_sys::GPU_SEC_ALPHA_FRESNEL,
-    /// Use as selector for both colour units
+    /// Use as selector for both colour units.
     Both = ctru_sys::GPU_PRI_SEC_ALPHA_FRESNEL,
 }
 

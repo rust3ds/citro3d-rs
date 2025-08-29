@@ -329,8 +329,8 @@ fn main() {
         })));
 
     // Subtle spotlight pointed at the top of the cube.
-    let light_idx = light_env.as_mut().create_light().unwrap();
-    let mut light = light_env.as_mut().light_mut(light_idx).unwrap();
+    let light = light_env.as_mut().create_light().unwrap();
+    let mut light = light_env.as_mut().light_mut(light).unwrap();
     light.as_mut().set_color(0.5, 0.5, 0.5);
     light
         .as_mut()
@@ -353,8 +353,6 @@ fn main() {
     view.translate(0.0, 0.0, -2.0);
     instance.bind_vertex_uniform(model_idx, view);
 
-    // Configure the first fragment shading substage to just pass through the vertex color
-    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
     let stage0 = texenv::Stage::new(0).unwrap();
     instance
         .texenv(stage0)
@@ -444,8 +442,6 @@ struct Projections {
 }
 
 fn calculate_projections() -> Projections {
-    // TODO: it would be cool to allow playing around with these parameters on
-    // the fly with D-pad, etc.
     let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 
