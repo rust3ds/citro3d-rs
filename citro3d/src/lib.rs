@@ -19,9 +19,9 @@
 
 pub mod attrib;
 pub mod buffer;
+pub mod color;
 pub mod error;
 pub mod light;
-pub mod material;
 pub mod math;
 pub mod render;
 pub mod shader;

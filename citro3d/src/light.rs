@@ -43,7 +43,7 @@ use std::{marker::PhantomPinned, mem::MaybeUninit, ops::Range, pin::Pin};
 use pin_array::PinArray;
 
 use crate::{
-    material::Material,
+    color::Color,
     math::{FVec3, FVec4},
 };
 
@@ -97,6 +97,28 @@ pub struct Light {
     spotlight: Option<Spotlight>,
     distance_attenuation: Option<DistanceAttenuation>,
     _pin: PhantomPinned,
+}
+
+/// Lighting and surface material used by the fragment stage.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Material {
+    pub ambient: Option<Color>,
+    pub diffuse: Option<Color>,
+    pub specular0: Option<Color>,
+    pub specular1: Option<Color>,
+    pub emission: Option<Color>,
+}
+
+impl Material {
+    pub fn to_raw(self) -> citro3d_sys::C3D_Material {
+        citro3d_sys::C3D_Material {
+            ambient: self.ambient.unwrap_or_default().to_parts_bgr(),
+            diffuse: self.diffuse.unwrap_or_default().to_parts_bgr(),
+            specular0: self.specular0.unwrap_or_default().to_parts_bgr(),
+            specular1: self.specular1.unwrap_or_default().to_parts_bgr(),
+            emission: self.emission.unwrap_or_default().to_parts_bgr(),
+        }
+    }
 }
 
 impl LightEnv {
@@ -322,8 +344,15 @@ impl Light {
 
     /// Sets the color of the light source.
     #[doc(alias = "C3D_LightColor")]
-    pub fn set_color(self: Pin<&mut Self>, r: f32, g: f32, b: f32) {
-        unsafe { citro3d_sys::C3D_LightColor(self.get_unchecked_mut().as_raw_mut(), r, g, b) }
+    pub fn set_color(self: Pin<&mut Self>, color: Color) {
+        unsafe {
+            citro3d_sys::C3D_LightColor(
+                self.get_unchecked_mut().as_raw_mut(),
+                color.r,
+                color.g,
+                color.b,
+            )
+        }
     }
 
     /// Enables/disables the light source.

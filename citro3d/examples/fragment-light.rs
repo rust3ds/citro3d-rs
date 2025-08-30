@@ -3,8 +3,8 @@ use std::f32::consts::PI;
 
 use citro3d::{
     attrib, buffer,
-    light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Spotlight},
-    material::{Color, Material},
+    color::Color,
+    light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Material, Spotlight},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
     render::{self, ClearFlags},
     shader, texenv,
@@ -318,7 +318,7 @@ fn main() {
     // Create a new light instance.
     let light = light_env.as_mut().create_light().unwrap();
     let mut light = light_env.as_mut().light_mut(light).unwrap();
-    light.as_mut().set_color(1.0, 1.0, 1.0); // White color
+    light.as_mut().set_color(Color::new(1.0, 1.0, 1.0)); // White color
     light.as_mut().set_position(FVec3::new(0.0, 0.0, -1.0)); // Approximately emitting from the camera
     // Set how the light attenuates over distance.
     // This particular LUT is optimized to work between 0 and 10 units of distance from the light point.
@@ -331,7 +331,7 @@ fn main() {
     // Subtle spotlight pointed at the top of the cube.
     let light = light_env.as_mut().create_light().unwrap();
     let mut light = light_env.as_mut().light_mut(light).unwrap();
-    light.as_mut().set_color(0.5, 0.5, 0.5);
+    light.as_mut().set_color(Color::new(0.5, 0.5, 0.5));
     light
         .as_mut()
         .set_spotlight(Some(Spotlight::with_cutoff(PI / 8.0))); // Spotlight angle of PI/6
