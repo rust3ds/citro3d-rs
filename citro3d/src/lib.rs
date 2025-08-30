@@ -21,13 +21,14 @@ pub mod attrib;
 pub mod buffer;
 pub mod color;
 pub mod error;
+pub mod fog;
 pub mod light;
 pub mod math;
 pub mod render;
 pub mod shader;
 pub mod texenv;
+pub mod texture;
 pub mod uniform;
-pub mod enums;
 
 use std::cell::{OnceCell, RefMut};
 use std::fmt;

@@ -4,21 +4,22 @@ use ctru_sys;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXTURE_FILTER_PARAM")]
-pub enum TextureFilterParam {
+pub enum Filter {
     #[doc(alias = "GPU_NEAREST")]
     Nearest = ctru_sys::GPU_NEAREST,
+
     #[doc(alias = "GPU_LINEAR")]
     Linear = ctru_sys::GPU_LINEAR,
 }
 
-impl TryFrom<u8> for TextureFilterParam {
+impl TryFrom<u8> for Filter {
     type Error = String;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_NEAREST => Ok(TextureFilterParam::Nearest),
-            ctru_sys::GPU_LINEAR => Ok(TextureFilterParam::Linear),
-            _ => Err("Invalid value for TextureFilterParam".to_string()),
+            ctru_sys::GPU_NEAREST => Ok(Self::Nearest),
+            ctru_sys::GPU_LINEAR => Ok(Self::Linear),
+            _ => Err("invalid value for FilterParam".to_string()),
         }
     }
 }
@@ -27,26 +28,29 @@ impl TryFrom<u8> for TextureFilterParam {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXTURE_WRAP_PARAM")]
-pub enum TextureWrapParam {
+pub enum Wrap {
     #[doc(alias = "GPU_CLAMP_TO_EDGE")]
     ClampToEdge = ctru_sys::GPU_CLAMP_TO_EDGE,
+
     #[doc(alias = "GPU_CLAMP_TO_BORDER")]
     ClampToBorder = ctru_sys::GPU_CLAMP_TO_BORDER,
+
     #[doc(alias = "GPU_REPEAT")]
     Repeat = ctru_sys::GPU_REPEAT,
+
     #[doc(alias = "GPU_MIRRORED_REPEAT")]
     MirroredRepeat = ctru_sys::GPU_MIRRORED_REPEAT,
 }
 
-impl TryFrom<u8> for TextureWrapParam {
+impl TryFrom<u8> for Wrap {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_CLAMP_TO_EDGE => Ok(TextureWrapParam::ClampToEdge),
-            ctru_sys::GPU_CLAMP_TO_BORDER => Ok(TextureWrapParam::ClampToBorder),
-            ctru_sys::GPU_REPEAT => Ok(TextureWrapParam::Repeat),
-            ctru_sys::GPU_MIRRORED_REPEAT => Ok(TextureWrapParam::MirroredRepeat),
-            _ => Err("Invalid value for TextureWrapParam".to_string()),
+            ctru_sys::GPU_CLAMP_TO_EDGE => Ok(Self::ClampToEdge),
+            ctru_sys::GPU_CLAMP_TO_BORDER => Ok(Self::ClampToBorder),
+            ctru_sys::GPU_REPEAT => Ok(Self::Repeat),
+            ctru_sys::GPU_MIRRORED_REPEAT => Ok(Self::MirroredRepeat),
+            _ => Err("invalid value for Wrap".to_string()),
         }
     }
 }
@@ -55,32 +59,37 @@ impl TryFrom<u8> for TextureWrapParam {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXTURE_MODE_PARAM")]
-pub enum TextureModeParam {
+pub enum Mode {
     #[doc(alias = "GPU_TEX_2D")]
     Tex2D = ctru_sys::GPU_TEX_2D,
+
     #[doc(alias = "GPU_TEX_CUBE_MAP")]
     CubeMap = ctru_sys::GPU_TEX_CUBE_MAP,
+
     #[doc(alias = "GPU_TEX_SHADOW_2D")]
     Shadow2D = ctru_sys::GPU_TEX_SHADOW_2D,
+
     #[doc(alias = "GPU_TEX_PROJECTION")]
     Projection = ctru_sys::GPU_TEX_PROJECTION,
+
     #[doc(alias = "GPU_TEX_SHADOW_CUBE")]
     ShadowCube = ctru_sys::GPU_TEX_SHADOW_CUBE,
+
     #[doc(alias = "GPU_TEX_DISABLED")]
     Disabled = ctru_sys::GPU_TEX_DISABLED,
 }
 
-impl TryFrom<u8> for TextureModeParam {
+impl TryFrom<u8> for Mode {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEX_2D => Ok(TextureModeParam::Tex2D),
-            ctru_sys::GPU_TEX_CUBE_MAP => Ok(TextureModeParam::CubeMap),
-            ctru_sys::GPU_TEX_SHADOW_2D => Ok(TextureModeParam::Shadow2D),
-            ctru_sys::GPU_TEX_PROJECTION => Ok(TextureModeParam::Projection),
-            ctru_sys::GPU_TEX_SHADOW_CUBE => Ok(TextureModeParam::ShadowCube),
-            ctru_sys::GPU_TEX_DISABLED => Ok(TextureModeParam::Disabled),
-            _ => Err("Invalid value for TextureModeParam".to_string()),
+            ctru_sys::GPU_TEX_2D => Ok(Self::Tex2D),
+            ctru_sys::GPU_TEX_CUBE_MAP => Ok(Self::CubeMap),
+            ctru_sys::GPU_TEX_SHADOW_2D => Ok(Self::Shadow2D),
+            ctru_sys::GPU_TEX_PROJECTION => Ok(Self::Projection),
+            ctru_sys::GPU_TEX_SHADOW_CUBE => Ok(Self::ShadowCube),
+            ctru_sys::GPU_TEX_DISABLED => Ok(Self::Disabled),
+            _ => Err("invalid value for Mode".to_string()),
         }
     }
 }
@@ -89,23 +98,25 @@ impl TryFrom<u8> for TextureModeParam {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXUNIT")]
-pub enum TexureUnit {
+pub enum Unit {
     #[doc(alias = "GPU_TEXUNIT0")]
     Unit0 = ctru_sys::GPU_TEXUNIT0,
+
     #[doc(alias = "GPU_TEXUNIT1")]
     Unit1 = ctru_sys::GPU_TEXUNIT1,
+
     #[doc(alias = "GPU_TEXUNIT2")]
     Unit2 = ctru_sys::GPU_TEXUNIT2,
 }
 
-impl TryFrom<u8> for TexureUnit {
+impl TryFrom<u8> for Unit {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEXUNIT0 => Ok(TexureUnit::Unit0),
-            ctru_sys::GPU_TEXUNIT1 => Ok(TexureUnit::Unit1),
-            ctru_sys::GPU_TEXUNIT2 => Ok(TexureUnit::Unit2),
-            _ => Err("Invalid value for TexureUnit".to_string()),
+            ctru_sys::GPU_TEXUNIT0 => Ok(Self::Unit0),
+            ctru_sys::GPU_TEXUNIT1 => Ok(Self::Unit1),
+            ctru_sys::GPU_TEXUNIT2 => Ok(Self::Unit2),
+            _ => Err("invalid value for Unit".to_string()),
         }
     }
 }
@@ -114,117 +125,143 @@ impl TryFrom<u8> for TexureUnit {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXCOLOR")]
-pub enum TextureColorFormat {
+pub enum ColorFormat {
     /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha
     #[doc(alias = "GPU_RGBA8")]
     Rgba8 = ctru_sys::GPU_RGBA8,
+
     /// 8-bit Red + 8-bit Green + 8-bit Blue    #[doc(alias = "GPU_RGB8")]
     Rgb8 = ctru_sys::GPU_RGB8,
+
     /// 5-bit Red + 5-bit Green + 5-bit Blue + 1-bit Alpha
     #[doc(alias = "GPU_RGBA5551")]
     Rgba5551 = ctru_sys::GPU_RGBA5551,
+
     /// 5-bit Red + 6-bit Green + 5-bit Blue
     #[doc(alias = "GPU_RGB565")]
     Rgb565 = ctru_sys::GPU_RGB565,
+
     /// 4-bit Red + 4-bit Green + 4-bit Blue + 4-bit Alpha
     #[doc(alias = "GPU_RGBA4")]
     Rgba4 = ctru_sys::GPU_RGBA4,
+
     /// 8-bit Luminance + 8-bit Alpha
     #[doc(alias = "GPU_LA8")]
     La8 = ctru_sys::GPU_LA8,
+
     /// 8-bit Hi + 8-bit Lo
     #[doc(alias = "GPU_HILO8")]
     Hilo8 = ctru_sys::GPU_HILO8,
+
     /// 8-bit Luminance
     #[doc(alias = "GPU_L8")]
     L8 = ctru_sys::GPU_L8,
+
     /// 8-bit Alpha
     #[doc(alias = "GPU_A8")]
     A8 = ctru_sys::GPU_A8,
+
     /// 4-bit Luminance + 4-bit Alpha
     #[doc(alias = "GPU_LA4")]
     La4 = ctru_sys::GPU_LA4,
+
     /// 4-bit Luminance
     #[doc(alias = "GPU_L4")]
     L4 = ctru_sys::GPU_L4,
+
     /// 4-bit Alpha
     #[doc(alias = "GPU_A4")]
     A4 = ctru_sys::GPU_A4,
+
     /// ETC1 texture compression
     #[doc(alias = "GPU_ETC1")]
     Etc1 = ctru_sys::GPU_ETC1,
+
     /// ETC1 texture compression + 4-bit Alpha
     #[doc(alias = "GPU_ETC1A4")]
     Etc1A4 = ctru_sys::GPU_ETC1A4,
 }
 
-impl TryFrom<u8> for TextureColorFormat {
+impl TryFrom<u8> for ColorFormat {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_RGBA8 => Ok(TextureColorFormat::Rgba8),
-            ctru_sys::GPU_RGB8 => Ok(TextureColorFormat::Rgb8),
-            ctru_sys::GPU_RGBA5551 => Ok(TextureColorFormat::Rgba5551),
-            ctru_sys::GPU_RGB565 => Ok(TextureColorFormat::Rgb565),
-            ctru_sys::GPU_RGBA4 => Ok(TextureColorFormat::Rgba4),
-            ctru_sys::GPU_LA8 => Ok(TextureColorFormat::La8),
-            ctru_sys::GPU_HILO8 => Ok(TextureColorFormat::Hilo8),
-            ctru_sys::GPU_L8 => Ok(TextureColorFormat::L8),
-            ctru_sys::GPU_A8 => Ok(TextureColorFormat::A8),
-            ctru_sys::GPU_LA4 => Ok(TextureColorFormat::La4),
-            ctru_sys::GPU_L4 => Ok(TextureColorFormat::L4),
-            ctru_sys::GPU_A4 => Ok(TextureColorFormat::A4),
-            ctru_sys::GPU_ETC1 => Ok(TextureColorFormat::Etc1),
-            ctru_sys::GPU_ETC1A4 => Ok(TextureColorFormat::Etc1A4),
-            _ => Err("Invalid value for TextureColorFormat".to_string()),
+            ctru_sys::GPU_RGBA8 => Ok(Self::Rgba8),
+            ctru_sys::GPU_RGB8 => Ok(Self::Rgb8),
+            ctru_sys::GPU_RGBA5551 => Ok(Self::Rgba5551),
+            ctru_sys::GPU_RGB565 => Ok(Self::Rgb565),
+            ctru_sys::GPU_RGBA4 => Ok(Self::Rgba4),
+            ctru_sys::GPU_LA8 => Ok(Self::La8),
+            ctru_sys::GPU_HILO8 => Ok(Self::Hilo8),
+            ctru_sys::GPU_L8 => Ok(Self::L8),
+            ctru_sys::GPU_A8 => Ok(Self::A8),
+            ctru_sys::GPU_LA4 => Ok(Self::La4),
+            ctru_sys::GPU_L4 => Ok(Self::L4),
+            ctru_sys::GPU_A4 => Ok(Self::A4),
+            ctru_sys::GPU_ETC1 => Ok(Self::Etc1),
+            ctru_sys::GPU_ETC1A4 => Ok(Self::Etc1A4),
+            _ => Err("invalid value for ColorFormat".to_string()),
         }
     }
 }
 
 /// Texture faces.
+///
+/// Faces are used for CubeMaps.
+/// Standard 2D textures use only [`Face::PositiveX`], also accessible as [`Face::Bidimensional`].
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEXFACE")]
-pub enum TextureFace {
-    /// 2D face
-    #[doc(alias = "GPU_TEXFACE_2D")]
-    TwoD = ctru_sys::GPU_TEXFACE_2D,
+pub enum Face {
+    /// +X face.
+    ///
+    /// This corresponds to the only face of 2D textures (see [`Face::Bidimensional`]).
+    #[doc(alias = "GPU_POSITIVE_X")]
+    PositiveX = ctru_sys::GPU_POSITIVE_X,
 
-    /// +X face
-    /// FIXME: ctru_sys::GPU_TEXFACE_2D and ctru_sys::GPU_POSITIVE_X have the same value which causes problems with rust.
-    // #[doc(alias = "GPU_POSITIVE_X")]
-    // PositiveX = ctru_sys::GPU_POSITIVE_X,
-
-    /// -X face
+    /// -X face.
     #[doc(alias = "GPU_NEGATIVE_X")]
     NegativeX = ctru_sys::GPU_NEGATIVE_X,
-    /// +Y face
+
+    /// +Y face.
     #[doc(alias = "GPU_POSITIVE_Y")]
     PositiveY = ctru_sys::GPU_POSITIVE_Y,
-    /// -Y face
+
+    /// -Y face.
     #[doc(alias = "GPU_NEGATIVE_Y")]
     NegativeY = ctru_sys::GPU_NEGATIVE_Y,
-    /// +Z face
+
+    /// +Z face.
     #[doc(alias = "GPU_POSITIVE_Z")]
     PositiveZ = ctru_sys::GPU_POSITIVE_Z,
-    /// -Z face
+
+    /// -Z face.
     #[doc(alias = "GPU_NEGATIVE_Z")]
     NegativeZ = ctru_sys::GPU_NEGATIVE_Z,
 }
 
-impl TryFrom<u8> for TextureFace {
+impl Face {
+    /// 2D face.
+    ///
+    /// Equal in value to [`Face::PositiveX`].
+    #[allow(non_upper_case_globals)]
+    #[doc(alias = "GPU_TEXFACE_2D")]
+    pub const Bidimensional: Self = Self::PositiveX;
+}
+
+impl TryFrom<u8> for Face {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEXFACE_2D => Ok(TextureFace::TwoD),
-            /// FIXME: ctru_sys::GPU_TEXFACE_2D and ctru_sys::GPU_POSITIVE_X have the same value which causes problems with rust.
-            // ctru_sys::GPU_POSITIVE_X => Ok(TextureFace::PositiveX),
-            ctru_sys::GPU_NEGATIVE_X => Ok(TextureFace::NegativeX),
-            ctru_sys::GPU_POSITIVE_Y => Ok(TextureFace::PositiveY),
-            ctru_sys::GPU_NEGATIVE_Y => Ok(TextureFace::NegativeY),
-            ctru_sys::GPU_POSITIVE_Z => Ok(TextureFace::PositiveZ),
-            ctru_sys::GPU_NEGATIVE_Z => Ok(TextureFace::NegativeZ),
-            _ => Err("Invalid value for TextureFace".to_string()),
+            ctru_sys::GPU_POSITIVE_X => Ok(Self::PositiveX),
+            // ctru_sys::GPU_TEXFACE_2D and ctru_sys::GPU_POSITIVE_X have the same value which causes problems with rust.
+            // ctru_sys::GPU_TEXFACE_2D => Ok(Self::Bidimensional),
+            ctru_sys::GPU_NEGATIVE_X => Ok(Self::NegativeX),
+            ctru_sys::GPU_POSITIVE_Y => Ok(Self::PositiveY),
+            ctru_sys::GPU_NEGATIVE_Y => Ok(Self::NegativeY),
+            ctru_sys::GPU_POSITIVE_Z => Ok(Self::PositiveZ),
+            ctru_sys::GPU_NEGATIVE_Z => Ok(Self::NegativeZ),
+            _ => Err("invalid value for Face".to_string()),
         }
     }
 }
@@ -237,15 +274,19 @@ pub enum ProceduralTextureClamp {
     /// Clamp to zero.
     #[doc(alias = "GPU_PT_CLAMP_TO_ZERO")]
     ClampToZero = ctru_sys::GPU_PT_CLAMP_TO_ZERO,
+
     /// Clamp to edge.
     #[doc(alias = "GPU_PT_CLAMP_TO_EDGE")]
     ClampToEdge = ctru_sys::GPU_PT_CLAMP_TO_EDGE,
+
     /// Symmetrical repeat.
     #[doc(alias = "GPU_PT_REPEAT")]
     Repeat = ctru_sys::GPU_PT_REPEAT,
+
     /// Mirrored repeat.
     #[doc(alias = "GPU_PT_MIRRORED_REPEAT")]
     MirroredRepeat = ctru_sys::GPU_PT_MIRRORED_REPEAT,
+
     /// Pulse.
     #[doc(alias = "GPU_PT_PULSE")]
     Pulse = ctru_sys::GPU_PT_PULSE,
@@ -255,12 +296,12 @@ impl TryFrom<u8> for ProceduralTextureClamp {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_PT_CLAMP_TO_ZERO => Ok(ProceduralTextureClamp::ClampToZero),
-            ctru_sys::GPU_PT_CLAMP_TO_EDGE => Ok(ProceduralTextureClamp::ClampToEdge),
-            ctru_sys::GPU_PT_REPEAT => Ok(ProceduralTextureClamp::Repeat),
-            ctru_sys::GPU_PT_MIRRORED_REPEAT => Ok(ProceduralTextureClamp::MirroredRepeat),
-            ctru_sys::GPU_PT_PULSE => Ok(ProceduralTextureClamp::Pulse),
-            _ => Err("Invalid value for ProceduralTextureClamp".to_string()),
+            ctru_sys::GPU_PT_CLAMP_TO_ZERO => Ok(Self::ClampToZero),
+            ctru_sys::GPU_PT_CLAMP_TO_EDGE => Ok(Self::ClampToEdge),
+            ctru_sys::GPU_PT_REPEAT => Ok(Self::Repeat),
+            ctru_sys::GPU_PT_MIRRORED_REPEAT => Ok(Self::MirroredRepeat),
+            ctru_sys::GPU_PT_PULSE => Ok(Self::Pulse),
+            _ => Err("invalid value for ProceduralTextureClamp".to_string()),
         }
     }
 }
@@ -315,17 +356,17 @@ impl TryFrom<u8> for ProceduralTextureMappingFunction {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_PT_U => Ok(ProceduralTextureMappingFunction::U),
-            ctru_sys::GPU_PT_U2 => Ok(ProceduralTextureMappingFunction::U2),
-            ctru_sys::GPU_PT_V => Ok(ProceduralTextureMappingFunction::V),
-            ctru_sys::GPU_PT_V2 => Ok(ProceduralTextureMappingFunction::V2),
-            ctru_sys::GPU_PT_ADD => Ok(ProceduralTextureMappingFunction::Add),
-            ctru_sys::GPU_PT_ADD2 => Ok(ProceduralTextureMappingFunction::Add2),
-            ctru_sys::GPU_PT_SQRT2 => Ok(ProceduralTextureMappingFunction::Sqrt2),
-            ctru_sys::GPU_PT_MIN => Ok(ProceduralTextureMappingFunction::Min),
-            ctru_sys::GPU_PT_MAX => Ok(ProceduralTextureMappingFunction::Max),
-            ctru_sys::GPU_PT_RMAX => Ok(ProceduralTextureMappingFunction::RMax),
-            _ => Err("Invalid value for ProceduralTextureMappingFunction".to_string()),
+            ctru_sys::GPU_PT_U => Ok(Self::U),
+            ctru_sys::GPU_PT_U2 => Ok(Self::U2),
+            ctru_sys::GPU_PT_V => Ok(Self::V),
+            ctru_sys::GPU_PT_V2 => Ok(Self::V2),
+            ctru_sys::GPU_PT_ADD => Ok(Self::Add),
+            ctru_sys::GPU_PT_ADD2 => Ok(Self::Add2),
+            ctru_sys::GPU_PT_SQRT2 => Ok(Self::Sqrt2),
+            ctru_sys::GPU_PT_MIN => Ok(Self::Min),
+            ctru_sys::GPU_PT_MAX => Ok(Self::Max),
+            ctru_sys::GPU_PT_RMAX => Ok(Self::RMax),
+            _ => Err("invalid value for ProceduralTextureMappingFunction".to_string()),
         }
     }
 }
@@ -353,10 +394,10 @@ impl TryFrom<u8> for ProceduralTextureShift {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_PT_NONE => Ok(ProceduralTextureShift::None),
-            ctru_sys::GPU_PT_ODD => Ok(ProceduralTextureShift::Odd),
-            ctru_sys::GPU_PT_EVEN => Ok(ProceduralTextureShift::Even),
-            _ => Err("Invalid value for ProceduralTextureShift".to_string()),
+            ctru_sys::GPU_PT_NONE => Ok(Self::None),
+            ctru_sys::GPU_PT_ODD => Ok(Self::Odd),
+            ctru_sys::GPU_PT_EVEN => Ok(Self::Even),
+            _ => Err("invalid value for ProceduralTextureShift".to_string()),
         }
     }
 }
@@ -396,13 +437,13 @@ impl TryFrom<u8> for ProceduralTextureFilter {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_PT_NEAREST => Ok(ProceduralTextureFilter::Nearest),
-            ctru_sys::GPU_PT_LINEAR => Ok(ProceduralTextureFilter::Linear),
-            ctru_sys::GPU_PT_NEAREST_MIP_NEAREST => Ok(ProceduralTextureFilter::NearestMipNearest),
-            ctru_sys::GPU_PT_LINEAR_MIP_NEAREST => Ok(ProceduralTextureFilter::LinearMipNearest),
-            ctru_sys::GPU_PT_NEAREST_MIP_LINEAR => Ok(ProceduralTextureFilter::NearestMipLinear),
-            ctru_sys::GPU_PT_LINEAR_MIP_LINEAR => Ok(ProceduralTextureFilter::LinearMipLinear),
-            _ => Err("Invalid value for ProceduralTextureFilter".to_string()),
+            ctru_sys::GPU_PT_NEAREST => Ok(Self::Nearest),
+            ctru_sys::GPU_PT_LINEAR => Ok(Self::Linear),
+            ctru_sys::GPU_PT_NEAREST_MIP_NEAREST => Ok(Self::NearestMipNearest),
+            ctru_sys::GPU_PT_LINEAR_MIP_NEAREST => Ok(Self::LinearMipNearest),
+            ctru_sys::GPU_PT_NEAREST_MIP_LINEAR => Ok(Self::NearestMipLinear),
+            ctru_sys::GPU_PT_LINEAR_MIP_LINEAR => Ok(Self::LinearMipLinear),
+            _ => Err("invalid value for ProceduralTextureFilter".to_string()),
         }
     }
 }
@@ -438,12 +479,12 @@ impl TryFrom<u8> for ProceduralTextureLutId {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_LUT_NOISE => Ok(ProceduralTextureLutId::Noise),
-            ctru_sys::GPU_LUT_RGBMAP => Ok(ProceduralTextureLutId::RGBMap),
-            ctru_sys::GPU_LUT_ALPHAMAP => Ok(ProceduralTextureLutId::AlphaMap),
-            ctru_sys::GPU_LUT_COLOR => Ok(ProceduralTextureLutId::Color),
-            ctru_sys::GPU_LUT_COLORDIF => Ok(ProceduralTextureLutId::ColorDif),
-            _ => Err("Invalid value for ProceduralTextureLutId".to_string()),
+            ctru_sys::GPU_LUT_NOISE => Ok(Self::Noise),
+            ctru_sys::GPU_LUT_RGBMAP => Ok(Self::RGBMap),
+            ctru_sys::GPU_LUT_ALPHAMAP => Ok(Self::AlphaMap),
+            ctru_sys::GPU_LUT_COLOR => Ok(Self::Color),
+            ctru_sys::GPU_LUT_COLORDIF => Ok(Self::ColorDif),
+            _ => Err("invalid value for ProceduralTextureLutId".to_string()),
         }
     }
 }
@@ -452,7 +493,7 @@ impl TryFrom<u8> for ProceduralTextureLutId {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEVOP_RGB")]
-pub enum TextureRgbOperand {
+pub enum RgbOperand {
     /// Source color.
     #[doc(alias = "GPU_TEVOP_RGB_SRC_COLOR")]
     SrcColor = ctru_sys::GPU_TEVOP_RGB_SRC_COLOR,
@@ -518,27 +559,27 @@ pub enum TextureRgbOperand {
     UnknownHex0F = ctru_sys::GPU_TEVOP_RGB_0x0F,
 }
 
-impl TryFrom<u8> for TextureRgbOperand {
+impl TryFrom<u8> for RgbOperand {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEVOP_RGB_SRC_COLOR => Ok(TextureRgbOperand::SrcColor),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_COLOR => Ok(TextureRgbOperand::OneMinusSrcColor),
-            ctru_sys::GPU_TEVOP_RGB_SRC_ALPHA => Ok(TextureRgbOperand::SrcAlpha),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_ALPHA => Ok(TextureRgbOperand::OneMinusSrcAlpha),
-            ctru_sys::GPU_TEVOP_RGB_SRC_R => Ok(TextureRgbOperand::SrcR),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_R => Ok(TextureRgbOperand::OneMinusSrcR),
-            ctru_sys::GPU_TEVOP_RGB_0x06 => Ok(TextureRgbOperand::_0x06),
-            ctru_sys::GPU_TEVOP_RGB_0x07 => Ok(TextureRgbOperand::UnknownHex07),
-            ctru_sys::GPU_TEVOP_RGB_SRC_G => Ok(TextureRgbOperand::SrcG),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_G => Ok(TextureRgbOperand::OneMinusSrcG),
-            ctru_sys::GPU_TEVOP_RGB_0x0A => Ok(TextureRgbOperand::UnknownHex0A),
-            ctru_sys::GPU_TEVOP_RGB_0x0B => Ok(TextureRgbOperand::UnknownHex0B),
-            ctru_sys::GPU_TEVOP_RGB_SRC_B => Ok(TextureRgbOperand::SrcB),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_B => Ok(TextureRgbOperand::OneMinusSrcB),
-            ctru_sys::GPU_TEVOP_RGB_0x0E => Ok(TextureRgbOperand::UnknownHex0E),
-            ctru_sys::GPU_TEVOP_RGB_0x0F => Ok(TextureRgbOperand::UnknownHex0F),
-            _ => Err("Invalid value for TextureRgbOperand".to_string()),
+            ctru_sys::GPU_TEVOP_RGB_SRC_COLOR => Ok(Self::SrcColor),
+            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_COLOR => Ok(Self::OneMinusSrcColor),
+            ctru_sys::GPU_TEVOP_RGB_SRC_ALPHA => Ok(Self::SrcAlpha),
+            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_ALPHA => Ok(Self::OneMinusSrcAlpha),
+            ctru_sys::GPU_TEVOP_RGB_SRC_R => Ok(Self::SrcR),
+            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_R => Ok(Self::OneMinusSrcR),
+            ctru_sys::GPU_TEVOP_RGB_0x06 => Ok(Self::_0x06),
+            ctru_sys::GPU_TEVOP_RGB_0x07 => Ok(Self::UnknownHex07),
+            ctru_sys::GPU_TEVOP_RGB_SRC_G => Ok(Self::SrcG),
+            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_G => Ok(Self::OneMinusSrcG),
+            ctru_sys::GPU_TEVOP_RGB_0x0A => Ok(Self::UnknownHex0A),
+            ctru_sys::GPU_TEVOP_RGB_0x0B => Ok(Self::UnknownHex0B),
+            ctru_sys::GPU_TEVOP_RGB_SRC_B => Ok(Self::SrcB),
+            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_B => Ok(Self::OneMinusSrcB),
+            ctru_sys::GPU_TEVOP_RGB_0x0E => Ok(Self::UnknownHex0E),
+            ctru_sys::GPU_TEVOP_RGB_0x0F => Ok(Self::UnknownHex0F),
+            _ => Err("invalid value for RgbOperand".to_string()),
         }
     }
 }
@@ -547,7 +588,7 @@ impl TryFrom<u8> for TextureRgbOperand {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEVOP_A")]
-pub enum TextureAlphaOperand {
+pub enum AlphaOperand {
     /// Source alpha.
     #[doc(alias = "GPU_TEVOP_A_SRC_ALPHA")]
     SrcAlpha = ctru_sys::GPU_TEVOP_A_SRC_ALPHA,
@@ -581,19 +622,19 @@ pub enum TextureAlphaOperand {
     OneMinusSrcBlue = ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_B,
 }
 
-impl TryFrom<u8> for TextureAlphaOperand {
+impl TryFrom<u8> for AlphaOperand {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEVOP_A_SRC_ALPHA => Ok(TextureAlphaOperand::SrcAlpha),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_ALPHA => Ok(TextureAlphaOperand::OneMinusSrcAlpha),
-            ctru_sys::GPU_TEVOP_A_SRC_R => Ok(TextureAlphaOperand::SrcRed),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_R => Ok(TextureAlphaOperand::OneMinusSrcRed),
-            ctru_sys::GPU_TEVOP_A_SRC_G => Ok(TextureAlphaOperand::SrcGreen),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_G => Ok(TextureAlphaOperand::OneMinusSrcGreen),
-            ctru_sys::GPU_TEVOP_A_SRC_B => Ok(TextureAlphaOperand::SrcBlue),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_B => Ok(TextureAlphaOperand::OneMinusSrcBlue),
-            _ => Err("Invalid value for TextureAlphaOperand".to_string()),
+            ctru_sys::GPU_TEVOP_A_SRC_ALPHA => Ok(Self::SrcAlpha),
+            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_ALPHA => Ok(Self::OneMinusSrcAlpha),
+            ctru_sys::GPU_TEVOP_A_SRC_R => Ok(Self::SrcRed),
+            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_R => Ok(Self::OneMinusSrcRed),
+            ctru_sys::GPU_TEVOP_A_SRC_G => Ok(Self::SrcGreen),
+            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_G => Ok(Self::OneMinusSrcGreen),
+            ctru_sys::GPU_TEVOP_A_SRC_B => Ok(Self::SrcBlue),
+            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_B => Ok(Self::OneMinusSrcBlue),
+            _ => Err("invalid value for AlphaOperand".to_string()),
         }
     }
 }
@@ -602,7 +643,7 @@ impl TryFrom<u8> for TextureAlphaOperand {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(alias = "GPU_TEVSCALE")]
-pub enum TextureScale {
+pub enum Scale {
     /// 1x scale
     #[doc(alias = "GPU_TEVSCALE_1")]
     Original = ctru_sys::GPU_TEVSCALE_1,
@@ -616,14 +657,14 @@ pub enum TextureScale {
     Quadruple = ctru_sys::GPU_TEVSCALE_4,
 }
 
-impl TryFrom<u8> for TextureScale {
+impl TryFrom<u8> for Scale {
     type Error = String;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            ctru_sys::GPU_TEVSCALE_1 => Ok(TextureScale::Original),
-            ctru_sys::GPU_TEVSCALE_2 => Ok(TextureScale::Double),
-            ctru_sys::GPU_TEVSCALE_4 => Ok(TextureScale::Quadruple),
-            _ => Err("Invalid value for TextureScale".to_string()),
+            ctru_sys::GPU_TEVSCALE_1 => Ok(Self::Original),
+            ctru_sys::GPU_TEVSCALE_2 => Ok(Self::Double),
+            ctru_sys::GPU_TEVSCALE_4 => Ok(Self::Quadruple),
+            _ => Err("invalid value for Scale".to_string()),
         }
     }
 }
