@@ -13,6 +13,7 @@ use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
 use crate::{Error, RenderQueue, Result};
 
+pub mod effect;
 mod transfer;
 
 /// A render target for `citro3d`. Frame data will be written to this target

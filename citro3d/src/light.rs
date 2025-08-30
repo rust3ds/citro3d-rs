@@ -430,7 +430,7 @@ impl Light {
         }
     }
 
-    /// Sets the spotlight direction of the light (relatively to the light's source [position](set_position)).
+    /// Sets the spotlight direction of the light (relatively to the light's source [position](Light::set_position)).
     #[doc(alias = "C3D_LightSpotDir")]
     pub fn set_spotlight_direction(self: Pin<&mut Self>, direction: FVec3) {
         unsafe {
@@ -636,6 +636,21 @@ pub enum LutInput {
     ViewHalf = ctru_sys::GPU_LUTINPUT_VH,
 }
 
+impl TryFrom<u8> for LutInput {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            ctru_sys::GPU_LUTINPUT_NH => Ok(Self::NormalHalf),
+            ctru_sys::GPU_LUTINPUT_VH => Ok(Self::ViewHalf),
+            ctru_sys::GPU_LUTINPUT_NV => Ok(Self::NormalView),
+            ctru_sys::GPU_LUTINPUT_LN => Ok(Self::LightNormal),
+            ctru_sys::GPU_LUTINPUT_SP => Ok(Self::LightSpotLight),
+            ctru_sys::GPU_LUTINPUT_CP => Ok(Self::CosPhi),
+            _ => Err("invalid value for LutInput".to_string()),
+        }
+    }
+}
+
 /// Identifier/index for the various LUTs associated to a [`LightEnv`].
 ///
 /// # Notes
@@ -664,6 +679,23 @@ pub enum LutId {
     DistanceAttenuation = ctru_sys::GPU_LUT_DA,
 }
 
+impl TryFrom<u8> for LutId {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            ctru_sys::GPU_LUT_D0 => Ok(Self::D0),
+            ctru_sys::GPU_LUT_D1 => Ok(Self::D1),
+            ctru_sys::GPU_LUT_SP => Ok(Self::Spotlight),
+            ctru_sys::GPU_LUT_FR => Ok(Self::Fresnel),
+            ctru_sys::GPU_LUT_RB => Ok(Self::ReflectBlue),
+            ctru_sys::GPU_LUT_RG => Ok(Self::ReflectGreen),
+            ctru_sys::GPU_LUT_RR => Ok(Self::ReflectRed),
+            ctru_sys::GPU_LUT_DA => Ok(Self::DistanceAttenuation),
+            _ => Err("invalid value for LutId".to_string()),
+        }
+    }
+}
+
 #[doc(alias = "GPU_FRESNELSEL")]
 #[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
@@ -676,6 +708,94 @@ pub enum FresnelSelector {
     SecondaryAlpha = ctru_sys::GPU_SEC_ALPHA_FRESNEL,
     /// Use as selector for both colour units.
     Both = ctru_sys::GPU_PRI_SEC_ALPHA_FRESNEL,
+}
+
+impl TryFrom<u8> for FresnelSelector {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            ctru_sys::GPU_NO_FRESNEL => Ok(Self::None),
+            ctru_sys::GPU_PRI_ALPHA_FRESNEL => Ok(Self::PrimaryAlpha),
+            ctru_sys::GPU_SEC_ALPHA_FRESNEL => Ok(Self::SecondaryAlpha),
+            ctru_sys::GPU_PRI_SEC_ALPHA_FRESNEL => Ok(Self::Both),
+            _ => Err("invalid value for FresnelSelector".to_string()),
+        }
+    }
+}
+
+/// LUT scaling factors.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc(alias = "GPU_LIGHTLUTSCALER")]
+pub enum LutScale {
+    /// 1x scale.
+    #[doc(alias = "GPU_LUTSCALER_1x")]
+    OneX = ctru_sys::GPU_LUTSCALER_1x,
+
+    /// 2x scale.
+    #[doc(alias = "GPU_LUTSCALER_2x")]
+    TwoX = ctru_sys::GPU_LUTSCALER_2x,
+
+    /// 4x scale.
+    #[doc(alias = "GPU_LUTSCALER_4x")]
+    FourX = ctru_sys::GPU_LUTSCALER_4x,
+
+    /// 8x scale.
+    #[doc(alias = "GPU_LUTSCALER_8x")]
+    EightX = ctru_sys::GPU_LUTSCALER_8x,
+
+    /// 0.25x scale.
+    #[doc(alias = "GPU_LUTSCALER_0_25x")]
+    QuarterX = ctru_sys::GPU_LUTSCALER_0_25x,
+
+    /// 0.5x scale.
+    #[doc(alias = "GPU_LUTSCALER_0_5x")]
+    HalfX = ctru_sys::GPU_LUTSCALER_0_5x,
+}
+
+impl TryFrom<u8> for LutScale {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            ctru_sys::GPU_LUTSCALER_1x => Ok(Self::OneX),
+            ctru_sys::GPU_LUTSCALER_2x => Ok(Self::TwoX),
+            ctru_sys::GPU_LUTSCALER_4x => Ok(Self::FourX),
+            ctru_sys::GPU_LUTSCALER_8x => Ok(Self::EightX),
+            ctru_sys::GPU_LUTSCALER_0_25x => Ok(Self::QuarterX),
+            ctru_sys::GPU_LUTSCALER_0_5x => Ok(Self::HalfX),
+            _ => Err("invalid value for LutScale".to_string()),
+        }
+    }
+}
+
+/// Bump map modes.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc(alias = "GPU_BUMPMODE")]
+pub enum BumpMappingMode {
+    /// Disabled.
+    #[doc(alias = "GPU_BUMP_NOT_USED")]
+    NotUsed = ctru_sys::GPU_BUMP_NOT_USED,
+
+    /// Bump as bump mapping.
+    #[doc(alias = "GPU_BUMP_AS_BUMP")]
+    AsBump = ctru_sys::GPU_BUMP_AS_BUMP,
+
+    /// Bump as tangent/normal mapping.
+    #[doc(alias = "GPU_BUMP_AS_TANG")]
+    AsTangent = ctru_sys::GPU_BUMP_AS_TANG,
+}
+
+impl TryFrom<u8> for BumpMappingMode {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            ctru_sys::GPU_BUMP_NOT_USED => Ok(BumpMappingMode::NotUsed),
+            ctru_sys::GPU_BUMP_AS_BUMP => Ok(BumpMappingMode::AsBump),
+            ctru_sys::GPU_BUMP_AS_TANG => Ok(BumpMappingMode::AsTangent),
+            _ => Err("invalid value for BumpMappingMode".to_string()),
+        }
+    }
 }
 
 #[cfg(test)]
