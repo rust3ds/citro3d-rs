@@ -1,13 +1,11 @@
 [workspace]
-members = [
-    "citro3d",
-    "citro3d-sys",
-    "citro3d-macros",
-]
+members = ["citro3d", "citro3d-sys", "citro3d-macros", "citro2d-sys", "citro2d"]
 default-members = [
     "citro3d",
     "citro3d-sys",
     "citro3d-macros",
+    "citro2d-sys",
+    "citro2d",
 ]
 resolver = "2"
 
@@ -15,3 +13,5 @@ resolver = "2"
 citro3d = { path = "citro3d" }
 citro3d-sys = { path = "citro3d-sys" }
 citro3d-macros = { path = "citro3d-macros" }
+citro2d-sys = { path = "citro2d-sys" }
+citro2d = { path = "citro2d" }
