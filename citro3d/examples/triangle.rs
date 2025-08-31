@@ -5,7 +5,7 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::ClearFlags;
+use citro3d::render::{ClearFlags, RenderPass};
 use citro3d::texenv;
 use citro3d::{attrib, buffer, render, shader};
 use ctru::prelude::*;
@@ -85,23 +85,13 @@ fn main() {
     let vertex_shader = shader.get(0).unwrap();
 
     let program = shader::Program::new(vertex_shader).unwrap();
-    instance.bind_program(&program);
+    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
 
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
-
-    // Configure the first fragment shading substage to just pass through the vertex color
-    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-    let stage0 = texenv::Stage::new(0).unwrap();
-    instance
-        .texenv(stage0)
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
-
-    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -110,20 +100,15 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            let mut render_to = |target: &mut render::Target, projection| {
-                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+        instance.render_frame_with(|mut pass| {
+            pass.bind_program(&program);
 
-                instance
-                    .select_render_target(target)
-                    .expect("failed to set render target");
-
-                instance.bind_vertex_uniform(projection_uniform_idx, projection);
-
-                instance.set_attr_info(&attr_info);
-
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-            };
+            // Configure the first fragment shading substage to just pass through the vertex color
+            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+            let stage0 = texenv::Stage::new(0).unwrap();
+            pass.texenv(stage0)
+                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
             let Projections {
                 left_eye,
@@ -131,9 +116,32 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut top_left_target, &left_eye);
-            render_to(&mut top_right_target, &right_eye);
-            render_to(&mut bottom_target, &center);
+            render_to_target(
+                &mut pass,
+                &mut top_left_target,
+                &left_eye,
+                projection_uniform_idx,
+                &attr_info,
+                vbo_data,
+            );
+            render_to_target(
+                &mut pass,
+                &mut top_right_target,
+                &right_eye,
+                projection_uniform_idx,
+                &attr_info,
+                vbo_data,
+            );
+            render_to_target(
+                &mut pass,
+                &mut bottom_target,
+                &center,
+                projection_uniform_idx,
+                &attr_info,
+                vbo_data,
+            );
+
+            pass
         });
     }
 }
@@ -159,6 +167,23 @@ fn prepare_vbos<'a>(
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
 
     (attr_info, buf_idx)
+}
+
+// Repeated render for each target.
+fn render_to_target<'pass>(
+    pass: &mut RenderPass<'pass>,
+    target: &'pass mut render::Target,
+    projection: &Matrix4,
+    projection_uniform_idx: citro3d::uniform::Index,
+    attr_info: &citro3d::attrib::Info,
+    vbo_data: citro3d::buffer::Slice<'pass>,
+) {
+    target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+    pass.select_render_target(target)
+        .expect("failed to set render target");
+    pass.bind_vertex_uniform(projection_uniform_idx, projection);
+    pass.set_attr_info(attr_info);
+    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
 }
 
 struct Projections {
