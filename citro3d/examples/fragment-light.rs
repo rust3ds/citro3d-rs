@@ -6,7 +6,7 @@ use citro3d::{
     color::Color,
     light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Material, Spotlight},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
-    render::{self, ClearFlags, RenderPass},
+    render::{ClearFlags, DepthFormat, RenderPass, Target},
     shader, texenv,
 };
 use citro3d_macros::include_shader;
@@ -260,22 +260,12 @@ fn main() {
 
     let RawFrameBuffer { width, height, .. } = top_left.raw_framebuffer();
     let mut top_left_target = instance
-        .render_target(
-            width,
-            height,
-            top_left,
-            Some(render::DepthFormat::Depth24Stencil8),
-        )
+        .render_target(width, height, top_left, Some(DepthFormat::Depth24Stencil8))
         .expect("failed to create render target");
 
     let RawFrameBuffer { width, height, .. } = top_right.raw_framebuffer();
     let mut top_right_target = instance
-        .render_target(
-            width,
-            height,
-            top_right,
-            Some(render::DepthFormat::Depth24Stencil8),
-        )
+        .render_target(width, height, top_right, Some(DepthFormat::Depth24Stencil8))
         .expect("failed to create render target");
 
     let mut bottom_screen = gfx.bottom_screen.borrow_mut();
@@ -286,7 +276,7 @@ fn main() {
             width,
             height,
             bottom_screen,
-            Some(render::DepthFormat::Depth24Stencil8),
+            Some(DepthFormat::Depth24Stencil8),
         )
         .expect("failed to create bottom screen render target");
 
@@ -360,25 +350,23 @@ fn main() {
         instance.render_frame_with(|mut pass| {
             fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
             where
-                T: Fn(&mut RenderPass<'pass>, &'pass mut render::Target<'_>, &Matrix4),
+                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
             {
                 x
             }
 
-            let render_to = cast_lifetime_to_closure(
-                |pass: &mut RenderPass, target: &mut render::Target, projection| {
-                    target.clear(ClearFlags::ALL, 0, 0);
-                    pass.select_render_target(target)
-                        .expect("failed to set render target");
+            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
+                target.clear(ClearFlags::ALL, 0, 0);
+                pass.select_render_target(target)
+                    .expect("failed to set render target");
 
-                    pass.bind_vertex_uniform(projection_uniform_idx, projection);
-                    pass.bind_vertex_uniform(model_idx, view);
+                pass.bind_vertex_uniform(projection_uniform_idx, projection);
+                pass.bind_vertex_uniform(model_idx, view);
 
-                    pass.set_attr_info(&attr_info);
+                pass.set_attr_info(&attr_info);
 
-                    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-                },
-            );
+                pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            });
 
             pass.bind_program(&program);
             pass.bind_light_env(Some(light_env.as_mut()));

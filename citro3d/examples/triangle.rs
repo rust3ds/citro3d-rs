@@ -5,9 +5,9 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::{ClearFlags, RenderPass};
+use citro3d::render::{ClearFlags, RenderPass, Target};
 use citro3d::texenv;
-use citro3d::{attrib, buffer, render, shader};
+use citro3d::{attrib, buffer, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -105,24 +105,22 @@ fn main() {
             // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
             where
-                T: Fn(&mut RenderPass<'pass>, &'pass mut render::Target<'_>, &Matrix4),
+                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
             {
                 x
             }
 
-            let render_to = cast_lifetime_to_closure(
-                |pass: &mut RenderPass, target: &mut render::Target, projection| {
-                    target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
+                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
 
-                    pass.select_render_target(target)
-                        .expect("failed to set render target");
-                    pass.bind_vertex_uniform(projection_uniform_idx, projection);
+                pass.select_render_target(target)
+                    .expect("failed to set render target");
+                pass.bind_vertex_uniform(projection_uniform_idx, projection);
 
-                    pass.set_attr_info(&attr_info);
+                pass.set_attr_info(&attr_info);
 
-                    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-                },
-            );
+                pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            });
 
             // We bind the vertex shader.
             pass.bind_program(&program);
