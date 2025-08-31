@@ -80,10 +80,13 @@ pub struct Target<'screen> {
     _queue: Rc<RenderQueue>,
 }
 
+struct Frame;
+
 #[non_exhaustive]
 #[must_use]
 pub struct RenderPass<'pass> {
     texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
+    _active_frame: Frame,
     _phantom: PhantomData<&'pass mut Instance>,
 }
 
@@ -99,6 +102,7 @@ impl<'pass> RenderPass<'pass> {
                 OnceCell::new(),
                 OnceCell::new(),
             ],
+            _active_frame: Frame::new(),
             _phantom: PhantomData,
         }
     }
@@ -331,6 +335,27 @@ impl<'screen> Target<'screen> {
     /// Return the underlying `citro3d` render target for this target.
     pub(crate) fn as_raw(&self) -> *mut C3D_RenderTarget {
         self.raw
+    }
+}
+
+impl Frame {
+    fn new() -> Self {
+        unsafe {
+            citro3d_sys::C3D_FrameBegin(
+                // TODO: begin + end flags should be configurable
+                citro3d_sys::C3D_FRAME_SYNCDRAW,
+            )
+        };
+
+        Self {}
+    }
+}
+
+impl Drop for Frame {
+    fn drop(&mut self) {
+        unsafe {
+            citro3d_sys::C3D_FrameEnd(0);
+        }
     }
 }
 

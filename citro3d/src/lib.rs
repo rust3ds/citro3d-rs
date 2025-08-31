@@ -123,20 +123,9 @@ impl Instance {
         &'istance mut self,
         f: impl FnOnce(RenderPass<'frame>) -> RenderPass<'frame>,
     ) {
-        unsafe {
-            citro3d_sys::C3D_FrameBegin(
-                // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW,
-            );
-        }
-
         let pass = f(RenderPass::new(self));
 
-        unsafe {
-            citro3d_sys::C3D_FrameEnd(0);
-        }
-
-        // Explicit drop after FrameEnd (when the GPU command buffer is flushed).
+        // Explicit drop for FrameEnd (when the GPU command buffer is flushed).
         drop(pass);
     }
 }
