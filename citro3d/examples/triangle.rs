@@ -101,6 +101,30 @@ fn main() {
         }
 
         instance.render_frame_with(|mut pass| {
+            // Sadly closures can't have lifetime specifiers,
+            // so we wrap `render_to` in this function to force the borrow checker rules.
+            fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
+            where
+                T: Fn(&mut RenderPass<'pass>, &'pass mut render::Target<'_>, &Matrix4),
+            {
+                x
+            }
+
+            let render_to = cast_lifetime_to_closure(
+                |pass: &mut RenderPass, target: &mut render::Target, projection| {
+                    target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+
+                    pass.select_render_target(target)
+                        .expect("failed to set render target");
+                    pass.bind_vertex_uniform(projection_uniform_idx, projection);
+
+                    pass.set_attr_info(&attr_info);
+
+                    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                },
+            );
+
+            // We bind the vertex shader.
             pass.bind_program(&program);
 
             // Configure the first fragment shading substage to just pass through the vertex color
@@ -116,30 +140,9 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to_target(
-                &mut pass,
-                &mut top_left_target,
-                &left_eye,
-                projection_uniform_idx,
-                &attr_info,
-                vbo_data,
-            );
-            render_to_target(
-                &mut pass,
-                &mut top_right_target,
-                &right_eye,
-                projection_uniform_idx,
-                &attr_info,
-                vbo_data,
-            );
-            render_to_target(
-                &mut pass,
-                &mut bottom_target,
-                &center,
-                projection_uniform_idx,
-                &attr_info,
-                vbo_data,
-            );
+            render_to(&mut pass, &mut top_left_target, &left_eye);
+            render_to(&mut pass, &mut top_right_target, &right_eye);
+            render_to(&mut pass, &mut bottom_target, &center);
 
             pass
         });
@@ -167,23 +170,6 @@ fn prepare_vbos<'a>(
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
 
     (attr_info, buf_idx)
-}
-
-// Repeated render for each target.
-fn render_to_target<'pass>(
-    pass: &mut RenderPass<'pass>,
-    target: &'pass mut render::Target,
-    projection: &Matrix4,
-    projection_uniform_idx: citro3d::uniform::Index,
-    attr_info: &citro3d::attrib::Info,
-    vbo_data: citro3d::buffer::Slice<'pass>,
-) {
-    target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
-    pass.select_render_target(target)
-        .expect("failed to set render target");
-    pass.bind_vertex_uniform(projection_uniform_idx, projection);
-    pass.set_attr_info(attr_info);
-    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
 }
 
 struct Projections {
