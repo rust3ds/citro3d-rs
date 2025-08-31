@@ -6,7 +6,7 @@ use citro3d::{
     color::Color,
     light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Material, Spotlight},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
-    render::{self, ClearFlags},
+    render::{self, ClearFlags, RenderPass},
     shader, texenv,
 };
 use citro3d_macros::include_shader;
@@ -294,7 +294,6 @@ fn main() {
     let vertex_shader = shader.get(0).unwrap();
 
     let program = shader::Program::new(vertex_shader).unwrap();
-    instance.bind_program(&program);
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
@@ -344,25 +343,10 @@ fn main() {
             (1.0 / (0.5 * PI * d * d)).min(1.0) // We use a less aggressive attenuation to highlight the spotlight
         })));
 
-    // Bind the lighting environment for use
-    instance.bind_light_env(Some(light_env));
-
     // Setup the rotating view of the cube
     let mut view = Matrix4::identity();
     let model_idx = program.get_uniform("modelView").unwrap();
     view.translate(0.0, 0.0, -2.0);
-    instance.bind_vertex_uniform(model_idx, view);
-
-    let stage0 = texenv::Stage::new(0).unwrap();
-    instance
-        .texenv(stage0)
-        .src(
-            texenv::Mode::BOTH,
-            texenv::Source::FragmentPrimaryColor,
-            Some(texenv::Source::FragmentSecondaryColor),
-            None,
-        )
-        .func(texenv::Mode::BOTH, texenv::CombineFunc::Add);
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
@@ -373,21 +357,19 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            let mut render_to = |target: &mut render::Target, projection| {
-                target.clear(ClearFlags::ALL, 0, 0);
+        instance.render_frame_with(|mut pass| {
+            pass.bind_program(&program);
+            pass.bind_light_env(Some(light_env.as_mut()));
 
-                instance
-                    .select_render_target(target)
-                    .expect("failed to set render target");
-
-                instance.bind_vertex_uniform(projection_uniform_idx, projection);
-                instance.bind_vertex_uniform(model_idx, view);
-
-                instance.set_attr_info(&attr_info);
-
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-            };
+            let stage0 = texenv::Stage::new(0).unwrap();
+            pass.texenv(stage0)
+                .src(
+                    texenv::Mode::BOTH,
+                    texenv::Source::FragmentPrimaryColor,
+                    Some(texenv::Source::FragmentSecondaryColor),
+                    None,
+                )
+                .func(texenv::Mode::BOTH, texenv::CombineFunc::Add);
 
             let Projections {
                 left_eye,
@@ -395,9 +377,38 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut top_left_target, &left_eye);
-            render_to(&mut top_right_target, &right_eye);
-            render_to(&mut bottom_target, &center);
+            render_to_target(
+                &mut pass,
+                &mut top_left_target,
+                &left_eye,
+                projection_uniform_idx,
+                &view,
+                model_idx,
+                &attr_info,
+                vbo_data,
+            );
+            render_to_target(
+                &mut pass,
+                &mut top_right_target,
+                &right_eye,
+                projection_uniform_idx,
+                &view,
+                model_idx,
+                &attr_info,
+                vbo_data,
+            );
+            render_to_target(
+                &mut pass,
+                &mut bottom_target,
+                &center,
+                projection_uniform_idx,
+                &view,
+                model_idx,
+                &attr_info,
+                vbo_data,
+            );
+
+            pass
         });
 
         // Rotate the modelView
@@ -433,6 +444,29 @@ fn prepare_vbos<'a>(
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
 
     (attr_info, buf_idx)
+}
+
+// Repeated render for each target.
+fn render_to_target<'pass>(
+    pass: &mut RenderPass<'pass>,
+    target: &'pass mut render::Target,
+    projection: &Matrix4,
+    projection_uniform_idx: citro3d::uniform::Index,
+    model_view: &Matrix4,
+    model_uniform_idx: citro3d::uniform::Index,
+    attr_info: &citro3d::attrib::Info,
+    vbo_data: citro3d::buffer::Slice<'pass>,
+) {
+    target.clear(ClearFlags::ALL, 0, 0);
+    pass.select_render_target(target)
+        .expect("failed to set render target");
+
+    pass.bind_vertex_uniform(projection_uniform_idx, projection);
+    pass.bind_vertex_uniform(model_uniform_idx, model_view);
+
+    pass.set_attr_info(&attr_info);
+
+    pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
 }
 
 struct Projections {

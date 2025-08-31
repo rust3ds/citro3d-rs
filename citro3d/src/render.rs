@@ -205,11 +205,9 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Binds a [`LightEnv`] for the following draw calls.
-    pub fn bind_light_env(&mut self, env: Option<&'pass mut Pin<Box<LightEnv>>>) {
+    pub fn bind_light_env(&mut self, env: Option<Pin<&'pass mut LightEnv>>) {
         unsafe {
-            citro3d_sys::C3D_LightEnvBind(
-                env.map_or(std::ptr::null_mut(), |env| env.as_mut().as_raw_mut()),
-            );
+            citro3d_sys::C3D_LightEnvBind(env.map_or(std::ptr::null_mut(), |env| env.as_raw_mut()));
         }
     }
 
