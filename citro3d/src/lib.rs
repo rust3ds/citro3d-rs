@@ -114,9 +114,9 @@ impl Instance {
         render::Target::new(width, height, screen, depth_format, Rc::clone(&self.queue))
     }
 
-    /// Render a frame. The passed in function/closure can mutate the instance,
-    /// such as to [select a render target](Self::select_render_target)
-    /// or [bind a new shader program](Self::bind_program).
+    /// Render a frame.
+    ///
+    /// The passed in function/closure can access a [`RenderPass`] to emit draw calls.
     #[doc(alias = "C3D_FrameBegin")]
     #[doc(alias = "C3D_FrameEnd")]
     pub fn render_frame_with<'istance: 'frame, 'frame>(
@@ -170,8 +170,8 @@ mod tests {
         let mut instance = Instance::new().unwrap();
         let target = instance.render_target(10, 10, screen, None).unwrap();
 
-        instance.render_frame_with(|instance| {
-            instance.select_render_target(&target).unwrap();
+        instance.render_frame_with(|mut pass| {
+            pass.select_render_target(&target).unwrap();
         });
 
         // Check that we don't get a double-free or use-after-free by dropping

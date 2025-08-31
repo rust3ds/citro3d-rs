@@ -103,14 +103,11 @@ impl<'pass> RenderPass<'pass> {
         }
     }
 
-    /// Select the given render target for drawing the frame. This must be called
-    /// as pare of a render call (i.e. within the call to
-    /// [`render_frame_with`](Self::render_frame_with)).
+    /// Select the given render target for the following draw calls.
     ///
     /// # Errors
     ///
-    /// Fails if the given target cannot be used for drawing, or called outside
-    /// the context of a frame render.
+    /// Fails if the given target cannot be used for drawing.
     #[doc(alias = "C3D_FrameDrawOn")]
     pub fn select_render_target(&mut self, target: &'pass Target<'_>) -> Result<()> {
         let _ = self;
@@ -121,15 +118,18 @@ impl<'pass> RenderPass<'pass> {
         }
     }
 
-    /// Get the buffer info being used, if it exists. Note that the resulting
-    /// [`buffer::Info`] is copied from the one currently in use.
+    /// Get the buffer info being used, if it exists.
+    ///
+    /// # Notes
+    ///
+    /// The resulting [`buffer::Info`] is copied (and not taken) from the one currently in use.
     #[doc(alias = "C3D_GetBufInfo")]
     pub fn buffer_info(&self) -> Option<buffer::Info> {
         let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
         buffer::Info::copy_from(raw)
     }
 
-    /// Set the buffer info to use for any following draw calls.
+    /// Set the buffer info to use for for the following draw calls.
     #[doc(alias = "C3D_SetBufInfo")]
     pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
         let raw: *const _ = &buffer_info.0;
@@ -137,8 +137,11 @@ impl<'pass> RenderPass<'pass> {
         unsafe { citro3d_sys::C3D_SetBufInfo(raw.cast_mut()) };
     }
 
-    /// Get the attribute info being used, if it exists. Note that the resulting
-    /// [`attrib::Info`] is copied from the one currently in use.
+    /// Get the attribute info being used, if it exists.
+    ///
+    /// # Notes
+    ///
+    /// The resulting [`attrib::Info`] is copied (and not taken) from the one currently in use.
     #[doc(alias = "C3D_GetAttrInfo")]
     pub fn attr_info(&self) -> Option<attrib::Info> {
         let raw = unsafe { citro3d_sys::C3D_GetAttrInfo() };
@@ -168,7 +171,7 @@ impl<'pass> RenderPass<'pass> {
         }
     }
 
-    /// Indexed drawing. Draws the vertices in `buf` indexed by `indices`.
+    /// Draws the vertices in `buf` indexed by `indices`.
     #[doc(alias = "C3D_DrawElements")]
     pub fn draw_elements<I: Index>(
         &mut self,
@@ -192,7 +195,7 @@ impl<'pass> RenderPass<'pass> {
         }
     }
 
-    /// Use the given [`shader::Program`] for subsequent draw calls.
+    /// Use the given [`shader::Program`] for the following draw calls.
     pub fn bind_program(&mut self, program: &'pass shader::Program) {
         // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
         // instead of mutating the pointee in any way that would cause UB
@@ -318,6 +321,7 @@ impl<'screen> Target<'screen> {
     }
 
     /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
+    ///
     /// Use `flags` to specify whether color and/or depth should be overwritten.
     #[doc(alias = "C3D_RenderTargetClear")]
     pub fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
