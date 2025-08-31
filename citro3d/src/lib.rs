@@ -161,6 +161,8 @@ mod tests {
 
         instance.render_frame_with(|mut pass| {
             pass.select_render_target(&target).unwrap();
+
+            pass
         });
 
         // Check that we don't get a double-free or use-after-free by dropping
