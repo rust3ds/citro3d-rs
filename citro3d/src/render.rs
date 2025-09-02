@@ -87,11 +87,17 @@ struct Frame;
 pub struct RenderPass<'pass> {
     texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
     _active_frame: Frame,
+
+    // It is not valid behaviour to bind anything but a correct shader program.
+    // Instead of binding NULL, we simply force the user to have a shader program bound again
+    // before any draw calls.
+    is_program_bound: bool,
+
     _phantom: PhantomData<&'pass mut Instance>,
 }
 
 impl<'pass> RenderPass<'pass> {
-    pub(crate) fn new(_istance: &'pass mut Instance) -> Self {
+    pub(crate) fn new(_instance: &'pass mut Instance) -> Self {
         Self {
             texenvs: [
                 // thank goodness there's only six of them!
@@ -103,6 +109,7 @@ impl<'pass> RenderPass<'pass> {
                 OnceCell::new(),
             ],
             _active_frame: Frame::new(),
+            is_program_bound: false,
             _phantom: PhantomData,
         }
     }
@@ -161,8 +168,17 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Render primitives from the current vertex array buffer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
     #[doc(alias = "C3D_DrawArrays")]
     pub fn draw_arrays(&mut self, primitive: buffer::Primitive, vbo_data: buffer::Slice<'pass>) {
+        // TODO: Decide whether it's worth returning an `Error` instead of panicking.
+        if !self.is_program_bound {
+            panic!("tried todraw arrays when no shader program is bound");
+        }
+
         self.set_buffer_info(vbo_data.info());
 
         // TODO: should we also require the attrib info directly here?
@@ -176,6 +192,10 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Draws the vertices in `buf` indexed by `indices`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
     #[doc(alias = "C3D_DrawElements")]
     pub fn draw_elements<I: Index>(
         &mut self,
@@ -183,6 +203,10 @@ impl<'pass> RenderPass<'pass> {
         vbo_data: buffer::Slice<'pass>,
         indices: &Indices<'pass, I>,
     ) {
+        if !self.is_program_bound {
+            panic!("tried to draw elements when no shader program is bound");
+        }
+
         self.set_buffer_info(vbo_data.info());
 
         let indices = &indices.buffer;
@@ -206,6 +230,8 @@ impl<'pass> RenderPass<'pass> {
         unsafe {
             citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
         }
+
+        self.is_program_bound = true;
     }
 
     /// Binds a [`LightEnv`] for the following draw calls.
@@ -216,6 +242,10 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
     ///
     /// # Example
     ///
@@ -230,11 +260,19 @@ impl<'pass> RenderPass<'pass> {
     /// instance.bind_vertex_uniform(idx, &mtx);
     /// ```
     pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        if !self.is_program_bound {
+            panic!("tried to bind vertex uniform when no shader program is bound");
+        }
+
         // LIFETIME SAFETY: Uniform data is copied into global buffers.
         uniform.into().bind(self, shader::Type::Vertex, index);
     }
 
     /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
     ///
     /// # Example
     ///
@@ -249,6 +287,10 @@ impl<'pass> RenderPass<'pass> {
     /// instance.bind_geometry_uniform(idx, &mtx);
     /// ```
     pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        if !self.is_program_bound {
+            panic!("tried to bind geometry uniform when no shader program is bound");
+        }
+
         // LIFETIME SAFETY: Uniform data is copied into global buffers.
         uniform.into().bind(self, shader::Type::Geometry, index);
     }
@@ -385,6 +427,83 @@ impl DepthFormat {
     fn as_raw(self) -> C3D_DEPTHTYPE {
         C3D_DEPTHTYPE {
             __e: self as GPU_DEPTHBUF,
+        }
+    }
+}
+
+impl Drop for RenderPass<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            // TODO: substitute as many as possible with safe wrappers.
+            // These resets are derived from the implementation of `C3D_Init` and by studying the `C3D_Context` struct.
+            citro3d_sys::C3D_DepthMap(true, -1.0, 0.0);
+            citro3d_sys::C3D_CullFace(ctru_sys::GPU_CULL_BACK_CCW);
+            citro3d_sys::C3D_StencilTest(false, ctru_sys::GPU_ALWAYS, 0x00, 0xFF, 0x00);
+            citro3d_sys::C3D_StencilOp(
+                ctru_sys::GPU_STENCIL_KEEP,
+                ctru_sys::GPU_STENCIL_KEEP,
+                ctru_sys::GPU_STENCIL_KEEP,
+            );
+            citro3d_sys::C3D_BlendingColor(0);
+            citro3d_sys::C3D_EarlyDepthTest(false, ctru_sys::GPU_EARLYDEPTH_GREATER, 0);
+            citro3d_sys::C3D_DepthTest(true, ctru_sys::GPU_GREATER, ctru_sys::GPU_WRITE_ALL);
+            citro3d_sys::C3D_AlphaTest(false, ctru_sys::GPU_ALWAYS, 0x00);
+            citro3d_sys::C3D_AlphaBlend(
+                ctru_sys::GPU_BLEND_ADD,
+                ctru_sys::GPU_BLEND_ADD,
+                ctru_sys::GPU_SRC_ALPHA,
+                ctru_sys::GPU_ONE_MINUS_SRC_ALPHA,
+                ctru_sys::GPU_SRC_ALPHA,
+                ctru_sys::GPU_ONE_MINUS_SRC_ALPHA,
+            );
+            citro3d_sys::C3D_FragOpMode(ctru_sys::GPU_FRAGOPMODE_GL);
+            citro3d_sys::C3D_FragOpShadow(0.0, 1.0);
+
+            // The texCoordId has no importance since we are binding NULL
+            citro3d_sys::C3D_ProcTexBind(0, std::ptr::null_mut());
+
+            // ctx->texConfig = BIT(12); I have not found a way to replicate this one yet (maybe not necessary because of texenv's unbinding).
+
+            // ctx->texShadow = BIT(0);
+            citro3d_sys::C3D_TexShadowParams(true, 0.0);
+
+            // ctx->texEnvBuf = 0; I have not found a way to replicate this one yet (maybe not necessary because of texenv's unbinding).
+
+            // ctx->texEnvBufClr = 0xFFFFFFFF;
+            citro3d_sys::C3D_TexEnvBufColor(0xFFFFFFFF);
+            // ctx->fogClr = 0;
+            citro3d_sys::C3D_FogColor(0);
+            //ctx->fogLut = NULL;
+            citro3d_sys::C3D_FogLutBind(std::ptr::null_mut());
+
+            // We don't need to unbind programs (and in citro3D you can't),
+            // since the user is forced to bind them again before drawing next time they render.
+
+            self.bind_light_env(None);
+
+            // TODO: C3D_TexBind doesn't work for NULL
+            // https://github.com/devkitPro/citro3d/blob/9f21cf7b380ce6f9e01a0420f19f0763e5443ca7/source/texture.c#L222
+            /*for i in 0..3 {
+                citro3d_sys::C3D_TexBind(i, std::ptr::null_mut());
+            }*/
+
+            for i in 0..6 {
+                self.texenv(texenv::Stage::new(i).unwrap()).reset();
+            }
+
+            // Unbind attribute information (can't use NULL pointer, so we use an empty attrib::Info instead).
+            //
+            // TODO: Drawing nothing actually hangs the GPU, so this code is never really helpful (also, not used since the flag makes it a non-issue).
+            //       Is it worth keeping? Could hanging be considered better than an ARM exception?
+            let empty_info = attrib::Info::default();
+            self.set_attr_info(&empty_info);
+
+            // ctx->fixedAttribDirty = 0;
+            // ctx->fixedAttribEverDirty = 0;
+            for i in 0..12 {
+                let vec = citro3d_sys::C3D_FixedAttribGetWritePtr(i);
+                (*vec).c = [0.0, 0.0, 0.0, 0.0];
+            }
         }
     }
 }
