@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::math::{FVec4, IVec, Matrix4};
-use crate::{Instance, shader};
+use crate::{RenderPass, shader};
 
 /// The index of a uniform within a [`shader::Program`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,9 +73,9 @@ impl Uniform {
 
     /// Bind a uniform
     ///
-    /// Note: `_instance` is here to ensure unique access to the global uniform buffers
+    /// Note: `_pass` is here to ensure unique access to the global uniform buffers
     /// otherwise we could race and/or violate aliasing
-    pub(crate) fn bind(self, _instance: &mut Instance, ty: shader::Type, index: Index) {
+    pub(crate) fn bind(self, _pass: &mut RenderPass, ty: shader::Type, index: Index) {
         assert!(
             self.index_range().contains(&index),
             "tried to bind uniform to an invalid index (index: {:?}, valid range: {:?})",
@@ -89,6 +89,7 @@ impl Uniform {
             self.len(),
             self.index_range().end
         );
+
         let set_fvs = |fs: &[FVec4]| {
             for (off, f) in fs.iter().enumerate() {
                 unsafe {
@@ -103,6 +104,7 @@ impl Uniform {
                 }
             }
         };
+
         match self {
             Self::Bool(b) => unsafe {
                 citro3d_sys::C3D_BoolUnifSet(ty.into(), index.into(), b);
