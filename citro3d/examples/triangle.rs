@@ -5,9 +5,9 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::ClearFlags;
+use citro3d::render::{ClearFlags, RenderPass, Target};
 use citro3d::texenv;
-use citro3d::{attrib, buffer, render, shader};
+use citro3d::{attrib, buffer, shader};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -85,23 +85,13 @@ fn main() {
     let vertex_shader = shader.get(0).unwrap();
 
     let program = shader::Program::new(vertex_shader).unwrap();
-    instance.bind_program(&program);
+    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
 
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
-
-    // Configure the first fragment shading substage to just pass through the vertex color
-    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-    let stage0 = texenv::Stage::new(0).unwrap();
-    instance
-        .texenv(stage0)
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
-
-    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
     while apt.main_loop() {
         hid.scan_input();
@@ -110,20 +100,37 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            let mut render_to = |target: &mut render::Target, projection| {
+        instance.render_frame_with(|mut pass| {
+            // Sadly closures can't have lifetime specifiers,
+            // so we wrap `render_to` in this function to force the borrow checker rules.
+            fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
+            where
+                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
+            {
+                x
+            }
+
+            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
                 target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
 
-                instance
-                    .select_render_target(target)
+                pass.select_render_target(target)
                     .expect("failed to set render target");
+                pass.bind_vertex_uniform(projection_uniform_idx, projection);
 
-                instance.bind_vertex_uniform(projection_uniform_idx, projection);
+                pass.set_attr_info(&attr_info);
 
-                instance.set_attr_info(&attr_info);
+                pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            });
 
-                instance.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-            };
+            // We bind the vertex shader.
+            pass.bind_program(&program);
+
+            // Configure the first fragment shading substage to just pass through the vertex color
+            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+            let stage0 = texenv::Stage::new(0).unwrap();
+            pass.texenv(stage0)
+                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
             let Projections {
                 left_eye,
@@ -131,9 +138,11 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut top_left_target, &left_eye);
-            render_to(&mut top_right_target, &right_eye);
-            render_to(&mut bottom_target, &center);
+            render_to(&mut pass, &mut top_left_target, &left_eye);
+            render_to(&mut pass, &mut top_right_target, &right_eye);
+            render_to(&mut pass, &mut bottom_target, &center);
+
+            pass
         });
     }
 }

@@ -6,8 +6,8 @@ use citro3d::macros::include_shader;
 use citro3d::math::{
     AspectRatio, ClipPlanes, CoordinateOrientation, FVec3, Matrix4, Projection, StereoDisplacement,
 };
-use citro3d::render::ClearFlags;
-use citro3d::{attrib, buffer, render, shader, texenv};
+use citro3d::render::{ClearFlags, RenderPass, Target};
+use citro3d::{attrib, buffer, shader, texenv};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -104,7 +104,7 @@ fn main() {
     let vertex_shader = shader.get(0).unwrap();
 
     let program = shader::Program::new(vertex_shader).unwrap();
-    instance.bind_program(&program);
+
     let mut vbo_data = Vec::with_capacity_in(VERTS.len(), ctru::linear::LinearAllocator);
     for vert in VERTS.iter().enumerate().map(|(i, v)| Vertex {
         pos: Vec3 {
@@ -125,14 +125,6 @@ fn main() {
 
     let mut buf_info = buffer::Info::new();
     let vbo_slice = buf_info.add(&vbo_data, &attr_info).unwrap();
-
-    // Configure the first fragment shading substage to just pass through the vertex color
-    // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-    let stage0 = texenv::Stage::new(0).unwrap();
-    instance
-        .texenv(stage0)
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
     let camera_transform = Matrix4::looking_at(
@@ -158,21 +150,33 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|instance| {
-            let mut render_to = |target: &mut render::Target, projection| {
+        instance.render_frame_with(|mut pass| {
+            fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
+            where
+                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
+            {
+                x
+            }
+
+            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
                 target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
 
-                instance
-                    .select_render_target(target)
+                pass.select_render_target(target)
                     .expect("failed to set render target");
 
-                instance.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
+                pass.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
 
-                instance.set_attr_info(&attr_info);
-                unsafe {
-                    instance.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
-                }
-            };
+                pass.set_attr_info(&attr_info);
+
+                pass.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
+            });
+
+            pass.bind_program(&program);
+
+            let stage0 = texenv::Stage::new(0).unwrap();
+            pass.texenv(stage0)
+                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
             let Projections {
                 left_eye,
@@ -180,9 +184,11 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut top_left_target, &left_eye);
-            render_to(&mut top_right_target, &right_eye);
-            render_to(&mut bottom_target, &center);
+            render_to(&mut pass, &mut top_left_target, &left_eye);
+            render_to(&mut pass, &mut top_right_target, &right_eye);
+            render_to(&mut pass, &mut bottom_target, &center);
+
+            pass
         });
     }
 }
