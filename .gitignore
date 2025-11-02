@@ -23,3 +23,9 @@ rust-toolchain.toml
 
 # Pica200 output files
 *.shbin
+
+# Various dev tools
+.idea
+.bacon-locations
+bacon.toml
+justfile
