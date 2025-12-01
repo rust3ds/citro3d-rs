@@ -93,6 +93,10 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
+    let stage0 = texenv::TexEnv::new()
+        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+
     while apt.main_loop() {
         hid.scan_input();
 
@@ -117,6 +121,8 @@ fn main() {
                     .expect("failed to set render target");
                 pass.bind_vertex_uniform(projection_uniform_idx, projection);
 
+                pass.set_texenvs(&[stage0]);
+
                 pass.set_attr_info(&attr_info);
 
                 pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
@@ -127,10 +133,6 @@ fn main() {
 
             // Configure the first fragment shading substage to just pass through the vertex color
             // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-            let stage0 = texenv::Stage::new(0).unwrap();
-            pass.texenv(stage0)
-                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
             let Projections {
                 left_eye,

@@ -143,6 +143,10 @@ fn main() {
     ];
     let index_buffer = vbo_slice.index_buffer(indices).unwrap();
 
+    let stage0 = texenv::TexEnv::new()
+        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+
     while apt.main_loop() {
         hid.scan_input();
 
@@ -173,10 +177,7 @@ fn main() {
 
             pass.bind_program(&program);
 
-            let stage0 = texenv::Stage::new(0).unwrap();
-            pass.texenv(stage0)
-                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+            pass.set_texenvs(&[stage0]);
 
             let Projections {
                 left_eye,

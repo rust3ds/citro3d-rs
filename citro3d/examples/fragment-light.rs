@@ -340,6 +340,15 @@ fn main() {
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
+    let stage0 = texenv::TexEnv::new()
+        .src(
+            texenv::Mode::BOTH,
+            texenv::Source::FragmentPrimaryColor,
+            Some(texenv::Source::FragmentSecondaryColor),
+            None,
+        )
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Add);
+
     while apt.main_loop() {
         hid.scan_input();
 
@@ -371,15 +380,7 @@ fn main() {
             pass.bind_program(&program);
             pass.bind_light_env(Some(light_env.as_mut()));
 
-            let stage0 = texenv::Stage::new(0).unwrap();
-            pass.texenv(stage0)
-                .src(
-                    texenv::Mode::BOTH,
-                    texenv::Source::FragmentPrimaryColor,
-                    Some(texenv::Source::FragmentSecondaryColor),
-                    None,
-                )
-                .func(texenv::Mode::BOTH, texenv::CombineFunc::Add);
+            pass.set_texenvs(&[stage0]);
 
             let Projections {
                 left_eye,

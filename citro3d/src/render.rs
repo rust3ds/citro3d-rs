@@ -1,7 +1,7 @@
 //! This module provides render target types and options for controlling transfer
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
-use std::cell::{OnceCell, RefMut};
+use std::cell::RefMut;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -85,7 +85,7 @@ struct Frame;
 #[non_exhaustive]
 #[must_use]
 pub struct RenderPass<'pass> {
-    texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
+    texenvs: [Option<TexEnv>; texenv::TEXENV_COUNT],
     _active_frame: Frame,
 
     // It is not valid behaviour to bind anything but a correct shader program.
@@ -99,15 +99,7 @@ pub struct RenderPass<'pass> {
 impl<'pass> RenderPass<'pass> {
     pub(crate) fn new(_instance: &'pass mut Instance) -> Self {
         Self {
-            texenvs: [
-                // thank goodness there's only six of them!
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-            ],
+            texenvs: [None; texenv::TEXENV_COUNT],
             _active_frame: Frame::new(),
             is_program_bound: false,
             _phantom: PhantomData,
@@ -295,25 +287,27 @@ impl<'pass> RenderPass<'pass> {
         uniform.into().bind(self, shader::Type::Geometry, index);
     }
 
+    /// Set up to 6 stages of [`TexEnv`] to use.
+    /// If more than 6 stages are provided, the 7th onwards
+    /// will be ignored.
     /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
     ///
     /// # Example
     ///
     /// ```
     /// # use citro3d::texenv;
-    /// # let _runner = test_runner::GdbRunner::default();
-    /// # let mut instance = citro3d::Instance::new().unwrap();
-    /// let stage0 = texenv::Stage::new(0).unwrap();
-    /// let texenv0 = instance.texenv(stage0);
+    /// let stage0 =
+    ///     texenv::TexEnv::new().src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None);
+    /// let texenv0 = renderpass.set_texenvs([stage0]);
     /// ```
-    #[doc(alias = "C3D_GetTexEnv")]
-    #[doc(alias = "C3D_TexEnvInit")]
-    pub fn texenv(&mut self, stage: texenv::Stage) -> &mut texenv::TexEnv {
-        let texenv = &mut self.texenvs[stage.0];
-        texenv.get_or_init(|| TexEnv::new(stage));
-        // We have to do this weird unwrap to get a mutable reference,
-        // since there is no `get_mut_or_init` or equivalent
-        texenv.get_mut().unwrap()
+    #[doc(alias = "C3D_SetTexEnv")]
+    pub fn set_texenvs(&mut self, texenvs: &[texenv::TexEnv]) {
+        for i in 0..texenv::TEXENV_COUNT {
+            self.texenvs[i] = texenvs.get(i).cloned();
+            if let Some(texenv) = &self.texenvs[i] {
+                texenv.set_texenv(i).unwrap();
+            }
+        }
     }
 }
 
@@ -487,8 +481,8 @@ impl Drop for RenderPass<'_> {
                 citro3d_sys::C3D_TexBind(i, std::ptr::null_mut());
             }*/
 
-            for i in 0..6 {
-                self.texenv(texenv::Stage::new(i).unwrap()).reset();
+            for i in 0..texenv::TEXENV_COUNT {
+                texenv::TexEnv::init(texenv::TexEnv::get_texenv(i));
             }
 
             // Unbind attribute information (can't use NULL pointer, so we use an empty attrib::Info instead).
