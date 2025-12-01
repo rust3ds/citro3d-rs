@@ -27,7 +27,7 @@ impl TexEnv {
     pub fn new() -> TexEnv {
         let inner = unsafe {
             let mut inner = core::mem::MaybeUninit::<citro3d_sys::C3D_TexEnv>::uninit();
-            citro3d_sys::C3D_TexEnvInit(inner.as_mut_ptr());
+            Self::init_reset(inner.as_mut_ptr());
             inner.assume_init()
         };
 
@@ -51,7 +51,7 @@ impl TexEnv {
 
     /// Set the sources to use for the rgb and/or alpha components of this texenv stage.
     /// If sourcing from a texture unit, ensure a texture is also bound to that unit
-    /// with [`RenderPass::with_texture`]
+    /// with [`Frame::with_texture`]
     #[doc(alias = "C3D_TexEnvSrc")]
     pub fn src(
         mut self,
@@ -154,7 +154,7 @@ impl TexEnv {
     }
 
     #[doc(alias = "C3D_TexEnvInit")]
-    pub(crate) unsafe fn init(texenv: *mut citro3d_sys::C3D_TexEnv) {
+    pub(crate) unsafe fn init_reset(texenv: *mut citro3d_sys::C3D_TexEnv) {
         unsafe {
             citro3d_sys::C3D_TexEnvInit(texenv);
         }

@@ -80,237 +80,6 @@ pub struct Target<'screen> {
     _queue: Rc<RenderQueue>,
 }
 
-struct Frame;
-
-#[non_exhaustive]
-#[must_use]
-pub struct RenderPass<'pass> {
-    texenvs: [Option<TexEnv>; texenv::TEXENV_COUNT],
-    _active_frame: Frame,
-
-    // It is not valid behaviour to bind anything but a correct shader program.
-    // Instead of binding NULL, we simply force the user to have a shader program bound again
-    // before any draw calls.
-    is_program_bound: bool,
-
-    _phantom: PhantomData<&'pass mut Instance>,
-}
-
-impl<'pass> RenderPass<'pass> {
-    pub(crate) fn new(_instance: &'pass mut Instance) -> Self {
-        Self {
-            texenvs: [None; texenv::TEXENV_COUNT],
-            _active_frame: Frame::new(),
-            is_program_bound: false,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Select the given render target for the following draw calls.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the given target cannot be used for drawing.
-    #[doc(alias = "C3D_FrameDrawOn")]
-    pub fn select_render_target(&mut self, target: &'pass Target<'_>) -> Result<()> {
-        let _ = self;
-        if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
-            Ok(())
-        } else {
-            Err(Error::InvalidRenderTarget)
-        }
-    }
-
-    /// Get the buffer info being used, if it exists.
-    ///
-    /// # Notes
-    ///
-    /// The resulting [`buffer::Info`] is copied (and not taken) from the one currently in use.
-    #[doc(alias = "C3D_GetBufInfo")]
-    pub fn buffer_info(&self) -> Option<buffer::Info> {
-        let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
-        buffer::Info::copy_from(raw)
-    }
-
-    /// Set the buffer info to use for for the following draw calls.
-    #[doc(alias = "C3D_SetBufInfo")]
-    pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
-        let raw: *const _ = &buffer_info.0;
-        // LIFETIME SAFETY: C3D_SetBufInfo actually copies the pointee instead of mutating it.
-        unsafe { citro3d_sys::C3D_SetBufInfo(raw.cast_mut()) };
-    }
-
-    /// Get the attribute info being used, if it exists.
-    ///
-    /// # Notes
-    ///
-    /// The resulting [`attrib::Info`] is copied (and not taken) from the one currently in use.
-    #[doc(alias = "C3D_GetAttrInfo")]
-    pub fn attr_info(&self) -> Option<attrib::Info> {
-        let raw = unsafe { citro3d_sys::C3D_GetAttrInfo() };
-        attrib::Info::copy_from(raw)
-    }
-
-    /// Set the attribute info to use for any following draw calls.
-    #[doc(alias = "C3D_SetAttrInfo")]
-    pub fn set_attr_info(&mut self, attr_info: &attrib::Info) {
-        let raw: *const _ = &attr_info.0;
-        // LIFETIME SAFETY: C3D_SetAttrInfo actually copies the pointee instead of mutating it.
-        unsafe { citro3d_sys::C3D_SetAttrInfo(raw.cast_mut()) };
-    }
-
-    /// Render primitives from the current vertex array buffer.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
-    #[doc(alias = "C3D_DrawArrays")]
-    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, vbo_data: buffer::Slice<'pass>) {
-        // TODO: Decide whether it's worth returning an `Error` instead of panicking.
-        if !self.is_program_bound {
-            panic!("tried todraw arrays when no shader program is bound");
-        }
-
-        self.set_buffer_info(vbo_data.info());
-
-        // TODO: should we also require the attrib info directly here?
-        unsafe {
-            citro3d_sys::C3D_DrawArrays(
-                primitive as ctru_sys::GPU_Primitive_t,
-                vbo_data.index(),
-                vbo_data.len(),
-            );
-        }
-    }
-
-    /// Draws the vertices in `buf` indexed by `indices`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
-    #[doc(alias = "C3D_DrawElements")]
-    pub fn draw_elements<I: Index>(
-        &mut self,
-        primitive: buffer::Primitive,
-        vbo_data: buffer::Slice<'pass>,
-        indices: &Indices<'pass, I>,
-    ) {
-        if !self.is_program_bound {
-            panic!("tried to draw elements when no shader program is bound");
-        }
-
-        self.set_buffer_info(vbo_data.info());
-
-        let indices = &indices.buffer;
-        let elements = indices.as_ptr().cast();
-
-        unsafe {
-            citro3d_sys::C3D_DrawElements(
-                primitive as ctru_sys::GPU_Primitive_t,
-                indices.len().try_into().unwrap(),
-                // flag bit for short or byte
-                I::TYPE,
-                elements,
-            );
-        }
-    }
-
-    /// Use the given [`shader::Program`] for the following draw calls.
-    pub fn bind_program(&mut self, program: &'pass shader::Program) {
-        // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
-        // instead of mutating the pointee in any way that would cause UB
-        unsafe {
-            citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
-        }
-
-        self.is_program_bound = true;
-    }
-
-    /// Binds a [`LightEnv`] for the following draw calls.
-    pub fn bind_light_env(&mut self, env: Option<Pin<&'pass mut LightEnv>>) {
-        unsafe {
-            citro3d_sys::C3D_LightEnvBind(env.map_or(std::ptr::null_mut(), |env| env.as_raw_mut()));
-        }
-    }
-
-    /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # let _runner = test_runner::GdbRunner::default();
-    /// # use citro3d::uniform;
-    /// # use citro3d::math::Matrix4;
-    /// #
-    /// # let mut instance = citro3d::Instance::new().unwrap();
-    /// let idx = uniform::Index::from(0);
-    /// let mtx = Matrix4::identity();
-    /// instance.bind_vertex_uniform(idx, &mtx);
-    /// ```
-    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
-        if !self.is_program_bound {
-            panic!("tried to bind vertex uniform when no shader program is bound");
-        }
-
-        // LIFETIME SAFETY: Uniform data is copied into global buffers.
-        uniform.into().bind(self, shader::Type::Vertex, index);
-    }
-
-    /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # let _runner = test_runner::GdbRunner::default();
-    /// # use citro3d::uniform;
-    /// # use citro3d::math::Matrix4;
-    /// #
-    /// # let mut instance = citro3d::Instance::new().unwrap();
-    /// let idx = uniform::Index::from(0);
-    /// let mtx = Matrix4::identity();
-    /// instance.bind_geometry_uniform(idx, &mtx);
-    /// ```
-    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
-        if !self.is_program_bound {
-            panic!("tried to bind geometry uniform when no shader program is bound");
-        }
-
-        // LIFETIME SAFETY: Uniform data is copied into global buffers.
-        uniform.into().bind(self, shader::Type::Geometry, index);
-    }
-
-    /// Set up to 6 stages of [`TexEnv`] to use.
-    /// If more than 6 stages are provided, the 7th onwards
-    /// will be ignored.
-    /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use citro3d::texenv;
-    /// let stage0 =
-    ///     texenv::TexEnv::new().src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None);
-    /// let texenv0 = renderpass.set_texenvs([stage0]);
-    /// ```
-    #[doc(alias = "C3D_SetTexEnv")]
-    pub fn set_texenvs(&mut self, texenvs: &[texenv::TexEnv]) {
-        for i in 0..texenv::TEXENV_COUNT {
-            self.texenvs[i] = texenvs.get(i).cloned();
-            if let Some(texenv) = &self.texenvs[i] {
-                texenv.set_texenv(i).unwrap();
-            }
-        }
-    }
-}
-
 impl<'screen> Target<'screen> {
     /// Create a new render target with the given parameters. This takes a
     /// [`RenderQueue`] parameter to make sure this  [`Target`] doesn't outlive
@@ -374,27 +143,6 @@ impl<'screen> Target<'screen> {
     }
 }
 
-impl Frame {
-    fn new() -> Self {
-        unsafe {
-            citro3d_sys::C3D_FrameBegin(
-                // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW,
-            )
-        };
-
-        Self {}
-    }
-}
-
-impl Drop for Frame {
-    fn drop(&mut self) {
-        unsafe {
-            citro3d_sys::C3D_FrameEnd(0);
-        }
-    }
-}
-
 impl Drop for Target<'_> {
     #[doc(alias = "C3D_RenderTargetDelete")]
     fn drop(&mut self) {
@@ -425,9 +173,247 @@ impl DepthFormat {
     }
 }
 
-impl Drop for RenderPass<'_> {
+#[non_exhaustive]
+#[must_use]
+pub struct Frame<'instance> {
+    // It is not valid behaviour to bind anything but a correct shader program.
+    // Instead of binding NULL, we simply force the user to have a shader program bound again
+    // before any draw calls.
+    is_program_bound: bool,
+    texenvs: [Option<TexEnv>; texenv::TEXENV_COUNT],
+    _phantom: PhantomData<&'instance mut Instance>,
+}
+
+impl<'instance> Frame<'instance> {
+    pub(crate) fn new(_instance: &'instance mut Instance) -> Self {
+        unsafe {
+            citro3d_sys::C3D_FrameBegin(
+                // TODO: begin + end flags should be configurable
+                citro3d_sys::C3D_FRAME_SYNCDRAW,
+            )
+        };
+
+        Self {
+            is_program_bound: false,
+            texenvs: [None; texenv::TEXENV_COUNT],
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Select the given render target for the following draw calls.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the given target cannot be used for drawing.
+    #[doc(alias = "C3D_FrameDrawOn")]
+    pub fn select_render_target(&mut self, target: &'instance Target<'_>) -> Result<()> {
+        let _ = self;
+        if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
+            Ok(())
+        } else {
+            Err(Error::InvalidRenderTarget)
+        }
+    }
+
+    /// Get the buffer info being used, if it exists.
+    ///
+    /// # Notes
+    ///
+    /// The resulting [`buffer::Info`] is copied (and not taken) from the one currently in use.
+    #[doc(alias = "C3D_GetBufInfo")]
+    pub fn buffer_info(&self) -> Option<buffer::Info> {
+        let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
+        buffer::Info::copy_from(raw)
+    }
+
+    /// Set the buffer info to use for for the following draw calls.
+    #[doc(alias = "C3D_SetBufInfo")]
+    pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
+        let raw: *const _ = &buffer_info.0;
+        // LIFETIME SAFETY: C3D_SetBufInfo actually copies the pointee instead of mutating it.
+        unsafe { citro3d_sys::C3D_SetBufInfo(raw.cast_mut()) };
+    }
+
+    /// Get the attribute info being used, if it exists.
+    ///
+    /// # Notes
+    ///
+    /// The resulting [`attrib::Info`] is copied (and not taken) from the one currently in use.
+    #[doc(alias = "C3D_GetAttrInfo")]
+    pub fn attr_info(&self) -> Option<attrib::Info> {
+        let raw = unsafe { citro3d_sys::C3D_GetAttrInfo() };
+        attrib::Info::copy_from(raw)
+    }
+
+    /// Set the attribute info to use for any following draw calls.
+    #[doc(alias = "C3D_SetAttrInfo")]
+    pub fn set_attr_info(&mut self, attr_info: &attrib::Info) {
+        let raw: *const _ = &attr_info.0;
+        // LIFETIME SAFETY: C3D_SetAttrInfo actually copies the pointee instead of mutating it.
+        unsafe { citro3d_sys::C3D_SetAttrInfo(raw.cast_mut()) };
+    }
+
+    /// Render primitives from the current vertex array buffer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
+    #[doc(alias = "C3D_DrawArrays")]
+    pub fn draw_arrays(
+        &mut self,
+        primitive: buffer::Primitive,
+        vbo_data: buffer::Slice<'instance>,
+    ) {
+        // TODO: Decide whether it's worth returning an `Error` instead of panicking.
+        if !self.is_program_bound {
+            panic!("tried todraw arrays when no shader program is bound");
+        }
+
+        self.set_buffer_info(vbo_data.info());
+
+        // TODO: should we also require the attrib info directly here?
+        unsafe {
+            citro3d_sys::C3D_DrawArrays(
+                primitive as ctru_sys::GPU_Primitive_t,
+                vbo_data.index(),
+                vbo_data.len(),
+            );
+        }
+    }
+
+    /// Draws the vertices in `buf` indexed by `indices`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
+    #[doc(alias = "C3D_DrawElements")]
+    pub fn draw_elements<I: Index>(
+        &mut self,
+        primitive: buffer::Primitive,
+        vbo_data: buffer::Slice<'instance>,
+        indices: &Indices<'instance, I>,
+    ) {
+        if !self.is_program_bound {
+            panic!("tried to draw elements when no shader program is bound");
+        }
+
+        self.set_buffer_info(vbo_data.info());
+
+        let indices = &indices.buffer;
+        let elements = indices.as_ptr().cast();
+
+        unsafe {
+            citro3d_sys::C3D_DrawElements(
+                primitive as ctru_sys::GPU_Primitive_t,
+                indices.len().try_into().unwrap(),
+                // flag bit for short or byte
+                I::TYPE,
+                elements,
+            );
+        }
+    }
+
+    /// Use the given [`shader::Program`] for the following draw calls.
+    pub fn bind_program(&mut self, program: &'instance shader::Program) {
+        // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
+        // instead of mutating the pointee in any way that would cause UB
+        unsafe {
+            citro3d_sys::C3D_BindProgram(program.as_raw().cast_mut());
+        }
+
+        self.is_program_bound = true;
+    }
+
+    /// Binds a [`LightEnv`] for the following draw calls.
+    pub fn bind_light_env(&mut self, env: Option<Pin<&'instance mut LightEnv>>) {
+        unsafe {
+            citro3d_sys::C3D_LightEnvBind(env.map_or(std::ptr::null_mut(), |env| env.as_raw_mut()));
+        }
+    }
+
+    /// Bind a uniform to the given `index` in the vertex shader for the next draw call.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix4;
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix4::identity();
+    /// instance.bind_vertex_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_vertex_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        if !self.is_program_bound {
+            panic!("tried to bind vertex uniform when no shader program is bound");
+        }
+
+        // LIFETIME SAFETY: Uniform data is copied into global buffers.
+        uniform.into().bind(self, shader::Type::Vertex, index);
+    }
+
+    /// Bind a uniform to the given `index` in the geometry shader for the next draw call.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # let _runner = test_runner::GdbRunner::default();
+    /// # use citro3d::uniform;
+    /// # use citro3d::math::Matrix4;
+    /// #
+    /// # let mut instance = citro3d::Instance::new().unwrap();
+    /// let idx = uniform::Index::from(0);
+    /// let mtx = Matrix4::identity();
+    /// instance.bind_geometry_uniform(idx, &mtx);
+    /// ```
+    pub fn bind_geometry_uniform(&mut self, index: uniform::Index, uniform: impl Into<Uniform>) {
+        if !self.is_program_bound {
+            panic!("tried to bind geometry uniform when no shader program is bound");
+        }
+
+        // LIFETIME SAFETY: Uniform data is copied into global buffers.
+        uniform.into().bind(self, shader::Type::Geometry, index);
+    }
+
+    /// Set up to 6 stages of [`TexEnv`] to use.
+    /// If more than 6 stages are provided, the 7th onwards
+    /// will be ignored.
+    /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use citro3d::texenv;
+    /// let stage0 =
+    ///     texenv::TexEnv::new().src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None);
+    /// let texenv0 = frame.set_texenvs([stage0]);
+    /// ```
+    #[doc(alias = "C3D_SetTexEnv")]
+    pub fn set_texenvs(&mut self, texenvs: &[texenv::TexEnv]) {
+        for i in 0..texenv::TEXENV_COUNT {
+            self.texenvs[i] = texenvs.get(i).cloned();
+            if let Some(texenv) = &self.texenvs[i] {
+                texenv.set_texenv(i).unwrap();
+            }
+        }
+    }
+}
+
+impl Drop for Frame<'_> {
     fn drop(&mut self) {
         unsafe {
+            citro3d_sys::C3D_FrameEnd(0);
+
             // TODO: substitute as many as possible with safe wrappers.
             // These resets are derived from the implementation of `C3D_Init` and by studying the `C3D_Context` struct.
             citro3d_sys::C3D_DepthMap(true, -1.0, 0.0);
@@ -482,7 +468,7 @@ impl Drop for RenderPass<'_> {
             }*/
 
             for i in 0..texenv::TEXENV_COUNT {
-                texenv::TexEnv::init(texenv::TexEnv::get_texenv(i));
+                texenv::TexEnv::init_reset(texenv::TexEnv::get_texenv(i));
             }
 
             // Unbind attribute information (can't use NULL pointer, so we use an empty attrib::Info instead).

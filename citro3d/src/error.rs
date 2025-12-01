@@ -43,6 +43,10 @@ pub enum Error {
         /// The length of the collection.
         len: libc::c_int,
     },
+    /// No valid shader program was bound
+    MissingProgram,
+    /// No light env has been bound
+    MissingLightEnv,
 }
 
 impl From<TryFromIntError> for Error {

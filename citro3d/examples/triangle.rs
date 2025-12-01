@@ -5,7 +5,7 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::{ClearFlags, RenderPass, Target};
+use citro3d::render::{ClearFlags, Frame, Target};
 use citro3d::texenv;
 use citro3d::{attrib, buffer, shader};
 use ctru::prelude::*;
@@ -104,32 +104,33 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|mut pass| {
+        instance.render_frame_with(|mut frame| {
             // Sadly closures can't have lifetime specifiers,
             // so we wrap `render_to` in this function to force the borrow checker rules.
-            fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
+            fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
-                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
+                T: Fn(&mut Frame<'frame>, &'frame mut Target<'_>, &Matrix4),
             {
                 x
             }
 
-            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
+            let render_to = cast_lifetime_to_closure(|frame, target, projection| {
                 target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
 
-                pass.select_render_target(target)
+                frame
+                    .select_render_target(target)
                     .expect("failed to set render target");
-                pass.bind_vertex_uniform(projection_uniform_idx, projection);
+                frame.bind_vertex_uniform(projection_uniform_idx, projection);
 
-                pass.set_texenvs(&[stage0]);
+                frame.set_texenvs(&[stage0]);
 
-                pass.set_attr_info(&attr_info);
+                frame.set_attr_info(&attr_info);
 
-                pass.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             });
 
             // We bind the vertex shader.
-            pass.bind_program(&program);
+            frame.bind_program(&program);
 
             // Configure the first fragment shading substage to just pass through the vertex color
             // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
@@ -140,11 +141,11 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut pass, &mut top_left_target, &left_eye);
-            render_to(&mut pass, &mut top_right_target, &right_eye);
-            render_to(&mut pass, &mut bottom_target, &center);
+            render_to(&mut frame, &mut top_left_target, &left_eye);
+            render_to(&mut frame, &mut top_right_target, &right_eye);
+            render_to(&mut frame, &mut bottom_target, &center);
 
-            pass
+            frame
         });
     }
 }
