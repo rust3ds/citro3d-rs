@@ -525,6 +525,12 @@ impl<'instance> Frame<'instance> {
         unsafe { texture.bind(index) };
         self.bound_textures[index as usize] = true;
     }
+
+    pub fn set_cull_face(&mut self, cull: render::effect::CullMode) {
+        unsafe {
+            citro3d_sys::C3D_CullFace(cull as u8);
+        }
+    }
 }
 
 impl Drop for Frame<'_> {
