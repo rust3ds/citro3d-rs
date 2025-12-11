@@ -3,6 +3,8 @@
 
 use bitflags::bitflags;
 
+use crate::texture;
+
 // https://oreo639.github.io/citro3d/texenv_8h.html#a9eda91f8e7252c91f873b1d43e3728b6
 pub(crate) const TEXENV_COUNT: usize = 6;
 
@@ -157,6 +159,7 @@ impl TexEnv {
     pub(crate) unsafe fn init_reset(texenv: *mut citro3d_sys::C3D_TexEnv) {
         unsafe {
             citro3d_sys::C3D_TexEnvInit(texenv);
+            citro3d_sys::C3D_DirtyTexEnv(texenv);
         }
     }
 
@@ -218,6 +221,18 @@ pub enum Source {
     PreviousBuffer = ctru_sys::GPU_PREVIOUS_BUFFER,
     Constant = ctru_sys::GPU_CONSTANT,
     Previous = ctru_sys::GPU_PREVIOUS,
+}
+
+impl Source {
+    pub const fn corresponding_index(&self) -> Option<texture::Index> {
+        match self {
+            Source::Texture0 => Some(texture::Index::Texture0),
+            Source::Texture1 => Some(texture::Index::Texture1),
+            Source::Texture2 => Some(texture::Index::Texture2),
+            Source::Texture3 => Some(texture::Index::Texture3),
+            _ => None,
+        }
+    }
 }
 
 /// The combination function to apply to the [`TexEnv`] operands.

@@ -19,6 +19,7 @@ use crate::{
     light::LightEnv,
     shader,
     texenv::{self, TexEnv},
+    texture,
     uniform::{self, Uniform},
 };
 
@@ -181,6 +182,7 @@ pub struct Frame<'instance> {
     // before any draw calls.
     is_program_bound: bool,
     texenvs: [Option<TexEnv>; texenv::TEXENV_COUNT],
+    bound_textures: [bool; texture::Index::ALL.len()],
     _phantom: PhantomData<&'instance mut Instance>,
 }
 
@@ -196,6 +198,7 @@ impl<'instance> Frame<'instance> {
         Self {
             is_program_bound: false,
             texenvs: [None; texenv::TEXENV_COUNT],
+            bound_textures: [false; texture::Index::ALL.len()],
             _phantom: PhantomData,
         }
     }
@@ -266,7 +269,25 @@ impl<'instance> Frame<'instance> {
     ) {
         // TODO: Decide whether it's worth returning an `Error` instead of panicking.
         if !self.is_program_bound {
-            panic!("tried todraw arrays when no shader program is bound");
+            panic!("Tried to draw arrays when no shader program is bound");
+        }
+
+        // Ensure that any textures being referenced by the texture environment
+        // have been bound this frame, otherwise it could reference a texture
+        // that was bound in a previous frame outside of its lifetime.
+        for src in self
+            .texenvs
+            .iter()
+            .flat_map(|te| te.as_ref())
+            .flat_map(|te| te.sources.iter())
+        {
+            let Some(index) = src.corresponding_index() else {
+                continue;
+            };
+
+            if !self.bound_textures[index as usize] {
+                panic!("Texenv referenced {src:?} but texture unit {index:?} was not bound.");
+            }
         }
 
         self.set_buffer_info(vbo_data.info());
@@ -295,6 +316,23 @@ impl<'instance> Frame<'instance> {
     ) {
         if !self.is_program_bound {
             panic!("tried to draw elements when no shader program is bound");
+        }
+
+        // Ensure that any textures being referenced by the texture environment
+        // have been bound this frame, otherwise it could reference a texture
+        // that was bound in a previous frame outside of its lifetime.
+        for env in &self.texenvs {
+            let Some(env) = env.as_ref() else { continue };
+
+            for src in env.sources {
+                let Some(index) = src.corresponding_index() else {
+                    continue;
+                };
+
+                if !self.bound_textures[index as usize] {
+                    panic!("Texenv referenced {src:?} but texture unit {index:?} was not bound.");
+                }
+            }
         }
 
         self.set_buffer_info(vbo_data.info());
@@ -404,8 +442,20 @@ impl<'instance> Frame<'instance> {
             self.texenvs[i] = texenvs.get(i).cloned();
             if let Some(texenv) = &self.texenvs[i] {
                 texenv.set_texenv(i).unwrap();
+            } else {
+                unsafe {
+                    let texenv = texenv::TexEnv::get_texenv(i);
+                    texenv::TexEnv::init_reset(texenv);
+                }
             }
         }
+    }
+
+    /// Bind the given [`Texture`] to the specified [`texture::Unit`], which should
+    /// correspond to a source or destination texture configured in the [`TexEnv`].
+    pub fn bind_texture(&mut self, index: texture::Index, texture: &'instance texture::Texture) {
+        unsafe { texture.bind(index) };
+        self.bound_textures[index as usize] = true;
     }
 }
 
@@ -463,6 +513,10 @@ impl Drop for Frame<'_> {
 
             // TODO: C3D_TexBind doesn't work for NULL
             // https://github.com/devkitPro/citro3d/blob/9f21cf7b380ce6f9e01a0420f19f0763e5443ca7/source/texture.c#L222
+            // As long as no bound texture environment references a texture outside of its lifetime,
+            // it will be fine to leave it bound?
+            // Therefore, we must ensure that future frames do not reference a texture unless a valid
+            // one has been bound in tis frame.
             /*for i in 0..3 {
                 citro3d_sys::C3D_TexBind(i, std::ptr::null_mut());
             }*/

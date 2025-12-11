@@ -92,6 +92,24 @@ impl TryFrom<u8> for Mode {
     }
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Index {
+    Texture0 = 0,
+    Texture1 = 1,
+    Texture2 = 2,
+    Texture3 = 3,
+}
+
+impl Index {
+    pub const ALL: [Index; 4] = [
+        Index::Texture0,
+        Index::Texture1,
+        Index::Texture2,
+        Index::Texture3,
+    ];
+}
+
 /// Supported texture units.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -220,13 +238,14 @@ impl TryFrom<u8> for ColorFormat {
 /// Faces are used for CubeMaps.
 /// Standard 2D textures use only [`Face::PositiveX`], also accessible as [`Face::Bidimensional`].
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[doc(alias = "GPU_TEXFACE")]
 pub enum Face {
     /// +X face.
     ///
     /// This corresponds to the only face of 2D textures (see [`Face::Bidimensional`]).
     #[doc(alias = "GPU_POSITIVE_X")]
+    #[default]
     PositiveX = ctru_sys::GPU_POSITIVE_X,
 
     /// -X face.
