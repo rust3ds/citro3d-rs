@@ -5,7 +5,7 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::{ClearFlags, Frame, Target};
+use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
 use citro3d::{attrib, buffer, shader};
 use citro3d::{texenv, texture};
 use ctru::prelude::*;
@@ -137,7 +137,7 @@ fn main() {
             // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
-                T: Fn(&mut Frame<'frame>, &'frame mut Target<'_>, &Matrix4),
+                T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
             {
                 x
             }

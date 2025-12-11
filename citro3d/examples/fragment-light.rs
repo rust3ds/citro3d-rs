@@ -6,7 +6,7 @@ use citro3d::{
     color::Color,
     light::{DistanceAttenuation, LightEnv, Lut, LutId, LutInput, Material, Spotlight},
     math::{AspectRatio, ClipPlanes, FVec3, Matrix4, Projection, StereoDisplacement},
-    render::{ClearFlags, DepthFormat, Frame, Target},
+    render::{ClearFlags, DepthFormat, Frame, ScreenTarget, Target},
     shader, texenv,
 };
 use citro3d_macros::include_shader;
@@ -359,7 +359,7 @@ fn main() {
         instance.render_frame_with(|mut frame| {
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
-                T: Fn(&mut Frame<'frame>, &'frame mut Target<'_>, &Matrix4),
+                T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
             {
                 x
             }

@@ -407,6 +407,7 @@ pub enum AspectRatio {
     /// The aspect ratio of the 3DS' bottom screen.
     #[doc(alias = "C3D_AspectRatioBot")]
     BottomScreen,
+    Square,
     /// A custom aspect ratio (should be calcualted as `width / height`).
     Other(f32),
 }
@@ -416,6 +417,7 @@ impl From<AspectRatio> for f32 {
         match ratio {
             AspectRatio::TopScreen => citro3d_sys::C3D_AspectRatioTop as f32,
             AspectRatio::BottomScreen => citro3d_sys::C3D_AspectRatioBot as f32,
+            AspectRatio::Square => 1.0,
             AspectRatio::Other(ratio) => ratio,
         }
     }

@@ -5,9 +5,9 @@
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
-use citro3d::texenv;
+use citro3d::render::{ClearFlags, Target};
 use citro3d::{attrib, buffer, shader};
+use citro3d::{texenv, texture};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -27,28 +27,59 @@ impl Vec3 {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+struct Vec2 {
+    x: f32,
+    y: f32,
+}
+
+impl Vec2 {
+    const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 struct Vertex {
     pos: Vec3,
-    color: Vec3,
+    tex_coord: Vec2,
 }
 
 static VERTICES: &[Vertex] = &[
     Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
+        pos: Vec3::new(-0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(0.0, 1.0),
     },
     Vertex {
         pos: Vec3::new(-0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coord: Vec2::new(0.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coord: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(-0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(0.0, 1.0),
+    },
+    Vertex {
+        pos: Vec3::new(0.5, -0.5, -3.0),
+        tex_coord: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(1.0, 1.0),
     },
 ];
 
-static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
+static SHADER_BYTES: &[u8] = include_shader!("assets/vshader_textured.pica");
+static TEXTURE_BYTES: &[u8] = include_bytes!("assets/kitten.t3d");
 const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
+const OTHER_CLEAR_COLOR: u32 = 0xFF_FF_FF_FF - 0x68_B0_D8_00;
+// The screen framebuffer is in format BRG8 while the texture is RGB8, so we swap the B and G components (and shift over to ignore alpha)
+const OTHER_COLOR_BGR8: u32 = (OTHER_CLEAR_COLOR & 0x00_FF_00_00 >> 8)
+    | (OTHER_CLEAR_COLOR & 0x00_00_FF_00 << 8)
+    | (OTHER_CLEAR_COLOR & 0xFF_00_00_00 >> 24);
 
 fn main() {
     let mut soc = Soc::new().expect("failed to get SOC");
@@ -93,8 +124,13 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
+    let mut tex_target = instance
+        .render_target_texture(create_texture_target(), texture::Face::default(), None)
+        .unwrap();
+    let tex_kitten = create_texture_kitten();
+
     let stage0 = texenv::TexEnv::new()
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .src(texenv::Mode::BOTH, texenv::Source::Texture0, None, None)
         .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
     while apt.main_loop() {
@@ -105,33 +141,6 @@ fn main() {
         }
 
         instance.render_frame_with(|mut frame| {
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
-            fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
-            where
-                T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
-            {
-                x
-            }
-
-            let render_to = cast_lifetime_to_closure(|frame, target, projection| {
-                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
-
-                frame
-                    .select_render_target(target)
-                    .expect("failed to set render target");
-                frame.bind_vertex_uniform(projection_uniform_idx, projection);
-
-                frame.set_texenvs(&[stage0]);
-
-                frame.set_attr_info(&attr_info);
-
-                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
-            });
-
-            // We bind the vertex shader.
-            frame.bind_program(&program);
-
             // Configure the first fragment shading substage to just pass through the vertex color
             // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
 
@@ -140,10 +149,44 @@ fn main() {
                 right_eye,
                 center,
             } = calculate_projections();
+            let square = calculate_projection_square();
 
-            render_to(&mut frame, &mut top_left_target, &left_eye);
-            render_to(&mut frame, &mut top_right_target, &right_eye);
-            render_to(&mut frame, &mut bottom_target, &center);
+            // We bind the vertex shader.
+            frame.bind_program(&program);
+            frame.set_attr_info(&attr_info);
+            frame.set_texenvs(&[stage0]);
+
+            // Bottom screen
+            bottom_target.clear(ClearFlags::ALL, OTHER_COLOR_BGR8, 0);
+            frame.bind_texture(texture::Index::Texture0, &tex_kitten);
+            frame
+                .select_render_target(&bottom_target)
+                .expect("failed to set render target");
+            frame.bind_vertex_uniform(projection_uniform_idx, center);
+            frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+
+            // Render to texture
+            tex_target.clear(ClearFlags::ALL, OTHER_CLEAR_COLOR, 0);
+            frame.bind_texture(texture::Index::Texture0, &tex_kitten);
+            frame
+                .select_render_target(&tex_target)
+                .expect("failed to set render target");
+            frame.bind_vertex_uniform(projection_uniform_idx, square);
+            frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+
+            // Render texture to top screen targets
+            for (target, proj) in [
+                (&mut top_left_target, left_eye),
+                (&mut top_right_target, right_eye),
+            ] {
+                target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
+                frame
+                    .select_render_target(target)
+                    .expect("failed to set render target");
+                frame.bind_texture(texture::Index::Texture0, tex_target.texture());
+                frame.bind_vertex_uniform(projection_uniform_idx, proj);
+                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            }
 
             frame
         });
@@ -165,7 +208,7 @@ fn prepare_vbos<'a>(
         .unwrap();
 
     attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
+        .add_loader(reg1, attrib::Format::Float, 2)
         .unwrap();
 
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
@@ -177,6 +220,31 @@ struct Projections {
     left_eye: Matrix4,
     right_eye: Matrix4,
     center: Matrix4,
+}
+
+fn create_texture_target() -> texture::Texture {
+    // Texture targets have to be in vram
+    let params = texture::TextureParameters::new_2d_in_vram(64, 64, texture::ColorFormat::Rgb8);
+    let mut tex = texture::Texture::new(params).unwrap();
+    tex.set_filter(texture::Filter::Linear, texture::Filter::Nearest);
+    tex
+}
+
+fn create_texture_kitten() -> texture::Texture {
+    let tex: texture::Tex3DSTexture = texture::Tex3DSTexture::new(TEXTURE_BYTES, false).unwrap();
+    let mut tex: texture::Texture = tex.into_texture();
+    tex.set_filter(texture::Filter::Linear, texture::Filter::Linear);
+    tex
+}
+
+fn calculate_projection_square() -> Matrix4 {
+    let vertical_fov = 40.0_f32.to_radians();
+    let clip_planes = ClipPlanes {
+        near: 0.01,
+        far: 100.0,
+    };
+
+    Projection::perspective(vertical_fov, AspectRatio::Square, clip_planes).into()
 }
 
 fn calculate_projections() -> Projections {

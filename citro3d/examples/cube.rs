@@ -6,7 +6,7 @@ use citro3d::macros::include_shader;
 use citro3d::math::{
     AspectRatio, ClipPlanes, CoordinateOrientation, FVec3, Matrix4, Projection, StereoDisplacement,
 };
-use citro3d::render::{ClearFlags, Frame, Target};
+use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
 use citro3d::{attrib, buffer, shader, texenv};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
@@ -157,7 +157,7 @@ fn main() {
         instance.render_frame_with(|mut frame| {
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
-                T: Fn(&mut Frame<'frame>, &'frame mut Target<'_>, &Matrix4),
+                T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
             {
                 x
             }

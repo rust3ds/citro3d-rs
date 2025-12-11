@@ -110,8 +110,23 @@ impl Instance {
         height: usize,
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<render::DepthFormat>,
-    ) -> Result<render::Target<'screen>> {
-        render::Target::new(width, height, screen, depth_format, Rc::clone(&self.queue))
+    ) -> Result<render::ScreenTarget<'screen>> {
+        render::ScreenTarget::new(width, height, screen, depth_format, Rc::clone(&self.queue))
+    }
+
+    /// Create a new render target that renders to a texture with the specified size, color format,
+    /// and depth format.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the target could not be created with the given parameters.
+    pub fn render_target_texture(
+        &self,
+        texture: texture::Texture,
+        face: texture::Face,
+        depth_format: Option<render::DepthFormat>,
+    ) -> Result<render::TextureTarget> {
+        render::TextureTarget::new(texture, face, depth_format, Rc::clone(&self.queue))
     }
 
     /// Render a frame.
