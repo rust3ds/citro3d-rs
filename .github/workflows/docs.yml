@@ -15,6 +15,9 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
 
+      - name: Install Clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+
       - name: Setup Pages
         uses: actions/configure-pages@v3
 
