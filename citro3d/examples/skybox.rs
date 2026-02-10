@@ -1,6 +1,3 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
-
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
@@ -195,8 +192,6 @@ fn main() {
             model_view.rotate_y(angle_y);
             model_view.rotate_x(angle_x);
 
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
                 T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
@@ -215,15 +210,12 @@ fn main() {
                 frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             });
 
-            // We bind the vertex shader.
             frame.bind_program(&program);
             frame.set_attr_info(&attr_info);
             frame.set_cull_face(render::effect::CullMode::FrontCounterClockwise);
             frame.set_texenvs(&[stage0]);
             frame.bind_texture(texture::Index::Texture0, &tex);
 
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
             let Projections {
                 left_eye,
                 right_eye,
@@ -267,13 +259,13 @@ fn create_texture() -> texture::Texture {
     let tex: texture::Tex3DSTexture = texture::Tex3DSTexture::new(TEXTURE_BYTES, false).unwrap();
     let mut tex: texture::Texture = tex.into_texture();
     tex.set_filter(texture::Filter::Linear, texture::Filter::Linear);
+
+    // Set wrapping for the cube texture
     tex.set_wrap(texture::Wrap::ClampToEdge, texture::Wrap::ClampToEdge);
     tex
 }
 
 fn calculate_projections() -> Projections {
-    // TODO: it would be cool to allow playing around with these parameters on
-    // the fly with D-pad, etc.
     let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 

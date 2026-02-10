@@ -1,6 +1,3 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
-
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
@@ -141,9 +138,6 @@ fn main() {
         }
 
         instance.render_frame_with(|mut frame| {
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
-
             let Projections {
                 left_eye,
                 right_eye,

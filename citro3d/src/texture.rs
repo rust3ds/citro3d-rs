@@ -75,17 +75,17 @@ impl TextureParameters {
     }
 }
 
-impl Into<citro3d_sys::C3D_TexInitParams> for TextureParameters {
-    fn into(self) -> citro3d_sys::C3D_TexInitParams {
+impl From<TextureParameters> for citro3d_sys::C3D_TexInitParams {
+    fn from(value: TextureParameters) -> Self {
         citro3d_sys::C3D_TexInitParams {
-            width: self.width,
-            height: self.height,
+            width: value.width,
+            height: value.height,
             _bitfield_align_1: [],
             _bitfield_1: citro3d_sys::C3D_TexInitParams::new_bitfield_1(
-                self.max_level,
-                self.format as u8,
-                self.mode as u8,
-                self.on_vram,
+                value.max_level,
+                value.format as u8,
+                value.mode as u8,
+                value.on_vram,
             ),
             __bindgen_padding_0: 0,
         }
@@ -197,9 +197,7 @@ impl Texture {
 
             let success = citro3d_sys::C3D_TexInitWithParams(
                 c3d_tex.as_mut_ptr(),
-                cube.as_mut()
-                    .map(|p| p.as_mut() as _)
-                    .unwrap_or(core::ptr::null_mut()),
+                cube.as_mut().map(|p| p.as_mut() as _).unwrap_or_default(),
                 params,
             );
 
@@ -349,7 +347,7 @@ impl Drop for Texture {
 }
 
 fn check_texture_size(size: u16) -> bool {
-    if size < MIN_TEX_SIZE || size > MAX_TEX_SIZE {
+    if !(MIN_TEX_SIZE..=MAX_TEX_SIZE).contains(&size) {
         return false;
     }
 

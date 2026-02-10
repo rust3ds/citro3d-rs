@@ -2,7 +2,6 @@
 #![test_runner(test_runner::run_gdb)]
 #![feature(allocator_api)]
 #![feature(doc_cfg)]
-#![feature(doc_auto_cfg)]
 #![doc(html_root_url = "https://rust3ds.github.io/citro3d-rs/crates")]
 #![doc(
     html_favicon_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"

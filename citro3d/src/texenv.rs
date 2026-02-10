@@ -138,7 +138,6 @@ impl TexEnv {
     }
 
     /// Set this as the active texenv in the given stage.
-    #[must_use]
     #[doc(alias = "C3D_SetTexEnv")]
     pub(crate) fn set_texenv(&self, stage: usize) -> crate::Result<()> {
         if stage >= TEXENV_COUNT {
@@ -187,6 +186,12 @@ impl Default for Sources {
             source1: None,
             source2: None,
         }
+    }
+}
+
+impl Default for TexEnv {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

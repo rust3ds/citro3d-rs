@@ -139,7 +139,6 @@ impl Target for TextureTarget {
 
 impl Drop for TextureTarget {
     #[doc(alias = "C3D_RenderTargetDelete")]
-
     fn drop(&mut self) {
         unsafe {
             C3D_RenderTargetDelete(self.raw);

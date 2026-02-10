@@ -1,6 +1,3 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
-
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
@@ -133,8 +130,6 @@ fn main() {
         }
 
         instance.render_frame_with(|mut frame| {
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
                 T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
@@ -151,15 +146,13 @@ fn main() {
                 frame.set_attr_info(&attr_info);
                 frame.bind_vertex_uniform(projection_uniform_idx, projection);
                 frame.set_texenvs(&[stage0]);
+
+                // Binding of the kitten texture
                 frame.bind_texture(texture::Index::Texture0, &tex);
                 frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             });
 
-            // We bind the vertex shader.
             frame.bind_program(&program);
-
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
 
             let Projections {
                 left_eye,
@@ -180,7 +173,6 @@ fn prepare_vbos<'a>(
     buf_info: &'a mut buffer::Info,
     vbo_data: &'a [Vertex],
 ) -> (attrib::Info, buffer::Slice<'a>) {
-    // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
     let reg0 = attrib::Register::new(0).unwrap();
@@ -223,8 +215,6 @@ fn create_texture() -> texture::Texture {
 }
 
 fn calculate_projections() -> Projections {
-    // TODO: it would be cool to allow playing around with these parameters on
-    // the fly with D-pad, etc.
     let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 
