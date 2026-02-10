@@ -1,13 +1,10 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
-
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
-use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
-use citro3d::texenv;
+use citro3d::render::{self, ClearFlags, Frame, ScreenTarget, Target};
 use citro3d::{attrib, buffer, shader};
+use citro3d::{texenv, texture};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -29,25 +26,75 @@ impl Vec3 {
 #[derive(Copy, Clone)]
 struct Vertex {
     pos: Vec3,
-    color: Vec3,
+}
+
+impl Vertex {
+    const fn new(x: f32, y: f32, z: f32) -> Vertex {
+        Vertex {
+            pos: Vec3::new(x, y, z),
+        }
+    }
 }
 
 static VERTICES: &[Vertex] = &[
-    Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(-0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
-    },
+    // First face (PZ)
+    // First triangle
+    Vertex::new(-0.5, -0.5, 0.5),
+    Vertex::new(0.5, -0.5, 0.5),
+    Vertex::new(0.5, 0.5, 0.5),
+    // Second triangle
+    Vertex::new(0.5, 0.5, 0.5),
+    Vertex::new(-0.5, 0.5, 0.5),
+    Vertex::new(-0.5, -0.5, 0.5),
+    // Second face (MZ)
+    // First triangle
+    Vertex::new(-0.5, -0.5, -0.5),
+    Vertex::new(-0.5, 0.5, -0.5),
+    Vertex::new(0.5, 0.5, -0.5),
+    // Second triangle
+    Vertex::new(0.5, 0.5, -0.5),
+    Vertex::new(0.5, -0.5, -0.5),
+    Vertex::new(-0.5, -0.5, -0.5),
+    // Third face (PX)
+    // First triangle
+    Vertex::new(0.5, -0.5, -0.5),
+    Vertex::new(0.5, 0.5, -0.5),
+    Vertex::new(0.5, 0.5, 0.5),
+    // Second triangle
+    Vertex::new(0.5, 0.5, 0.5),
+    Vertex::new(0.5, -0.5, 0.5),
+    Vertex::new(0.5, -0.5, -0.5),
+    // Fourth face (MX)
+    // First triangle
+    Vertex::new(-0.5, -0.5, -0.5),
+    Vertex::new(-0.5, -0.5, 0.5),
+    Vertex::new(-0.5, 0.5, 0.5),
+    // Second triangle
+    Vertex::new(-0.5, 0.5, 0.5),
+    Vertex::new(-0.5, 0.5, -0.5),
+    Vertex::new(-0.5, -0.5, -0.5),
+    // Fifth face (PY)
+    // First triangle
+    Vertex::new(-0.5, 0.5, -0.5),
+    Vertex::new(-0.5, 0.5, 0.5),
+    Vertex::new(0.5, 0.5, 0.5),
+    // Second triangle
+    Vertex::new(0.5, 0.5, 0.5),
+    Vertex::new(0.5, 0.5, -0.5),
+    Vertex::new(-0.5, 0.5, -0.5),
+    // Sixth face (MY)
+    // First triangle
+    Vertex::new(-0.5, -0.5, -0.5),
+    Vertex::new(0.5, -0.5, -0.5),
+    Vertex::new(0.5, -0.5, 0.5),
+    // Second triangle
+    Vertex::new(0.5, -0.5, 0.5),
+    Vertex::new(-0.5, -0.5, 0.5),
+    Vertex::new(-0.5, -0.5, -0.5),
 ];
 
-static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
+static SHADER_BYTES: &[u8] = include_shader!("assets/vshader_skybox.pica");
+static TEXTURE_BYTES: &[u8] = include_bytes!("assets/skybox.t3d");
 const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
 
 fn main() {
@@ -86,6 +133,7 @@ fn main() {
 
     let program = shader::Program::new(vertex_shader).unwrap();
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
+    let model_view_uniform_idx = program.get_uniform("modelView").unwrap();
 
     let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
     vbo_data.extend_from_slice(VERTICES);
@@ -93,9 +141,14 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
+    let tex = create_texture();
+
     let stage0 = texenv::TexEnv::new()
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .src(texenv::Mode::BOTH, texenv::Source::Texture0, None, None)
         .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+
+    let mut angle_x: f32 = 0.0;
+    let mut angle_y: f32 = 0.0;
 
     while apt.main_loop() {
         hid.scan_input();
@@ -104,9 +157,41 @@ fn main() {
             break;
         }
 
+        // Controls to look around
+        let mut circle_x = hid.circlepad_position().0 as f32 / 80.0f32;
+        if circle_x.abs() < 0.2 {
+            circle_x = 0.0;
+        }
+        let mut circle_y = hid.circlepad_position().1 as f32 / 80.0f32;
+        if circle_y.abs() < 0.2 {
+            circle_y = 0.0;
+        }
+        angle_x -= circle_y * 2.0f32.to_radians();
+        if hid.keys_held().contains(KeyPad::DPAD_DOWN) {
+            angle_x += 2.0f32.to_radians();
+        }
+        if angle_x > 90.0f32.to_radians() {
+            angle_x = 90.0f32.to_radians();
+        }
+        if hid.keys_held().contains(KeyPad::DPAD_UP) {
+            angle_x -= 2.0f32.to_radians();
+        }
+        if angle_x < -90.0f32.to_radians() {
+            angle_x = -90.0f32.to_radians();
+        }
+        angle_y += circle_x * 2.0f32.to_radians();
+        if hid.keys_held().contains(KeyPad::DPAD_RIGHT) {
+            angle_y += 2.0f32.to_radians();
+        }
+        if hid.keys_held().contains(KeyPad::DPAD_LEFT) {
+            angle_y -= 2.0f32.to_radians();
+        }
+
         instance.render_frame_with(|mut frame| {
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
+            let mut model_view = Matrix4::identity();
+            model_view.rotate_y(angle_y);
+            model_view.rotate_x(angle_x);
+
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
                 T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
@@ -121,19 +206,15 @@ fn main() {
                     .select_render_target(target)
                     .expect("failed to set render target");
                 frame.bind_vertex_uniform(projection_uniform_idx, projection);
-
-                frame.set_texenvs(&[stage0]);
-
-                frame.set_attr_info(&attr_info);
-
+                frame.bind_vertex_uniform(model_view_uniform_idx, model_view);
                 frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             });
 
-            // We bind the vertex shader.
             frame.bind_program(&program);
-
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+            frame.set_attr_info(&attr_info);
+            frame.set_cull_face(render::effect::CullMode::FrontCounterClockwise);
+            frame.set_texenvs(&[stage0]);
+            frame.bind_texture(texture::Index::Texture0, &tex);
 
             let Projections {
                 left_eye,
@@ -158,14 +239,9 @@ fn prepare_vbos<'a>(
     let mut attr_info = attrib::Info::new();
 
     let reg0 = attrib::Register::new(0).unwrap();
-    let reg1 = attrib::Register::new(1).unwrap();
 
     attr_info
         .add_loader(reg0, attrib::Format::Float, 3)
-        .unwrap();
-
-    attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
         .unwrap();
 
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
@@ -179,9 +255,17 @@ struct Projections {
     center: Matrix4,
 }
 
+fn create_texture() -> texture::Texture {
+    let tex: texture::Tex3DSTexture = texture::Tex3DSTexture::new(TEXTURE_BYTES, false).unwrap();
+    let mut tex: texture::Texture = tex.into_texture();
+    tex.set_filter(texture::Filter::Linear, texture::Filter::Linear);
+
+    // Set wrapping for the cube texture
+    tex.set_wrap(texture::Wrap::ClampToEdge, texture::Wrap::ClampToEdge);
+    tex
+}
+
 fn calculate_projections() -> Projections {
-    // TODO: it would be cool to allow playing around with these parameters on
-    // the fly with D-pad, etc.
     let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 

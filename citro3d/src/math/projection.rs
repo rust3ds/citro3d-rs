@@ -323,19 +323,14 @@ impl Default for CoordinateOrientation {
 /// Both screens on the 3DS are oriented such that the "top-left" of the screen
 /// in framebuffer coordinates is the physical bottom-left of the screen
 /// (i.e. the "width" is smaller than the "height").
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum ScreenOrientation {
     /// Rotate 90° clockwise to account for the 3DS screen rotation. Most
     /// applications will use this variant.
+    #[default]
     Rotated,
     /// Do not apply any extra rotation to the projection.
     None,
-}
-
-impl Default for ScreenOrientation {
-    fn default() -> Self {
-        Self::Rotated
-    }
 }
 
 /// Configuration for calculating stereoscopic projections.
@@ -407,6 +402,7 @@ pub enum AspectRatio {
     /// The aspect ratio of the 3DS' bottom screen.
     #[doc(alias = "C3D_AspectRatioBot")]
     BottomScreen,
+    Square,
     /// A custom aspect ratio (should be calcualted as `width / height`).
     Other(f32),
 }
@@ -416,6 +412,7 @@ impl From<AspectRatio> for f32 {
         match ratio {
             AspectRatio::TopScreen => citro3d_sys::C3D_AspectRatioTop as f32,
             AspectRatio::BottomScreen => citro3d_sys::C3D_AspectRatioBot as f32,
+            AspectRatio::Square => 1.0,
             AspectRatio::Other(ratio) => ratio,
         }
     }

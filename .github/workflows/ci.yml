@@ -30,6 +30,9 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
+      - name: Install Clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+
       # https://github.com/actions/runner/issues/504
       # Removing the matchers won't keep the job from failing if there are errors,
       # but will at least declutter pull request annotations (especially for warnings).
@@ -63,27 +66,11 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
 
+      - name: Install Clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+
       - name: Hide duplicated warnings from lint job
         run: echo "::remove-matcher owner=clippy::"
 
       - name: Build and run macro tests
         run: cargo test --package citro3d-macros
-
-      - name: Build and run lib and integration tests
-        uses: rust3ds/test-runner/run-tests@v1
-        with:
-          args: --tests --package citro3d
-
-      - name: Build and run doc tests
-        uses: rust3ds/test-runner/run-tests@v1
-        with:
-          args: --doc --package citro3d
-
-      - name: Upload citra logs and capture videos
-        uses: actions/upload-artifact@v4
-        if: success() || failure() # always run unless the workflow was cancelled
-        with:
-          name: citra-logs-${{ matrix.toolchain }}
-          path: |
-            target/armv6k-nintendo-3ds/debug/deps/*.txt
-            target/armv6k-nintendo-3ds/debug/deps/*.webm

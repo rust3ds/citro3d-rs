@@ -2,7 +2,6 @@
 #![test_runner(test_runner::run_gdb)]
 #![feature(allocator_api)]
 #![feature(doc_cfg)]
-#![feature(doc_auto_cfg)]
 #![doc(html_root_url = "https://rust3ds.github.io/citro3d-rs/crates")]
 #![doc(
     html_favicon_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"
@@ -37,7 +36,7 @@ use std::rc::Rc;
 use ctru::services::gfx::Screen;
 pub use error::{Error, Result};
 
-use crate::render::RenderPass;
+use crate::render::Frame;
 
 pub mod macros {
     //! Helper macros for working with shaders.
@@ -110,23 +109,38 @@ impl Instance {
         height: usize,
         screen: RefMut<'screen, dyn Screen>,
         depth_format: Option<render::DepthFormat>,
-    ) -> Result<render::Target<'screen>> {
-        render::Target::new(width, height, screen, depth_format, Rc::clone(&self.queue))
+    ) -> Result<render::ScreenTarget<'screen>> {
+        render::ScreenTarget::new(width, height, screen, depth_format, Rc::clone(&self.queue))
+    }
+
+    /// Create a new render target that renders to a texture with the specified size, color format,
+    /// and depth format.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the target could not be created with the given parameters.
+    pub fn render_target_texture(
+        &self,
+        texture: texture::Texture,
+        face: texture::Face,
+        depth_format: Option<render::DepthFormat>,
+    ) -> Result<render::TextureTarget> {
+        render::TextureTarget::new(texture, face, depth_format, Rc::clone(&self.queue))
     }
 
     /// Render a frame.
     ///
-    /// The passed in function/closure can access a [`RenderPass`] to emit draw calls.
+    /// The passed in function/closure can access a [`Frame`] to emit draw calls.
     #[doc(alias = "C3D_FrameBegin")]
     #[doc(alias = "C3D_FrameEnd")]
     pub fn render_frame_with<'istance: 'frame, 'frame>(
         &'istance mut self,
-        f: impl FnOnce(RenderPass<'frame>) -> RenderPass<'frame>,
+        f: impl FnOnce(Frame<'frame>) -> Frame<'frame>,
     ) {
-        let pass = f(RenderPass::new(self));
+        let frame = f(Frame::new(self));
 
         // Explicit drop for FrameEnd (when the GPU command buffer is flushed).
-        drop(pass);
+        drop(frame);
     }
 }
 
@@ -159,10 +173,10 @@ mod tests {
         let mut instance = Instance::new().unwrap();
         let target = instance.render_target(10, 10, screen, None).unwrap();
 
-        instance.render_frame_with(|mut pass| {
-            pass.select_render_target(&target).unwrap();
+        instance.render_frame_with(|mut frame| {
+            frame.select_render_target(&target).unwrap();
 
-            pass
+            frame
         });
 
         // Check that we don't get a double-free or use-after-free by dropping

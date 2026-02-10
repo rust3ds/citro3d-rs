@@ -6,7 +6,7 @@ use citro3d::macros::include_shader;
 use citro3d::math::{
     AspectRatio, ClipPlanes, CoordinateOrientation, FVec3, Matrix4, Projection, StereoDisplacement,
 };
-use citro3d::render::{ClearFlags, RenderPass, Target};
+use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
 use citro3d::{attrib, buffer, shader, texenv};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
@@ -143,6 +143,10 @@ fn main() {
     ];
     let index_buffer = vbo_slice.index_buffer(indices).unwrap();
 
+    let stage0 = texenv::TexEnv::new()
+        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+
     while apt.main_loop() {
         hid.scan_input();
 
@@ -150,33 +154,31 @@ fn main() {
             break;
         }
 
-        instance.render_frame_with(|mut pass| {
-            fn cast_lifetime_to_closure<'pass, T>(x: T) -> T
+        instance.render_frame_with(|mut frame| {
+            fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
-                T: Fn(&mut RenderPass<'pass>, &'pass mut Target<'_>, &Matrix4),
+                T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
             {
                 x
             }
 
-            let render_to = cast_lifetime_to_closure(|pass, target, projection| {
+            let render_to = cast_lifetime_to_closure(|frame, target, projection| {
                 target.clear(ClearFlags::ALL, CLEAR_COLOR, 0);
 
-                pass.select_render_target(target)
+                frame
+                    .select_render_target(target)
                     .expect("failed to set render target");
 
-                pass.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
+                frame.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
 
-                pass.set_attr_info(&attr_info);
+                frame.set_attr_info(&attr_info);
 
-                pass.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
+                frame.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
             });
 
-            pass.bind_program(&program);
+            frame.bind_program(&program);
 
-            let stage0 = texenv::Stage::new(0).unwrap();
-            pass.texenv(stage0)
-                .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
-                .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
+            frame.set_texenvs(&[stage0]);
 
             let Projections {
                 left_eye,
@@ -184,11 +186,11 @@ fn main() {
                 center,
             } = calculate_projections();
 
-            render_to(&mut pass, &mut top_left_target, &left_eye);
-            render_to(&mut pass, &mut top_right_target, &right_eye);
-            render_to(&mut pass, &mut bottom_target, &center);
+            render_to(&mut frame, &mut top_left_target, &left_eye);
+            render_to(&mut frame, &mut top_right_target, &right_eye);
+            render_to(&mut frame, &mut bottom_target, &center);
 
-            pass
+            frame
         });
     }
 }

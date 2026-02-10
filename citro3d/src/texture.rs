@@ -1,670 +1,359 @@
-use ctru_sys;
+use std::mem::MaybeUninit;
 
-/// Texture filters.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXTURE_FILTER_PARAM")]
-pub enum Filter {
-    #[doc(alias = "GPU_NEAREST")]
-    Nearest = ctru_sys::GPU_NEAREST,
+use citro3d_sys::C3D_TexCalcMaxLevel;
+pub use enums::*;
 
-    #[doc(alias = "GPU_LINEAR")]
-    Linear = ctru_sys::GPU_LINEAR,
+mod enums;
+
+/// The maximum number of textures that can be bound at once
+pub const TEXTURE_COUNT: usize = 4;
+/// Minimum width and height of a texture
+pub const MIN_TEX_SIZE: u16 = 8;
+/// Maximum width and height of a texture
+pub const MAX_TEX_SIZE: u16 = 1024;
+
+/// Texture width and height must be between 8 and 1024 (inclusive)
+#[derive(Debug, Clone)]
+pub struct TextureParameters {
+    pub width: u16,
+    pub height: u16,
+    pub max_level: u8,
+    pub format: ColorFormat,
+    pub mode: Mode,
+    pub on_vram: bool,
 }
 
-impl TryFrom<u8> for Filter {
-    type Error = String;
+/// Parameters used to initialize a `Texture`.
+/// Pass it into `Texture::new` to create a new texture.
+impl TextureParameters {
+    /// `TextureParameters` to initialize a new 2D `Texture` with no mipmapping.
+    pub const fn new_2d(width: u16, height: u16, format: ColorFormat) -> TextureParameters {
+        TextureParameters {
+            width,
+            height,
+            max_level: 0,
+            format,
+            mode: Mode::Tex2D,
+            on_vram: false,
+        }
+    }
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_NEAREST => Ok(Self::Nearest),
-            ctru_sys::GPU_LINEAR => Ok(Self::Linear),
-            _ => Err("invalid value for FilterParam".to_string()),
+    /// `TextureParameters` to initialize a new 2D `Texture` with mipmapping.
+    pub fn new_2d_with_mipmap(width: u16, height: u16, format: ColorFormat) -> TextureParameters {
+        TextureParameters {
+            width,
+            height,
+            max_level: unsafe { C3D_TexCalcMaxLevel(width as u32, height as u32) as u8 },
+            format,
+            mode: Mode::Tex2D,
+            on_vram: false,
+        }
+    }
+
+    /// `TextureParameters` to initialize a new 2D `Texture` with no mipmapping that is stored in VRAM.
+    pub const fn new_2d_in_vram(width: u16, height: u16, format: ColorFormat) -> TextureParameters {
+        TextureParameters {
+            width,
+            height,
+            max_level: 0,
+            format,
+            mode: Mode::Tex2D,
+            on_vram: true,
+        }
+    }
+
+    /// `TextureParameters` to initialize a new 2D `Texture` for a shadow map.
+    pub const fn new_shadow(width: u16, height: u16) -> TextureParameters {
+        TextureParameters {
+            width,
+            height,
+            max_level: 0,
+            format: ColorFormat::Rgba8,
+            mode: Mode::Shadow2D,
+            on_vram: true,
         }
     }
 }
 
-/// Texture wrap modes.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXTURE_WRAP_PARAM")]
-pub enum Wrap {
-    #[doc(alias = "GPU_CLAMP_TO_EDGE")]
-    ClampToEdge = ctru_sys::GPU_CLAMP_TO_EDGE,
-
-    #[doc(alias = "GPU_CLAMP_TO_BORDER")]
-    ClampToBorder = ctru_sys::GPU_CLAMP_TO_BORDER,
-
-    #[doc(alias = "GPU_REPEAT")]
-    Repeat = ctru_sys::GPU_REPEAT,
-
-    #[doc(alias = "GPU_MIRRORED_REPEAT")]
-    MirroredRepeat = ctru_sys::GPU_MIRRORED_REPEAT,
-}
-
-impl TryFrom<u8> for Wrap {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_CLAMP_TO_EDGE => Ok(Self::ClampToEdge),
-            ctru_sys::GPU_CLAMP_TO_BORDER => Ok(Self::ClampToBorder),
-            ctru_sys::GPU_REPEAT => Ok(Self::Repeat),
-            ctru_sys::GPU_MIRRORED_REPEAT => Ok(Self::MirroredRepeat),
-            _ => Err("invalid value for Wrap".to_string()),
+impl From<TextureParameters> for citro3d_sys::C3D_TexInitParams {
+    fn from(value: TextureParameters) -> Self {
+        citro3d_sys::C3D_TexInitParams {
+            width: value.width,
+            height: value.height,
+            _bitfield_align_1: [],
+            _bitfield_1: citro3d_sys::C3D_TexInitParams::new_bitfield_1(
+                value.max_level,
+                value.format as u8,
+                value.mode as u8,
+                value.on_vram,
+            ),
+            __bindgen_padding_0: 0,
         }
     }
 }
 
-/// Texture modes.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXTURE_MODE_PARAM")]
-pub enum Mode {
-    #[doc(alias = "GPU_TEX_2D")]
-    Tex2D = ctru_sys::GPU_TEX_2D,
-
-    #[doc(alias = "GPU_TEX_CUBE_MAP")]
-    CubeMap = ctru_sys::GPU_TEX_CUBE_MAP,
-
-    #[doc(alias = "GPU_TEX_SHADOW_2D")]
-    Shadow2D = ctru_sys::GPU_TEX_SHADOW_2D,
-
-    #[doc(alias = "GPU_TEX_PROJECTION")]
-    Projection = ctru_sys::GPU_TEX_PROJECTION,
-
-    #[doc(alias = "GPU_TEX_SHADOW_CUBE")]
-    ShadowCube = ctru_sys::GPU_TEX_SHADOW_CUBE,
-
-    #[doc(alias = "GPU_TEX_DISABLED")]
-    Disabled = ctru_sys::GPU_TEX_DISABLED,
+/// The Tex3DS representation of the struct, as the one generated from bindgen is not populated with the fields.
+#[allow(non_camel_case_types, non_snake_case)]
+#[repr(C)]
+struct Tex3DS_Texture_s {
+    numSubTextures: u16,
+    width: u16,
+    height: u16,
+    format: u8,
+    mipmapLevels: u8,
+    subTextures: [citro3d_sys::Tex3DS_SubTexture; 1],
 }
 
-impl TryFrom<u8> for Mode {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_TEX_2D => Ok(Self::Tex2D),
-            ctru_sys::GPU_TEX_CUBE_MAP => Ok(Self::CubeMap),
-            ctru_sys::GPU_TEX_SHADOW_2D => Ok(Self::Shadow2D),
-            ctru_sys::GPU_TEX_PROJECTION => Ok(Self::Projection),
-            ctru_sys::GPU_TEX_SHADOW_CUBE => Ok(Self::ShadowCube),
-            ctru_sys::GPU_TEX_DISABLED => Ok(Self::Disabled),
-            _ => Err("invalid value for Mode".to_string()),
+pub struct Tex3DSTexture {
+    texture: Texture,
+    tex3ds: Box<Tex3DS_Texture_s>,
+}
+
+impl Tex3DSTexture {
+    pub fn texture(&self) -> &Texture {
+        &self.texture
+    }
+
+    pub fn into_texture(self) -> Texture {
+        self.texture
+    }
+
+    pub fn sub_textures(&self) -> &[citro3d_sys::Tex3DS_SubTexture] {
+        // SAFETY: Everything in self.tex3ds was allocated through some call to `Tex3DSi_ImportCommon`
+        // which allocated the struct as a variable size such that `self.tex3ds.subTextures`
+        // is self.tex3ds.numSubTextures long.
+        unsafe {
+            std::slice::from_raw_parts(
+                self.tex3ds.subTextures.as_ptr(),
+                self.tex3ds.numSubTextures as usize,
+            )
         }
+    }
+
+    /// Import a texture from bytes generated by the `tex3ds` tool.
+    #[doc(alias = "Tex3DS_TextureImport")]
+    pub fn new(data: &[u8], use_vram: bool) -> Option<Tex3DSTexture> {
+        let mut texture: Texture = unsafe { std::mem::zeroed() };
+        let mut cube: Box<citro3d_sys::C3D_TexCube> = unsafe { Box::new(std::mem::zeroed()) };
+
+        // SAFETY: Transmuting the underlying pointer requires that type Tex3DS_Texture_s is correct
+        let t3d: *mut Tex3DS_Texture_s = unsafe {
+            citro3d_sys::Tex3DS_TextureImport(
+                data.as_ptr() as _,
+                data.len(),
+                texture.as_raw(),
+                cube.as_mut(),
+                use_vram,
+            ) as _
+        };
+
+        if t3d.is_null() {
+            return None;
+        }
+
+        let tex3ds = unsafe { Box::from_raw(t3d) };
+
+        texture.format = tex3ds.format.try_into().ok()?;
+        // TODO - check if mode is a cubemap and set it conditionally, then
+        // tex.cube being some/none could be used to check if it's a cubemap.
+        texture.cube = Some(cube);
+
+        Some(Tex3DSTexture { texture, tex3ds })
     }
 }
 
-/// Supported texture units.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXUNIT")]
-pub enum Unit {
-    #[doc(alias = "GPU_TEXUNIT0")]
-    Unit0 = ctru_sys::GPU_TEXUNIT0,
-
-    #[doc(alias = "GPU_TEXUNIT1")]
-    Unit1 = ctru_sys::GPU_TEXUNIT1,
-
-    #[doc(alias = "GPU_TEXUNIT2")]
-    Unit2 = ctru_sys::GPU_TEXUNIT2,
+pub struct Texture {
+    pub(crate) tex: citro3d_sys::C3D_Tex,
+    pub(crate) format: ColorFormat,
+    pub(crate) in_vram: bool,
+    /// cube being Some does not necessarily mean it is a cube map, as cube is initialized
+    /// when importing via Tex3DS even if it isn't used.
+    pub(crate) cube: Option<Box<citro3d_sys::C3D_TexCube>>,
 }
 
-impl TryFrom<u8> for Unit {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_TEXUNIT0 => Ok(Self::Unit0),
-            ctru_sys::GPU_TEXUNIT1 => Ok(Self::Unit1),
-            ctru_sys::GPU_TEXUNIT2 => Ok(Self::Unit2),
-            _ => Err("invalid value for Unit".to_string()),
+impl Texture {
+    /// Allocate a new texture with the given parameters.
+    /// Texture allocation can fail if the texture size specified by the parameters is too small or
+    /// large, or memory allocation fails.
+    #[doc(alias = "C3D_TexInit")]
+    pub fn new(params: TextureParameters) -> crate::error::Result<Self> {
+        if !check_texture_size(params.width) || !check_texture_size(params.height) {
+            return Err(crate::Error::InvalidSize);
+        }
+
+        let mut cube: Option<Box<citro3d_sys::C3D_TexCube>> = None;
+        if params.mode == Mode::CubeMap || params.mode == Mode::ShadowCube {
+            cube = unsafe { Some(Box::new(std::mem::zeroed())) };
+        }
+
+        let format = params.format;
+        let in_vram = params.on_vram;
+        let params: citro3d_sys::C3D_TexInitParams = params.into();
+
+        // SAFETY: C3D_Tex is only initialised here after citro3d_sys::C3d_TexInitWithParams returns success,
+        // and is properly cleaned up with citro3d::C3D_TexDelete on drop
+        unsafe {
+            let mut c3d_tex: MaybeUninit<citro3d_sys::C3D_Tex> = core::mem::zeroed();
+
+            let success = citro3d_sys::C3D_TexInitWithParams(
+                c3d_tex.as_mut_ptr(),
+                cube.as_mut().map(|p| p.as_mut() as _).unwrap_or_default(),
+                params,
+            );
+
+            if !success {
+                return Err(crate::Error::FailedToInitialize);
+            }
+
+            let mut tex = Texture {
+                tex: c3d_tex.assume_init(),
+                format,
+                in_vram,
+                cube,
+            };
+
+            // Set a default filter, as it won't render properly without one
+            tex.set_filter(Filter::Linear, Filter::Nearest);
+
+            Ok(tex)
         }
     }
-}
 
-/// Supported texture formats.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXCOLOR")]
-pub enum ColorFormat {
-    /// 8-bit Red + 8-bit Green + 8-bit Blue + 8-bit Alpha
-    #[doc(alias = "GPU_RGBA8")]
-    Rgba8 = ctru_sys::GPU_RGBA8,
-
-    /// 8-bit Red + 8-bit Green + 8-bit Blue    #[doc(alias = "GPU_RGB8")]
-    Rgb8 = ctru_sys::GPU_RGB8,
-
-    /// 5-bit Red + 5-bit Green + 5-bit Blue + 1-bit Alpha
-    #[doc(alias = "GPU_RGBA5551")]
-    Rgba5551 = ctru_sys::GPU_RGBA5551,
-
-    /// 5-bit Red + 6-bit Green + 5-bit Blue
-    #[doc(alias = "GPU_RGB565")]
-    Rgb565 = ctru_sys::GPU_RGB565,
-
-    /// 4-bit Red + 4-bit Green + 4-bit Blue + 4-bit Alpha
-    #[doc(alias = "GPU_RGBA4")]
-    Rgba4 = ctru_sys::GPU_RGBA4,
-
-    /// 8-bit Luminance + 8-bit Alpha
-    #[doc(alias = "GPU_LA8")]
-    La8 = ctru_sys::GPU_LA8,
-
-    /// 8-bit Hi + 8-bit Lo
-    #[doc(alias = "GPU_HILO8")]
-    Hilo8 = ctru_sys::GPU_HILO8,
-
-    /// 8-bit Luminance
-    #[doc(alias = "GPU_L8")]
-    L8 = ctru_sys::GPU_L8,
-
-    /// 8-bit Alpha
-    #[doc(alias = "GPU_A8")]
-    A8 = ctru_sys::GPU_A8,
-
-    /// 4-bit Luminance + 4-bit Alpha
-    #[doc(alias = "GPU_LA4")]
-    La4 = ctru_sys::GPU_LA4,
-
-    /// 4-bit Luminance
-    #[doc(alias = "GPU_L4")]
-    L4 = ctru_sys::GPU_L4,
-
-    /// 4-bit Alpha
-    #[doc(alias = "GPU_A4")]
-    A4 = ctru_sys::GPU_A4,
-
-    /// ETC1 texture compression
-    #[doc(alias = "GPU_ETC1")]
-    Etc1 = ctru_sys::GPU_ETC1,
-
-    /// ETC1 texture compression + 4-bit Alpha
-    #[doc(alias = "GPU_ETC1A4")]
-    Etc1A4 = ctru_sys::GPU_ETC1A4,
-}
-
-impl TryFrom<u8> for ColorFormat {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_RGBA8 => Ok(Self::Rgba8),
-            ctru_sys::GPU_RGB8 => Ok(Self::Rgb8),
-            ctru_sys::GPU_RGBA5551 => Ok(Self::Rgba5551),
-            ctru_sys::GPU_RGB565 => Ok(Self::Rgb565),
-            ctru_sys::GPU_RGBA4 => Ok(Self::Rgba4),
-            ctru_sys::GPU_LA8 => Ok(Self::La8),
-            ctru_sys::GPU_HILO8 => Ok(Self::Hilo8),
-            ctru_sys::GPU_L8 => Ok(Self::L8),
-            ctru_sys::GPU_A8 => Ok(Self::A8),
-            ctru_sys::GPU_LA4 => Ok(Self::La4),
-            ctru_sys::GPU_L4 => Ok(Self::L4),
-            ctru_sys::GPU_A4 => Ok(Self::A4),
-            ctru_sys::GPU_ETC1 => Ok(Self::Etc1),
-            ctru_sys::GPU_ETC1A4 => Ok(Self::Etc1A4),
-            _ => Err("invalid value for ColorFormat".to_string()),
-        }
+    /// Upload the provided data buffer to the texture, and to the given face if it's a cube
+    /// texture. For flat textures, the face argument is not considered so [`Face::default()`]
+    /// can be used.
+    #[doc(alias = "C3D_TexUpload")]
+    pub fn load_image(&mut self, data: &[u8], face: Face) -> crate::Result<()> {
+        self.load_image_at_mipmap_level(data, face, 0)
     }
-}
 
-/// Texture faces.
-///
-/// Faces are used for CubeMaps.
-/// Standard 2D textures use only [`Face::PositiveX`], also accessible as [`Face::Bidimensional`].
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEXFACE")]
-pub enum Face {
-    /// +X face.
+    /// Upload the provided data buffer to the texture's specific mipmap level, and to the given
+    /// face if it's a cube texture. For flat textures, the face argument is not considered so
+    /// [`Face::default()`] can be used.
+    #[doc(alias = "C3D_TexLoadImage")]
+    pub fn load_image_at_mipmap_level(
+        &mut self,
+        data: &[u8],
+        face: Face,
+        mipmap_level: u8,
+    ) -> crate::Result<()> {
+        let size = unsafe {
+            if mipmap_level > 0 {
+                citro3d_sys::C3D_TexCalcLevelSize(
+                    self.format.bits_per_pixel() as u32,
+                    mipmap_level as i32,
+                )
+            } else {
+                citro3d_sys::C3D_TexCalcTotalSize(
+                    self.format.bits_per_pixel() as u32,
+                    self.max_level() as i32,
+                )
+            }
+        };
+
+        // Verify data buffer is long enough
+        if data.len() < size as usize {
+            return Err(crate::Error::InvalidSize);
+        }
+
+        // SAFETY: The `data` buffer has been verified to be long enough
+        unsafe {
+            citro3d_sys::C3D_TexLoadImage(
+                self.as_raw(),
+                data.as_ptr() as *const _,
+                face as u8,
+                mipmap_level as i32,
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Binds this texture to the given texture unit of the GPU.
     ///
-    /// This corresponds to the only face of 2D textures (see [`Face::Bidimensional`]).
-    #[doc(alias = "GPU_POSITIVE_X")]
-    PositiveX = ctru_sys::GPU_POSITIVE_X,
+    /// SAFETY: This texture must stay alive as long as it's bound to the GPU (and a texenv is using that TexUnit?)
+    pub(crate) unsafe fn bind(&self, index: Index) {
+        unsafe { citro3d_sys::C3D_TexBind(index as _, &self.tex as *const _ as *mut _) };
+    }
 
-    /// -X face.
-    #[doc(alias = "GPU_NEGATIVE_X")]
-    NegativeX = ctru_sys::GPU_NEGATIVE_X,
-
-    /// +Y face.
-    #[doc(alias = "GPU_POSITIVE_Y")]
-    PositiveY = ctru_sys::GPU_POSITIVE_Y,
-
-    /// -Y face.
-    #[doc(alias = "GPU_NEGATIVE_Y")]
-    NegativeY = ctru_sys::GPU_NEGATIVE_Y,
-
-    /// +Z face.
-    #[doc(alias = "GPU_POSITIVE_Z")]
-    PositiveZ = ctru_sys::GPU_POSITIVE_Z,
-
-    /// -Z face.
-    #[doc(alias = "GPU_NEGATIVE_Z")]
-    NegativeZ = ctru_sys::GPU_NEGATIVE_Z,
-}
-
-impl Face {
-    /// 2D face.
-    ///
-    /// Equal in value to [`Face::PositiveX`].
-    #[allow(non_upper_case_globals)]
-    #[doc(alias = "GPU_TEXFACE_2D")]
-    pub const Bidimensional: Self = Self::PositiveX;
-}
-
-impl TryFrom<u8> for Face {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_POSITIVE_X => Ok(Self::PositiveX),
-            // ctru_sys::GPU_TEXFACE_2D and ctru_sys::GPU_POSITIVE_X have the same value which causes problems with rust.
-            // ctru_sys::GPU_TEXFACE_2D => Ok(Self::Bidimensional),
-            ctru_sys::GPU_NEGATIVE_X => Ok(Self::NegativeX),
-            ctru_sys::GPU_POSITIVE_Y => Ok(Self::PositiveY),
-            ctru_sys::GPU_NEGATIVE_Y => Ok(Self::NegativeY),
-            ctru_sys::GPU_POSITIVE_Z => Ok(Self::PositiveZ),
-            ctru_sys::GPU_NEGATIVE_Z => Ok(Self::NegativeZ),
-            _ => Err("invalid value for Face".to_string()),
+    /// Generate a mipmap for this texture, and this face if it's a cube texture.
+    /// For flat textures `Face::default()` or `Face::TEX2D` can be used.
+    pub fn generate_mipmap(&mut self, face: Face) {
+        unsafe {
+            citro3d_sys::C3D_TexGenerateMipmap(&mut self.tex as *mut _, face as u8);
         }
+    }
+
+    pub fn set_filter(&mut self, mag_filter: Filter, min_filter: Filter) {
+        unsafe { citro3d_sys::C3D_TexSetFilter(self.as_raw(), mag_filter as u8, min_filter as u8) };
+    }
+
+    pub fn set_filter_mipmap(&mut self, filter: Filter) {
+        unsafe {
+            citro3d_sys::C3D_TexSetFilterMipmap(self.as_raw(), filter as u8);
+        }
+    }
+
+    pub fn set_wrap(&mut self, wrap_s: Wrap, wrap_t: Wrap) {
+        unsafe {
+            citro3d_sys::C3D_TexSetWrap(self.as_raw(), wrap_s as u8, wrap_t as u8);
+        }
+    }
+
+    pub fn set_lod_bias(&mut self, lod_bias: f32) {
+        unsafe {
+            citro3d_sys::C3D_TexSetLodBias(self.as_raw(), lod_bias);
+        }
+    }
+
+    pub fn width(&self) -> u16 {
+        unsafe { self.tex.__bindgen_anon_2.__bindgen_anon_1.width }
+    }
+
+    pub fn height(&self) -> u16 {
+        unsafe { self.tex.__bindgen_anon_2.__bindgen_anon_1.height }
+    }
+
+    pub fn param(&self) -> u32 {
+        self.tex.param
+    }
+
+    pub fn format(&self) -> ColorFormat {
+        self.format
+    }
+
+    pub fn lod_bias(&self) -> u16 {
+        unsafe { self.tex.__bindgen_anon_3.__bindgen_anon_1.lodBias }
+    }
+
+    pub fn max_level(&self) -> u8 {
+        unsafe { self.tex.__bindgen_anon_3.__bindgen_anon_1.maxLevel }
+    }
+
+    pub fn min_level(&self) -> u8 {
+        unsafe { self.tex.__bindgen_anon_3.__bindgen_anon_1.minLevel }
+    }
+
+    fn as_raw(&self) -> *mut citro3d_sys::C3D_Tex {
+        &self.tex as *const _ as *mut _
     }
 }
 
-/// Procedural texture clamp modes.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_PROCTEX_CLAMP")]
-pub enum ProceduralTextureClamp {
-    /// Clamp to zero.
-    #[doc(alias = "GPU_PT_CLAMP_TO_ZERO")]
-    ClampToZero = ctru_sys::GPU_PT_CLAMP_TO_ZERO,
-
-    /// Clamp to edge.
-    #[doc(alias = "GPU_PT_CLAMP_TO_EDGE")]
-    ClampToEdge = ctru_sys::GPU_PT_CLAMP_TO_EDGE,
-
-    /// Symmetrical repeat.
-    #[doc(alias = "GPU_PT_REPEAT")]
-    Repeat = ctru_sys::GPU_PT_REPEAT,
-
-    /// Mirrored repeat.
-    #[doc(alias = "GPU_PT_MIRRORED_REPEAT")]
-    MirroredRepeat = ctru_sys::GPU_PT_MIRRORED_REPEAT,
-
-    /// Pulse.
-    #[doc(alias = "GPU_PT_PULSE")]
-    Pulse = ctru_sys::GPU_PT_PULSE,
-}
-
-impl TryFrom<u8> for ProceduralTextureClamp {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_PT_CLAMP_TO_ZERO => Ok(Self::ClampToZero),
-            ctru_sys::GPU_PT_CLAMP_TO_EDGE => Ok(Self::ClampToEdge),
-            ctru_sys::GPU_PT_REPEAT => Ok(Self::Repeat),
-            ctru_sys::GPU_PT_MIRRORED_REPEAT => Ok(Self::MirroredRepeat),
-            ctru_sys::GPU_PT_PULSE => Ok(Self::Pulse),
-            _ => Err("invalid value for ProceduralTextureClamp".to_string()),
-        }
+impl Drop for Texture {
+    fn drop(&mut self) {
+        // SAFETY: self.tex was initialised with C3D_TexInitWithParams
+        unsafe { citro3d_sys::C3D_TexDelete(self.as_raw()) }
     }
 }
 
-/// Procedural texture mapping functions.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_PROCTEX_MAPFUNC")]
-pub enum ProceduralTextureMappingFunction {
-    /// U
-    #[doc(alias = "GPU_PT_U")]
-    U = ctru_sys::GPU_PT_U,
-
-    /// U2
-    #[doc(alias = "GPU_PT_U2")]
-    U2 = ctru_sys::GPU_PT_U2,
-
-    /// V
-    #[doc(alias = "GPU_PT_V")]
-    V = ctru_sys::GPU_PT_V,
-
-    /// V2
-    #[doc(alias = "GPU_PT_V2")]
-    V2 = ctru_sys::GPU_PT_V2,
-
-    /// U+V
-    #[doc(alias = "GPU_PT_ADD")]
-    Add = ctru_sys::GPU_PT_ADD,
-
-    /// U2+V2
-    #[doc(alias = "GPU_PT_ADD2")]
-    Add2 = ctru_sys::GPU_PT_ADD2,
-
-    /// sqrt(U2+V2)
-    #[doc(alias = "GPU_PT_SQRT2")]
-    Sqrt2 = ctru_sys::GPU_PT_SQRT2,
-
-    /// min
-    #[doc(alias = "GPU_PT_MIN")]
-    Min = ctru_sys::GPU_PT_MIN,
-
-    /// max
-    #[doc(alias = "GPU_PT_MAX")]
-    Max = ctru_sys::GPU_PT_MAX,
-
-    /// rmax
-    #[doc(alias = "GPU_PT_RMAX")]
-    RMax = ctru_sys::GPU_PT_RMAX,
-}
-
-impl TryFrom<u8> for ProceduralTextureMappingFunction {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_PT_U => Ok(Self::U),
-            ctru_sys::GPU_PT_U2 => Ok(Self::U2),
-            ctru_sys::GPU_PT_V => Ok(Self::V),
-            ctru_sys::GPU_PT_V2 => Ok(Self::V2),
-            ctru_sys::GPU_PT_ADD => Ok(Self::Add),
-            ctru_sys::GPU_PT_ADD2 => Ok(Self::Add2),
-            ctru_sys::GPU_PT_SQRT2 => Ok(Self::Sqrt2),
-            ctru_sys::GPU_PT_MIN => Ok(Self::Min),
-            ctru_sys::GPU_PT_MAX => Ok(Self::Max),
-            ctru_sys::GPU_PT_RMAX => Ok(Self::RMax),
-            _ => Err("invalid value for ProceduralTextureMappingFunction".to_string()),
-        }
+fn check_texture_size(size: u16) -> bool {
+    if !(MIN_TEX_SIZE..=MAX_TEX_SIZE).contains(&size) {
+        return false;
     }
-}
 
-/// Procedural texture shift values.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_PROCTEX_SHIFT")]
-pub enum ProceduralTextureShift {
-    /// No shift.
-    #[doc(alias = "GPU_PT_NONE")]
-    None = ctru_sys::GPU_PT_NONE,
-
-    /// Odd shift.
-    #[doc(alias = "GPU_PT_ODD")]
-    Odd = ctru_sys::GPU_PT_ODD,
-
-    /// Even shift.
-    #[doc(alias = "GPU_PT_EVEN")]
-    Even = ctru_sys::GPU_PT_EVEN,
-}
-
-impl TryFrom<u8> for ProceduralTextureShift {
-    type Error = String;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_PT_NONE => Ok(Self::None),
-            ctru_sys::GPU_PT_ODD => Ok(Self::Odd),
-            ctru_sys::GPU_PT_EVEN => Ok(Self::Even),
-            _ => Err("invalid value for ProceduralTextureShift".to_string()),
-        }
+    if (size & (size - 1)) > 0 {
+        return false;
     }
-}
 
-/// Procedural texture filter values.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_PROCTEX_FILTER")]
-pub enum ProceduralTextureFilter {
-    /// Nearest-neighbor
-    #[doc(alias = "GPU_PT_NEAREST")]
-    Nearest = ctru_sys::GPU_PT_NEAREST,
-
-    /// Linear interpolation
-    #[doc(alias = "GPU_PT_LINEAR")]
-    Linear = ctru_sys::GPU_PT_LINEAR,
-
-    /// Nearest-neighbor with mipmap using nearest-neighbor
-    #[doc(alias = "GPU_PT_NEAREST_MIP_NEAREST")]
-    NearestMipNearest = ctru_sys::GPU_PT_NEAREST_MIP_NEAREST,
-
-    /// Linear interpolation with mipmap using nearest-neighbor
-    #[doc(alias = "GPU_PT_LINEAR_MIP_NEAREST")]
-    LinearMipNearest = ctru_sys::GPU_PT_LINEAR_MIP_NEAREST,
-
-    /// Nearest-neighbor with mipmap using linear interpolation
-    #[doc(alias = "GPU_PT_NEAREST_MIP_LINEAR")]
-    NearestMipLinear = ctru_sys::GPU_PT_NEAREST_MIP_LINEAR,
-
-    /// Linear interpolation with mipmap using linear interpolation
-    #[doc(alias = "GPU_PT_LINEAR_MIP_LINEAR")]
-    LinearMipLinear = ctru_sys::GPU_PT_LINEAR_MIP_LINEAR,
-}
-
-impl TryFrom<u8> for ProceduralTextureFilter {
-    type Error = String;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_PT_NEAREST => Ok(Self::Nearest),
-            ctru_sys::GPU_PT_LINEAR => Ok(Self::Linear),
-            ctru_sys::GPU_PT_NEAREST_MIP_NEAREST => Ok(Self::NearestMipNearest),
-            ctru_sys::GPU_PT_LINEAR_MIP_NEAREST => Ok(Self::LinearMipNearest),
-            ctru_sys::GPU_PT_NEAREST_MIP_LINEAR => Ok(Self::NearestMipLinear),
-            ctru_sys::GPU_PT_LINEAR_MIP_LINEAR => Ok(Self::LinearMipLinear),
-            _ => Err("invalid value for ProceduralTextureFilter".to_string()),
-        }
-    }
-}
-
-/// Procedural texture LUT IDs.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_PROCTEX_LUTID")]
-pub enum ProceduralTextureLutId {
-    /// Noise table
-    #[doc(alias = "GPU_LUT_NOISE")]
-    Noise = ctru_sys::GPU_LUT_NOISE,
-
-    /// RGB mapping function table
-    #[doc(alias = "GPU_LUT_RGBMAP")]
-    RGBMap = ctru_sys::GPU_LUT_RGBMAP,
-
-    /// Alpha mapping function table
-    #[doc(alias = "GPU_LUT_ALPHAMAP")]
-    AlphaMap = ctru_sys::GPU_LUT_ALPHAMAP,
-
-    /// Color table
-    #[doc(alias = "GPU_LUT_COLOR")]
-    Color = ctru_sys::GPU_LUT_COLOR,
-
-    /// Color difference table
-    #[doc(alias = "GPU_LUT_COLORDIF")]
-    ColorDif = ctru_sys::GPU_LUT_COLORDIF,
-}
-
-impl TryFrom<u8> for ProceduralTextureLutId {
-    type Error = String;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_LUT_NOISE => Ok(Self::Noise),
-            ctru_sys::GPU_LUT_RGBMAP => Ok(Self::RGBMap),
-            ctru_sys::GPU_LUT_ALPHAMAP => Ok(Self::AlphaMap),
-            ctru_sys::GPU_LUT_COLOR => Ok(Self::Color),
-            ctru_sys::GPU_LUT_COLORDIF => Ok(Self::ColorDif),
-            _ => Err("invalid value for ProceduralTextureLutId".to_string()),
-        }
-    }
-}
-
-/// Texture RGB combiner operands.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEVOP_RGB")]
-pub enum RgbOperand {
-    /// Source color.
-    #[doc(alias = "GPU_TEVOP_RGB_SRC_COLOR")]
-    SrcColor = ctru_sys::GPU_TEVOP_RGB_SRC_COLOR,
-
-    /// Source color - 1.
-    #[doc(alias = "GPU_TEVOP_RGB_ONE_MINUS_SRC_COLOR")]
-    OneMinusSrcColor = ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_COLOR,
-
-    /// Source alpha.
-    #[doc(alias = "GPU_TEVOP_RGB_SRC_ALPHA")]
-    SrcAlpha = ctru_sys::GPU_TEVOP_RGB_SRC_ALPHA,
-
-    /// Source alpha - 1.
-    #[doc(alias = "GPU_TEVOP_RGB_ONE_MINUS_SRC_ALPHA")]
-    OneMinusSrcAlpha = ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_ALPHA,
-
-    /// Source red.
-    #[doc(alias = "GPU_TEVOP_RGB_SRC_R")]
-    SrcR = ctru_sys::GPU_TEVOP_RGB_SRC_R,
-
-    /// Source red - 1.
-    #[doc(alias = "GPU_TEVOP_RGB_ONE_MINUS_SRC_R")]
-    OneMinusSrcR = ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_R,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x06")]
-    _0x06 = ctru_sys::GPU_TEVOP_RGB_0x06,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x07")]
-    UnknownHex07 = ctru_sys::GPU_TEVOP_RGB_0x07,
-
-    /// Source green.
-    #[doc(alias = "GPU_TEVOP_RGB_SRC_G")]
-    SrcG = ctru_sys::GPU_TEVOP_RGB_SRC_G,
-
-    /// Source green - 1.
-    #[doc(alias = "GPU_TEVOP_RGB_ONE_MINUS_SRC_G")]
-    OneMinusSrcG = ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_G,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x0A")]
-    UnknownHex0A = ctru_sys::GPU_TEVOP_RGB_0x0A,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x0B")]
-    UnknownHex0B = ctru_sys::GPU_TEVOP_RGB_0x0B,
-
-    /// Source blue.
-    #[doc(alias = "GPU_TEVOP_RGB_SRC_B")]
-    SrcB = ctru_sys::GPU_TEVOP_RGB_SRC_B,
-
-    /// Source blue - 1.
-    #[doc(alias = "GPU_TEVOP_RGB_ONE_MINUS_SRC_B")]
-    OneMinusSrcB = ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_B,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x0E")]
-    UnknownHex0E = ctru_sys::GPU_TEVOP_RGB_0x0E,
-
-    /// Unknown.
-    #[doc(alias = "GPU_TEVOP_RGB_0x0F")]
-    UnknownHex0F = ctru_sys::GPU_TEVOP_RGB_0x0F,
-}
-
-impl TryFrom<u8> for RgbOperand {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_TEVOP_RGB_SRC_COLOR => Ok(Self::SrcColor),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_COLOR => Ok(Self::OneMinusSrcColor),
-            ctru_sys::GPU_TEVOP_RGB_SRC_ALPHA => Ok(Self::SrcAlpha),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_ALPHA => Ok(Self::OneMinusSrcAlpha),
-            ctru_sys::GPU_TEVOP_RGB_SRC_R => Ok(Self::SrcR),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_R => Ok(Self::OneMinusSrcR),
-            ctru_sys::GPU_TEVOP_RGB_0x06 => Ok(Self::_0x06),
-            ctru_sys::GPU_TEVOP_RGB_0x07 => Ok(Self::UnknownHex07),
-            ctru_sys::GPU_TEVOP_RGB_SRC_G => Ok(Self::SrcG),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_G => Ok(Self::OneMinusSrcG),
-            ctru_sys::GPU_TEVOP_RGB_0x0A => Ok(Self::UnknownHex0A),
-            ctru_sys::GPU_TEVOP_RGB_0x0B => Ok(Self::UnknownHex0B),
-            ctru_sys::GPU_TEVOP_RGB_SRC_B => Ok(Self::SrcB),
-            ctru_sys::GPU_TEVOP_RGB_ONE_MINUS_SRC_B => Ok(Self::OneMinusSrcB),
-            ctru_sys::GPU_TEVOP_RGB_0x0E => Ok(Self::UnknownHex0E),
-            ctru_sys::GPU_TEVOP_RGB_0x0F => Ok(Self::UnknownHex0F),
-            _ => Err("invalid value for RgbOperand".to_string()),
-        }
-    }
-}
-
-/// Texture Alpha combiner operands.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEVOP_A")]
-pub enum AlphaOperand {
-    /// Source alpha.
-    #[doc(alias = "GPU_TEVOP_A_SRC_ALPHA")]
-    SrcAlpha = ctru_sys::GPU_TEVOP_A_SRC_ALPHA,
-
-    /// Source alpha - 1.
-    #[doc(alias = "GPU_TEVOP_A_ONE_MINUS_SRC_ALPHA")]
-    OneMinusSrcAlpha = ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_ALPHA,
-
-    /// Source red.
-    #[doc(alias = "GPU_TEVOP_A_SRC_R")]
-    SrcRed = ctru_sys::GPU_TEVOP_A_SRC_R,
-
-    /// Source red - 1.
-    #[doc(alias = "GPU_TEVOP_A_ONE_MINUS_SRC_R")]
-    OneMinusSrcRed = ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_R,
-
-    /// Source green.
-    #[doc(alias = "GPU_TEVOP_A_SRC_G")]
-    SrcGreen = ctru_sys::GPU_TEVOP_A_SRC_G,
-
-    /// Source green - 1.
-    #[doc(alias = "GPU_TEVOP_A_ONE_MINUS_SRC_G")]
-    OneMinusSrcGreen = ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_G,
-
-    /// Source blue.
-    #[doc(alias = "GPU_TEVOP_A_SRC_B")]
-    SrcBlue = ctru_sys::GPU_TEVOP_A_SRC_B,
-
-    /// Source blue - 1.
-    #[doc(alias = "GPU_TEVOP_A_ONE_MINUS_SRC_B")]
-    OneMinusSrcBlue = ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_B,
-}
-
-impl TryFrom<u8> for AlphaOperand {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_TEVOP_A_SRC_ALPHA => Ok(Self::SrcAlpha),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_ALPHA => Ok(Self::OneMinusSrcAlpha),
-            ctru_sys::GPU_TEVOP_A_SRC_R => Ok(Self::SrcRed),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_R => Ok(Self::OneMinusSrcRed),
-            ctru_sys::GPU_TEVOP_A_SRC_G => Ok(Self::SrcGreen),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_G => Ok(Self::OneMinusSrcGreen),
-            ctru_sys::GPU_TEVOP_A_SRC_B => Ok(Self::SrcBlue),
-            ctru_sys::GPU_TEVOP_A_ONE_MINUS_SRC_B => Ok(Self::OneMinusSrcBlue),
-            _ => Err("invalid value for AlphaOperand".to_string()),
-        }
-    }
-}
-
-/// Texture scale factors.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(alias = "GPU_TEVSCALE")]
-pub enum Scale {
-    /// 1x scale
-    #[doc(alias = "GPU_TEVSCALE_1")]
-    Original = ctru_sys::GPU_TEVSCALE_1,
-
-    /// 2x scale
-    #[doc(alias = "GPU_TEVSCALE_2")]
-    Double = ctru_sys::GPU_TEVSCALE_2,
-
-    /// 4x scale
-    #[doc(alias = "GPU_TEVSCALE_4")]
-    Quadruple = ctru_sys::GPU_TEVSCALE_4,
-}
-
-impl TryFrom<u8> for Scale {
-    type Error = String;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            ctru_sys::GPU_TEVSCALE_1 => Ok(Self::Original),
-            ctru_sys::GPU_TEVSCALE_2 => Ok(Self::Double),
-            ctru_sys::GPU_TEVSCALE_4 => Ok(Self::Quadruple),
-            _ => Err("invalid value for Scale".to_string()),
-        }
-    }
+    true
 }

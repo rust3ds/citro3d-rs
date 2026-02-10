@@ -1,14 +1,12 @@
 //! This module provides render target types and options for controlling transfer
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
-use std::cell::{OnceCell, RefMut};
+use std::cell::RefMut;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 
-use citro3d_sys::{
-    C3D_DEPTHTYPE, C3D_RenderTarget, C3D_RenderTargetCreate, C3D_RenderTargetDelete,
-};
+use citro3d_sys::{C3D_DEPTHTYPE, C3D_RenderTargetCreate, C3D_RenderTargetDelete};
 use ctru::services::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
@@ -17,8 +15,9 @@ use crate::{
     Error, Instance, RenderQueue, Result, attrib,
     buffer::{self, Index, Indices},
     light::LightEnv,
-    shader,
+    render, shader,
     texenv::{self, TexEnv},
+    texture,
     uniform::{self, Uniform},
 };
 
@@ -70,9 +69,87 @@ pub enum DepthFormat {
 }
 
 /// A render target for `citro3d`. Frame data will be written to this target
+/// to be rendered on the GPU and used as a source for further rendering.
+#[doc(alias = "C3D_RenderTarget")]
+pub trait Target {
+    /// Return the underlying `citro3d` render target for this target.
+    fn as_raw(&self) -> *mut citro3d_sys::C3D_RenderTarget;
+
+    /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
+    /// Use `flags` to specify whether color and/or depth should be overwritten.
+    #[doc(alias = "C3D_RenderTargetClear")]
+    fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
+        unsafe {
+            citro3d_sys::C3D_RenderTargetClear(self.as_raw(), flags.bits(), rgba_color, depth);
+        }
+    }
+}
+
+pub struct TextureTarget {
+    raw: *mut citro3d_sys::C3D_RenderTarget,
+    texture: texture::Texture,
+    _queue: Rc<RenderQueue>,
+}
+
+impl TextureTarget {
+    pub(crate) fn new(
+        mut texture: texture::Texture,
+        face: texture::Face,
+        depth_format: Option<DepthFormat>,
+        queue: Rc<RenderQueue>,
+    ) -> Result<Self> {
+        if !texture.in_vram {
+            return Err(Error::InvalidMemoryLocation);
+        }
+
+        let raw = unsafe {
+            citro3d_sys::C3D_RenderTargetCreateFromTex(
+                &mut texture.tex as *mut _,
+                face as _,
+                0,
+                depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
+            )
+        };
+
+        if raw.is_null() {
+            return Err(Error::FailedToInitialize);
+        }
+
+        Ok(TextureTarget {
+            raw,
+            texture,
+            _queue: queue,
+        })
+    }
+
+    pub fn texture(&self) -> &texture::Texture {
+        &self.texture
+    }
+
+    pub fn texture_mut(&mut self) -> &mut texture::Texture {
+        &mut self.texture
+    }
+}
+
+impl Target for TextureTarget {
+    fn as_raw(&self) -> *mut citro3d_sys::C3D_RenderTarget {
+        self.raw
+    }
+}
+
+impl Drop for TextureTarget {
+    #[doc(alias = "C3D_RenderTargetDelete")]
+    fn drop(&mut self) {
+        unsafe {
+            C3D_RenderTargetDelete(self.raw);
+        }
+    }
+}
+
+/// A render target for `citro3d`. Frame data will be written to this target
 /// to be rendered on the GPU and displayed on the screen.
 #[doc(alias = "C3D_RenderTarget")]
-pub struct Target<'screen> {
+pub struct ScreenTarget<'screen> {
     raw: *mut citro3d_sys::C3D_RenderTarget,
     // This is unused after construction, but ensures unique access to the
     // screen this target writes to during rendering
@@ -80,36 +157,115 @@ pub struct Target<'screen> {
     _queue: Rc<RenderQueue>,
 }
 
-struct Frame;
+impl<'screen> ScreenTarget<'screen> {
+    /// Create a new render target with the given parameters. This takes a
+    /// [`RenderQueue`] parameter to make sure this  [`Target`] doesn't outlive
+    /// the render queue.
+    pub(crate) fn new(
+        width: usize,
+        height: usize,
+        screen: RefMut<'screen, dyn Screen>,
+        depth_format: Option<DepthFormat>,
+        queue: Rc<RenderQueue>,
+    ) -> Result<Self> {
+        let color_format: ColorFormat = screen.framebuffer_format().into();
+
+        let raw = unsafe {
+            C3D_RenderTargetCreate(
+                width.try_into()?,
+                height.try_into()?,
+                color_format as GPU_COLORBUF,
+                depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
+            )
+        };
+
+        if raw.is_null() {
+            return Err(Error::FailedToInitialize);
+        }
+
+        // Set the render target to actually output to the given screen
+        let flags = transfer::Flags::default()
+            .in_format(color_format.into())
+            .out_format(color_format.into());
+
+        unsafe {
+            citro3d_sys::C3D_RenderTargetSetOutput(
+                raw,
+                screen.as_raw(),
+                screen.side().into(),
+                flags.bits(),
+            );
+        }
+
+        Ok(Self {
+            raw,
+            _screen: screen,
+            _queue: queue,
+        })
+    }
+}
+
+impl<'screen> Target for ScreenTarget<'screen> {
+    fn as_raw(&self) -> *mut citro3d_sys::C3D_RenderTarget {
+        self.raw
+    }
+}
+
+impl Drop for ScreenTarget<'_> {
+    #[doc(alias = "C3D_RenderTargetDelete")]
+    fn drop(&mut self) {
+        unsafe {
+            C3D_RenderTargetDelete(self.raw);
+        }
+    }
+}
+
+impl From<FramebufferFormat> for ColorFormat {
+    fn from(format: FramebufferFormat) -> Self {
+        match format {
+            FramebufferFormat::Rgba8 => Self::RGBA8,
+            FramebufferFormat::Rgb565 => Self::RGB565,
+            FramebufferFormat::Rgb5A1 => Self::RGBA5551,
+            FramebufferFormat::Rgba4 => Self::RGBA4,
+            // this one seems unusual, but it appears to work fine:
+            FramebufferFormat::Bgr8 => Self::RGB8,
+        }
+    }
+}
+
+impl DepthFormat {
+    fn as_raw(self) -> C3D_DEPTHTYPE {
+        C3D_DEPTHTYPE {
+            __e: self as GPU_DEPTHBUF,
+        }
+    }
+}
 
 #[non_exhaustive]
 #[must_use]
-pub struct RenderPass<'pass> {
-    texenvs: [OnceCell<TexEnv>; texenv::TEXENV_COUNT],
-    _active_frame: Frame,
-
+pub struct Frame<'instance> {
     // It is not valid behaviour to bind anything but a correct shader program.
     // Instead of binding NULL, we simply force the user to have a shader program bound again
     // before any draw calls.
     is_program_bound: bool,
-
-    _phantom: PhantomData<&'pass mut Instance>,
+    texenvs: [Option<TexEnv>; texenv::TEXENV_COUNT],
+    bound_textures: [bool; texture::Index::ALL.len()],
+    _phantom: PhantomData<&'instance mut Instance>,
 }
 
-impl<'pass> RenderPass<'pass> {
-    pub(crate) fn new(_instance: &'pass mut Instance) -> Self {
+impl<'instance> Frame<'instance> {
+    pub(crate) fn new(_instance: &'instance mut Instance) -> Self {
+        unsafe {
+            citro3d_sys::C3D_FrameBegin(
+                // TODO: begin + end flags should be configurable
+                citro3d_sys::C3D_FRAME_SYNCDRAW,
+            )
+        };
+
         Self {
-            texenvs: [
-                // thank goodness there's only six of them!
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-                OnceCell::new(),
-            ],
-            _active_frame: Frame::new(),
             is_program_bound: false,
+            texenvs: [None; texenv::TEXENV_COUNT],
+            bound_textures: [false; texture::Index::ALL.len()],
             _phantom: PhantomData,
         }
     }
@@ -120,7 +276,7 @@ impl<'pass> RenderPass<'pass> {
     ///
     /// Fails if the given target cannot be used for drawing.
     #[doc(alias = "C3D_FrameDrawOn")]
-    pub fn select_render_target(&mut self, target: &'pass Target<'_>) -> Result<()> {
+    pub fn select_render_target<T: render::Target>(&mut self, target: &'instance T) -> Result<()> {
         let _ = self;
         if unsafe { citro3d_sys::C3D_FrameDrawOn(target.as_raw()) } {
             Ok(())
@@ -171,12 +327,34 @@ impl<'pass> RenderPass<'pass> {
     ///
     /// # Panics
     ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
     #[doc(alias = "C3D_DrawArrays")]
-    pub fn draw_arrays(&mut self, primitive: buffer::Primitive, vbo_data: buffer::Slice<'pass>) {
+    pub fn draw_arrays(
+        &mut self,
+        primitive: buffer::Primitive,
+        vbo_data: buffer::Slice<'instance>,
+    ) {
         // TODO: Decide whether it's worth returning an `Error` instead of panicking.
         if !self.is_program_bound {
-            panic!("tried todraw arrays when no shader program is bound");
+            panic!("Tried to draw arrays when no shader program is bound");
+        }
+
+        // Ensure that any textures being referenced by the texture environment
+        // have been bound this frame, otherwise it could reference a texture
+        // that was bound in a previous frame outside of its lifetime.
+        for src in self
+            .texenvs
+            .iter()
+            .flat_map(|te| te.as_ref())
+            .flat_map(|te| te.sources.iter())
+        {
+            let Some(index) = src.corresponding_index() else {
+                continue;
+            };
+
+            if !self.bound_textures[index as usize] {
+                panic!("Texenv referenced {src:?} but texture unit {index:?} was not bound.");
+            }
         }
 
         self.set_buffer_info(vbo_data.info());
@@ -195,16 +373,33 @@ impl<'pass> RenderPass<'pass> {
     ///
     /// # Panics
     ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
     #[doc(alias = "C3D_DrawElements")]
     pub fn draw_elements<I: Index>(
         &mut self,
         primitive: buffer::Primitive,
-        vbo_data: buffer::Slice<'pass>,
-        indices: &Indices<'pass, I>,
+        vbo_data: buffer::Slice<'instance>,
+        indices: &Indices<'instance, I>,
     ) {
         if !self.is_program_bound {
             panic!("tried to draw elements when no shader program is bound");
+        }
+
+        // Ensure that any textures being referenced by the texture environment
+        // have been bound this frame, otherwise it could reference a texture
+        // that was bound in a previous frame outside of its lifetime.
+        for env in &self.texenvs {
+            let Some(env) = env.as_ref() else { continue };
+
+            for src in env.sources {
+                let Some(index) = src.corresponding_index() else {
+                    continue;
+                };
+
+                if !self.bound_textures[index as usize] {
+                    panic!("Texenv referenced {src:?} but texture unit {index:?} was not bound.");
+                }
+            }
         }
 
         self.set_buffer_info(vbo_data.info());
@@ -224,7 +419,7 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Use the given [`shader::Program`] for the following draw calls.
-    pub fn bind_program(&mut self, program: &'pass shader::Program) {
+    pub fn bind_program(&mut self, program: &'instance shader::Program) {
         // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
         // instead of mutating the pointee in any way that would cause UB
         unsafe {
@@ -235,7 +430,7 @@ impl<'pass> RenderPass<'pass> {
     }
 
     /// Binds a [`LightEnv`] for the following draw calls.
-    pub fn bind_light_env(&mut self, env: Option<Pin<&'pass mut LightEnv>>) {
+    pub fn bind_light_env(&mut self, env: Option<Pin<&'instance mut LightEnv>>) {
         unsafe {
             citro3d_sys::C3D_LightEnvBind(env.map_or(std::ptr::null_mut(), |env| env.as_raw_mut()));
         }
@@ -245,7 +440,7 @@ impl<'pass> RenderPass<'pass> {
     ///
     /// # Panics
     ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
     ///
     /// # Example
     ///
@@ -272,7 +467,7 @@ impl<'pass> RenderPass<'pass> {
     ///
     /// # Panics
     ///
-    /// Panics if no shader program was bound (see [`RenderPass::bind_program`]).
+    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
     ///
     /// # Example
     ///
@@ -295,145 +490,53 @@ impl<'pass> RenderPass<'pass> {
         uniform.into().bind(self, shader::Type::Geometry, index);
     }
 
+    /// Set up to 6 stages of [`TexEnv`] to use.
+    /// If more than 6 stages are provided, the 7th onwards
+    /// will be ignored.
     /// Retrieve the [`TexEnv`] for the given stage, initializing it first if necessary.
     ///
     /// # Example
     ///
     /// ```
     /// # use citro3d::texenv;
-    /// # let _runner = test_runner::GdbRunner::default();
-    /// # let mut instance = citro3d::Instance::new().unwrap();
-    /// let stage0 = texenv::Stage::new(0).unwrap();
-    /// let texenv0 = instance.texenv(stage0);
+    /// let stage0 =
+    ///     texenv::TexEnv::new().src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None);
+    /// let texenv0 = frame.set_texenvs([stage0]);
     /// ```
-    #[doc(alias = "C3D_GetTexEnv")]
-    #[doc(alias = "C3D_TexEnvInit")]
-    pub fn texenv(&mut self, stage: texenv::Stage) -> &mut texenv::TexEnv {
-        let texenv = &mut self.texenvs[stage.0];
-        texenv.get_or_init(|| TexEnv::new(stage));
-        // We have to do this weird unwrap to get a mutable reference,
-        // since there is no `get_mut_or_init` or equivalent
-        texenv.get_mut().unwrap()
-    }
-}
-
-impl<'screen> Target<'screen> {
-    /// Create a new render target with the given parameters. This takes a
-    /// [`RenderQueue`] parameter to make sure this  [`Target`] doesn't outlive
-    /// the render queue.
-    pub(crate) fn new(
-        width: usize,
-        height: usize,
-        screen: RefMut<'screen, dyn Screen>,
-        depth_format: Option<DepthFormat>,
-        queue: Rc<RenderQueue>,
-    ) -> Result<Self> {
-        let color_format: ColorFormat = screen.framebuffer_format().into();
-
-        let raw = unsafe {
-            C3D_RenderTargetCreate(
-                width.try_into()?,
-                height.try_into()?,
-                color_format as GPU_COLORBUF,
-                depth_format.map_or(C3D_DEPTHTYPE { __i: -1 }, DepthFormat::as_raw),
-            )
-        };
-
-        if raw.is_null() {
-            return Err(Error::FailedToInitialize);
-        }
-
-        // Set the render target to actually output to the given screen
-        let flags = transfer::Flags::default()
-            .in_format(color_format.into())
-            .out_format(color_format.into());
-
-        unsafe {
-            citro3d_sys::C3D_RenderTargetSetOutput(
-                raw,
-                screen.as_raw(),
-                screen.side().into(),
-                flags.bits(),
-            );
-        }
-
-        Ok(Self {
-            raw,
-            _screen: screen,
-            _queue: queue,
-        })
-    }
-
-    /// Clear the render target with the given 32-bit RGBA color and depth buffer value.
-    ///
-    /// Use `flags` to specify whether color and/or depth should be overwritten.
-    #[doc(alias = "C3D_RenderTargetClear")]
-    pub fn clear(&mut self, flags: ClearFlags, rgba_color: u32, depth: u32) {
-        unsafe {
-            citro3d_sys::C3D_RenderTargetClear(self.raw, flags.bits(), rgba_color, depth);
+    #[doc(alias = "C3D_SetTexEnv")]
+    pub fn set_texenvs(&mut self, texenvs: &[texenv::TexEnv]) {
+        for i in 0..texenv::TEXENV_COUNT {
+            self.texenvs[i] = texenvs.get(i).cloned();
+            if let Some(texenv) = &self.texenvs[i] {
+                texenv.set_texenv(i).unwrap();
+            } else {
+                unsafe {
+                    let texenv = texenv::TexEnv::get_texenv(i);
+                    texenv::TexEnv::init_reset(texenv);
+                }
+            }
         }
     }
 
-    /// Return the underlying `citro3d` render target for this target.
-    pub(crate) fn as_raw(&self) -> *mut C3D_RenderTarget {
-        self.raw
+    /// Bind the given [`Texture`] to the specified [`texture::Unit`], which should
+    /// correspond to a source or destination texture configured in the [`TexEnv`].
+    pub fn bind_texture(&mut self, index: texture::Index, texture: &'instance texture::Texture) {
+        unsafe { texture.bind(index) };
+        self.bound_textures[index as usize] = true;
     }
-}
 
-impl Frame {
-    fn new() -> Self {
+    pub fn set_cull_face(&mut self, cull: render::effect::CullMode) {
         unsafe {
-            citro3d_sys::C3D_FrameBegin(
-                // TODO: begin + end flags should be configurable
-                citro3d_sys::C3D_FRAME_SYNCDRAW,
-            )
-        };
-
-        Self {}
+            citro3d_sys::C3D_CullFace(cull as u8);
+        }
     }
 }
 
-impl Drop for Frame {
+impl Drop for Frame<'_> {
     fn drop(&mut self) {
         unsafe {
             citro3d_sys::C3D_FrameEnd(0);
-        }
-    }
-}
 
-impl Drop for Target<'_> {
-    #[doc(alias = "C3D_RenderTargetDelete")]
-    fn drop(&mut self) {
-        unsafe {
-            C3D_RenderTargetDelete(self.raw);
-        }
-    }
-}
-
-impl From<FramebufferFormat> for ColorFormat {
-    fn from(format: FramebufferFormat) -> Self {
-        match format {
-            FramebufferFormat::Rgba8 => Self::RGBA8,
-            FramebufferFormat::Rgb565 => Self::RGB565,
-            FramebufferFormat::Rgb5A1 => Self::RGBA5551,
-            FramebufferFormat::Rgba4 => Self::RGBA4,
-            // this one seems unusual, but it appears to work fine:
-            FramebufferFormat::Bgr8 => Self::RGB8,
-        }
-    }
-}
-
-impl DepthFormat {
-    fn as_raw(self) -> C3D_DEPTHTYPE {
-        C3D_DEPTHTYPE {
-            __e: self as GPU_DEPTHBUF,
-        }
-    }
-}
-
-impl Drop for RenderPass<'_> {
-    fn drop(&mut self) {
-        unsafe {
             // TODO: substitute as many as possible with safe wrappers.
             // These resets are derived from the implementation of `C3D_Init` and by studying the `C3D_Context` struct.
             citro3d_sys::C3D_DepthMap(true, -1.0, 0.0);
@@ -483,12 +586,16 @@ impl Drop for RenderPass<'_> {
 
             // TODO: C3D_TexBind doesn't work for NULL
             // https://github.com/devkitPro/citro3d/blob/9f21cf7b380ce6f9e01a0420f19f0763e5443ca7/source/texture.c#L222
+            // As long as no bound texture environment references a texture outside of its lifetime,
+            // it will be fine to leave it bound?
+            // Therefore, we must ensure that future frames do not reference a texture unless a valid
+            // one has been bound in tis frame.
             /*for i in 0..3 {
                 citro3d_sys::C3D_TexBind(i, std::ptr::null_mut());
             }*/
 
-            for i in 0..6 {
-                self.texenv(texenv::Stage::new(i).unwrap()).reset();
+            for i in 0..texenv::TEXENV_COUNT {
+                texenv::TexEnv::init_reset(texenv::TexEnv::get_texenv(i));
             }
 
             // Unbind attribute information (can't use NULL pointer, so we use an empty attrib::Info instead).

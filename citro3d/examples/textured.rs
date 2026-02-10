@@ -1,13 +1,10 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
-
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
 use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
 use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
-use citro3d::texenv;
 use citro3d::{attrib, buffer, shader};
+use citro3d::{texenv, texture};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -27,27 +24,53 @@ impl Vec3 {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+struct Vec2 {
+    x: f32,
+    y: f32,
+}
+
+impl Vec2 {
+    const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 struct Vertex {
     pos: Vec3,
-    color: Vec3,
+    tex_coord: Vec2,
 }
 
 static VERTICES: &[Vertex] = &[
     Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
+        pos: Vec3::new(-0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(0.0, 1.0),
     },
     Vertex {
         pos: Vec3::new(-0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coord: Vec2::new(0.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coord: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(-0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(0.0, 1.0),
+    },
+    Vertex {
+        pos: Vec3::new(0.5, -0.5, -3.0),
+        tex_coord: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        pos: Vec3::new(0.5, 0.5, -3.0),
+        tex_coord: Vec2::new(1.0, 1.0),
     },
 ];
 
-static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
+static SHADER_BYTES: &[u8] = include_shader!("assets/vshader_textured.pica");
+static TEXTURE_BYTES: &[u8] = include_bytes!("assets/kitten.t3d");
 const CLEAR_COLOR: u32 = 0x68_B0_D8_FF;
 
 fn main() {
@@ -93,8 +116,10 @@ fn main() {
     let mut buf_info = buffer::Info::new();
     let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
 
+    let tex = create_texture();
+
     let stage0 = texenv::TexEnv::new()
-        .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
+        .src(texenv::Mode::BOTH, texenv::Source::Texture0, None, None)
         .func(texenv::Mode::BOTH, texenv::CombineFunc::Replace);
 
     while apt.main_loop() {
@@ -105,8 +130,6 @@ fn main() {
         }
 
         instance.render_frame_with(|mut frame| {
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
                 T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
@@ -120,20 +143,16 @@ fn main() {
                 frame
                     .select_render_target(target)
                     .expect("failed to set render target");
+                frame.set_attr_info(&attr_info);
                 frame.bind_vertex_uniform(projection_uniform_idx, projection);
-
                 frame.set_texenvs(&[stage0]);
 
-                frame.set_attr_info(&attr_info);
-
+                // Binding of the kitten texture
+                frame.bind_texture(texture::Index::Texture0, &tex);
                 frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
             });
 
-            // We bind the vertex shader.
             frame.bind_program(&program);
-
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
 
             let Projections {
                 left_eye,
@@ -154,7 +173,6 @@ fn prepare_vbos<'a>(
     buf_info: &'a mut buffer::Info,
     vbo_data: &'a [Vertex],
 ) -> (attrib::Info, buffer::Slice<'a>) {
-    // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
     let reg0 = attrib::Register::new(0).unwrap();
@@ -165,7 +183,7 @@ fn prepare_vbos<'a>(
         .unwrap();
 
     attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
+        .add_loader(reg1, attrib::Format::Float, 2)
         .unwrap();
 
     let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
@@ -179,9 +197,24 @@ struct Projections {
     center: Matrix4,
 }
 
+fn create_texture() -> texture::Texture {
+    let tex: texture::Tex3DSTexture = texture::Tex3DSTexture::new(TEXTURE_BYTES, false).unwrap();
+    let mut tex: texture::Texture = tex.into_texture();
+    tex.set_filter(texture::Filter::Linear, texture::Filter::Linear);
+    tex
+
+    // Example of loading a texture manually, if you had a slice containing the already-swizzled
+    // Rgba8 bytes of the texture in `TEXTURE_BYTES`:
+    //
+    // let params = texture::TextureParameters::new_2d(64, 64, texture::ColorFormat::Rgba8);
+    // let mut tex = texture::Texture::new(params).unwrap();
+    // tex.load_image(TEXTURE_BYTES, texture::Face::default())
+    //     .unwrap();
+    // tex.set_filter(texture::Filter::Linear, texture::Filter::Nearest);
+    // tex
+}
+
 fn calculate_projections() -> Projections {
-    // TODO: it would be cool to allow playing around with these parameters on
-    // the fly with D-pad, etc.
     let slider_val = ctru::os::current_3d_slider_state();
     let interocular_distance = slider_val / 2.0;
 
