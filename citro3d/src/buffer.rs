@@ -3,104 +3,198 @@
 //! See the [`attrib`] module for details on how to describe the shape and type
 //! of the VBO data.
 
+use std::any::type_name;
+use std::ffi::c_void;
 use std::mem::MaybeUninit;
+use std::rc::Rc;
 
 use ctru::linear::LinearAllocator;
 
 use crate::Error;
 use crate::attrib;
 
-/// Vertex buffer info. This struct is used to describe the shape of the buffer
-/// data to be sent to the GPU for rendering.
-#[derive(Debug)]
-#[doc(alias = "C3D_BufInfo")]
-pub struct Info(pub(crate) citro3d_sys::C3D_BufInfo);
-
-/// A slice of buffer data. This borrows the buffer data and can be thought of
-/// as similar to `&[T]` obtained by slicing a `Vec<T>`.
-#[derive(Debug, Clone, Copy)]
-pub struct Slice<'buf> {
-    index: libc::c_int,
-    size: libc::c_int,
-    buf_info: &'buf Info,
-    // TODO: should we encapsulate the primitive here too, and require it when the
-    // slice is registered? Could there ever be a use case to draw different primitives
-    // using the same backing data???
+/// A buffer allocated in Linear memory.
+pub trait BufferData: 'static {
+    /// A pointer to the underlying data
+    fn buf_ptr(&self) -> *mut c_void;
+    /// The size (in bytes) of each element in the buffer
+    fn stride(&self) -> usize;
+    /// How many elements are in the buffer
+    fn buf_len(&self) -> usize;
 }
 
-impl Slice<'_> {
-    /// Get the index into the buffer for this slice.
-    pub fn index(&self) -> libc::c_int {
-        self.index
+impl<T: Sized + 'static> BufferData for Vec<T, LinearAllocator> {
+    fn buf_ptr(&self) -> *mut c_void {
+        self.as_ptr() as _
     }
 
-    /// Get the length of the slice.
-    #[must_use]
-    pub fn len(&self) -> libc::c_int {
-        self.size
+    fn stride(&self) -> usize {
+        std::mem::size_of::<T>()
     }
 
-    /// Return whether or not the slice has any elements.
-    pub fn is_empty(&self) -> bool {
-        self.len() <= 0
+    fn buf_len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<T: Sized + 'static> BufferData for Box<[T], LinearAllocator> {
+    fn buf_ptr(&self) -> *mut c_void {
+        self.as_ref() as *const _ as _
     }
 
-    /// Get the buffer info this slice is associated with.
-    pub fn info(&self) -> &Info {
-        self.buf_info
+    fn stride(&self) -> usize {
+        std::mem::size_of::<T>()
     }
 
-    /// Get an index buffer for this slice using the given indices.
+    fn buf_len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<T: Sized + 'static> BufferData for Rc<[T], LinearAllocator> {
+    fn buf_ptr(&self) -> *mut c_void {
+        self.as_ref() as *const _ as _
+    }
+
+    fn stride(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+
+    fn buf_len(&self) -> usize {
+        self.len()
+    }
+}
+
+/// A handle to a VBO buffer in linear memory, to be used with [`Info`].
+/// This handle is reference counted so can be cheaply cloned and used
+/// with mutliple [`Info`] instances without duplicating memory.
+#[derive(Clone)]
+pub struct Buffer {
+    _data: Rc<dyn BufferData>,
+
+    // These fields could just be dynamically fetched since the buffer
+    // is dyn BufferVec, or we can spend 12 extra bytes per buffer to
+    // avoid some indirection each draw call.
+    data_ptr: *const c_void,
+    stride: isize,
+    len: usize,
+}
+
+impl Buffer {
+    /// Allocate a new `Buffer` in Linear memory and copy `data` into it.
+    /// Each element of `data` should correspond to data for a single vertex.
+    ///
+    /// If you already have an owned [`Vec`] in Linear memory then
+    /// [`Buffer::new_in_linear`] should be preferred to take ownership
+    /// of that allocation instead of reallocating and copying.
+    pub fn new<T: Sized + Copy + 'static>(data: &[T]) -> Buffer {
+        let mut linear_data = Vec::with_capacity_in(data.len(), LinearAllocator);
+        linear_data.extend_from_slice(data);
+
+        Buffer {
+            data_ptr: linear_data.as_ptr() as _,
+            len: linear_data.len(),
+            stride: linear_data
+                .stride()
+                .try_into()
+                .map_err(|_| format!("{} is too large to be used in a buffer.", type_name::<T>()))
+                .unwrap(),
+            _data: Rc::new(linear_data),
+        }
+    }
+
+    /// Allocate a new `Buffer` in Linear memory and copy `data` into it.
+    /// The `stride` should correspond to the number of bytes in data
+    /// per single vertex.
+    ///
+    /// If you already have an owned [`Vec`] in Linear memory then
+    /// [`Buffer::new_in_linear_with_stride`] should be preferred to take ownership
+    /// of that allocation instead of reallocating and copying.
     ///
     /// # Errors
-    ///
-    /// Returns an error if:
-    /// - any of the given indices are out of bounds.
-    /// - the given slice is too long for its length to fit in a `libc::c_int`.
-    pub fn index_buffer<I>(&self, indices: &[I]) -> Result<Indices<'_, I>, Error>
-    where
-        I: Index + Copy + Into<libc::c_int>,
-    {
-        if libc::c_int::try_from(indices.len()).is_err() {
-            return Err(Error::InvalidSize);
+    /// * If the length of `data` is not a mutliple of `stride`
+    pub fn new_with_stride(data: &[u8], stride: usize) -> Option<Buffer> {
+        if !data.len().is_multiple_of(stride) {
+            return None;
         }
 
-        for &idx in indices {
-            let idx = idx.into();
-            let len = self.len();
-            if idx >= len {
-                return Err(Error::IndexOutOfBounds { idx, len });
-            }
-        }
+        let mut linear_data = Vec::with_capacity_in(data.len(), LinearAllocator);
+        linear_data.extend_from_slice(data);
 
-        Ok(unsafe { self.index_buffer_unchecked(indices) })
+        Some(Buffer {
+            data_ptr: linear_data.as_ptr() as _,
+            len: linear_data.len() / stride,
+            stride: stride as isize,
+            _data: Rc::new(linear_data),
+        })
     }
 
-    /// Get an index buffer for this slice using the given indices without
-    /// bounds checking.
-    ///
-    /// # Safety
-    ///
-    /// If any indices are outside this buffer it can cause an invalid access by the GPU
-    /// (this crashes citra).
-    pub unsafe fn index_buffer_unchecked<I: Index + Clone>(&self, indices: &[I]) -> Indices<'_, I> {
-        let mut buffer = Vec::with_capacity_in(indices.len(), LinearAllocator);
-        buffer.extend_from_slice(indices);
-        Indices {
-            buffer,
-            _slice: *self,
+    /// Convert an existing buffer allocated in Linear memory to a `Buffer` to be used
+    /// with [`Info`]. Each element in `data` should correspond with data for
+    /// a single vertex.
+    pub fn new_in_linear<B: BufferData>(data: B) -> Buffer {
+        Buffer {
+            data_ptr: data.buf_ptr() as _,
+            stride: data
+                .stride()
+                .try_into()
+                .map_err(|_| format!("{}'s buffer elements are too large.", type_name::<B>()))
+                .unwrap(),
+            len: data.buf_len(),
+            _data: Rc::new(data),
         }
+    }
+
+    /// Convert an existing buffer of unstructured data allocated in Linear memory
+    /// e.g. `Vec<u8, LinearAllocator>` to a `Buffer` to be used with [`Info`].
+    /// Each element in `data` should correspond with data for a single vertex.
+    ///
+    /// # Errors
+    /// * If the length of `data` is not a mutliple of `stride`
+    pub fn new_in_linear_with_stride(data: impl BufferData, stride: usize) -> Option<Buffer> {
+        if !data.buf_len().is_multiple_of(stride) {
+            return None;
+        }
+
+        Some(Buffer {
+            data_ptr: data.buf_ptr() as _,
+            stride: stride
+                .try_into()
+                .map_err(|_| format!("{stride} is too large for a buffer element."))
+                .unwrap(),
+            len: data.buf_len() / stride,
+            _data: Rc::new(data),
+        })
+    }
+
+    pub fn as_ptr(&self) -> *const c_void {
+        self.data_ptr
+    }
+
+    pub fn stride(&self) -> isize {
+        self.stride
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 
-/// An index buffer for indexed drawing. See [`Slice::index_buffer`] to obtain one.
-pub struct Indices<'buf, I> {
-    pub(crate) buffer: Vec<I, LinearAllocator>,
-    _slice: Slice<'buf>,
+/// Vertex buffer info. This struct is used to describe the shape of the buffer
+/// data to be sent to the GPU for rendering.
+#[doc(alias = "C3D_BufInfo")]
+#[derive(Clone)]
+pub struct Info {
+    info: citro3d_sys::C3D_BufInfo,
+    buffers: Vec<Buffer>,
 }
 
 /// A type that can be used as an index for indexed drawing.
-pub trait Index: crate::private::Sealed {
+pub trait Index {
     /// The data type of the index, as used by [`citro3d_sys::C3D_DrawElements`]'s `type_` parameter.
     const TYPE: libc::c_int;
 }
@@ -137,59 +231,62 @@ impl Default for Info {
             citro3d_sys::BufInfo_Init(info.as_mut_ptr());
             info.assume_init()
         };
-        Self(info)
+        Self {
+            info,
+            buffers: Vec::new(),
+        }
     }
 }
 
 impl Info {
+    pub fn as_raw(&self) -> *mut citro3d_sys::C3D_BufInfo {
+        &self.info as *const _ as _
+    }
+
     /// Construct buffer info without any registered data.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn copy_from(raw: *const citro3d_sys::C3D_BufInfo) -> Option<Self> {
-        if raw.is_null() {
-            None
-        } else {
-            // This is less efficient than returning a pointer or something, but it's
-            // safer since we don't know the lifetime of the pointee
-            Some(Self(unsafe { *raw }))
-        }
+    pub fn len(&self) -> u16 {
+        self.buffers.first().map(|b| b.len() as _).unwrap_or(0)
     }
 
-    /// Register vertex buffer object data. The resulting [`Slice`] will have its
-    /// lifetime tied to both this [`Info`] and the passed-in VBO. `vbo_data` is
-    /// assumed to use one `T` per drawn primitive, and its layout is assumed to
-    /// match the given `attrib_info`
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Register vertex buffer object data with this [`Info`].
+    /// `vbo_buffer` is assumed to use one `T` per drawn primitive,
+    /// and its layout is assumed to match the given `permutation`.
     ///
     /// # Errors
     ///
     /// Registering VBO data may fail:
     ///
-    /// * if `vbo_data` is not allocated with the [`ctru::linear`] allocator
+    /// * if `vbo_data` is (somehow) not allocated with the [`ctru::linear`] allocator
     /// * if the maximum number (12) of VBOs are already registered
     #[doc(alias = "BufInfo_Add")]
-    pub fn add<'this, 'vbo, 'idx, T>(
+    pub fn add<'this, 'idx>(
         &'this mut self,
-        vbo_data: &'vbo [T],
-        attrib_info: &attrib::Info,
-    ) -> crate::Result<Slice<'idx>>
+        vbo_buffer: Buffer,
+        permutation: attrib::Permutation,
+    ) -> Result<(), Error>
     where
         'this: 'idx,
-        'vbo: 'idx,
     {
-        let stride = std::mem::size_of::<T>().try_into()?;
-
-        // SAFETY: the lifetime of the VBO data is encapsulated in the return value's
-        // 'vbo lifetime, and the pointer to &mut self.0 is used to access values
+        // SAFETY:
+        // * The lifetime of the VBO data is extended by the `Buffer` copy that is
+        // stored in `self.buffers` which reference counts the buffer allocation
+        // * The pointer to &mut self.0 is used to access values
         // in the BufInfo, not copied to be used later.
         let res = unsafe {
             citro3d_sys::BufInfo_Add(
-                &mut self.0,
-                vbo_data.as_ptr().cast(),
-                stride,
-                attrib_info.attr_count(),
-                attrib_info.permutation(),
+                &mut self.info,
+                vbo_buffer.as_ptr().cast(),
+                vbo_buffer.stride(),
+                permutation.attrib_count as _,
+                permutation.permutation,
             )
         };
 
@@ -198,11 +295,10 @@ impl Info {
             ..=-3 => Err(crate::Error::System(res)),
             -2 => Err(crate::Error::InvalidMemoryLocation),
             -1 => Err(crate::Error::TooManyBuffers),
-            _ => Ok(Slice {
-                index: res,
-                size: vbo_data.len().try_into()?,
-                buf_info: self,
-            }),
+            _ => {
+                self.buffers.push(vbo_buffer);
+                Ok(())
+            }
         }
     }
 }
