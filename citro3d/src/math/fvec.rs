@@ -149,6 +149,12 @@ impl FVec4 {
     }
 }
 
+impl Into<[f32; 4]> for FVec4 {
+    fn into(self) -> [f32; 4] {
+        [self.x(), self.y(), self.z(), self.w()]
+    }
+}
+
 impl FVec3 {
     /// Create a new [`FVec3`] from its components.
     ///
