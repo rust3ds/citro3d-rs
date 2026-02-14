@@ -115,11 +115,10 @@ fn main() {
     let program = shader::Program::new(vertex_shader).unwrap();
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
-    let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
-    vbo_data.extend_from_slice(VERTICES);
+    let vbo_data = buffer::Buffer::new(VERTICES);
 
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
+    let attr_info = prepare_vbos(&mut buf_info, vbo_data);
 
     let mut tex_target = instance
         .render_target_texture(create_texture_target(), texture::Face::default(), None)
@@ -157,7 +156,9 @@ fn main() {
                 .select_render_target(&bottom_target)
                 .expect("failed to set render target");
             frame.bind_vertex_uniform(projection_uniform_idx, center);
-            frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            frame
+                .draw_arrays(buffer::Primitive::Triangles, &buf_info, None)
+                .unwrap();
 
             // Render to texture
             tex_target.clear(ClearFlags::ALL, OTHER_CLEAR_COLOR, 0);
@@ -166,7 +167,9 @@ fn main() {
                 .select_render_target(&tex_target)
                 .expect("failed to set render target");
             frame.bind_vertex_uniform(projection_uniform_idx, square);
-            frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+            frame
+                .draw_arrays(buffer::Primitive::Triangles, &buf_info, None)
+                .unwrap();
 
             // Render texture to top screen targets
             for (target, proj) in [
@@ -179,7 +182,9 @@ fn main() {
                     .expect("failed to set render target");
                 frame.bind_texture(texture::Index::Texture0, tex_target.texture());
                 frame.bind_vertex_uniform(projection_uniform_idx, proj);
-                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                frame
+                    .draw_arrays(buffer::Primitive::Triangles, &buf_info, None)
+                    .unwrap();
             }
 
             frame
@@ -187,10 +192,7 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(
-    buf_info: &'a mut buffer::Info,
-    vbo_data: &'a [Vertex],
-) -> (attrib::Info, buffer::Slice<'a>) {
+fn prepare_vbos<'a>(buf_info: &'a mut buffer::Info, vbo_data: buffer::Buffer) -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
@@ -205,9 +207,9 @@ fn prepare_vbos<'a>(
         .add_loader(reg1, attrib::Format::Float, 2)
         .unwrap();
 
-    let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
+    buf_info.add(vbo_data, &attr_info).unwrap();
 
-    (attr_info, buf_idx)
+    attr_info
 }
 
 struct Projections {

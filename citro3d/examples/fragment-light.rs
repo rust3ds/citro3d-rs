@@ -285,10 +285,9 @@ fn main() {
 
     let program = shader::Program::new(vertex_shader).unwrap();
 
-    let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
-    vbo_data.extend_from_slice(VERTICES);
+    let vbo_data = buffer::Buffer::new(VERTICES);
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
+    let attr_info = prepare_vbos(&mut buf_info, vbo_data);
 
     // Setup the global lighting environment, using an exponential lookup-table.
     let mut light_env = LightEnv::new_pinned();
@@ -375,7 +374,9 @@ fn main() {
 
                 frame.set_attr_info(&attr_info);
 
-                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                frame
+                    .draw_arrays(buffer::Primitive::Triangles, &buf_info, None)
+                    .unwrap();
             });
 
             frame.bind_program(&program);
@@ -403,10 +404,7 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(
-    buf_info: &'a mut buffer::Info,
-    vbo_data: &'a [Vertex],
-) -> (attrib::Info, buffer::Slice<'a>) {
+fn prepare_vbos<'a>(buf_info: &'a mut buffer::Info, vbo_data: buffer::Buffer) -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
@@ -426,9 +424,9 @@ fn prepare_vbos<'a>(
         .add_loader(reg2, attrib::Format::Float, 2)
         .unwrap();
 
-    let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
+    buf_info.add(vbo_data, &attr_info).unwrap();
 
-    (attr_info, buf_idx)
+    attr_info
 }
 
 struct Projections {

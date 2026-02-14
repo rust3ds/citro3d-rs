@@ -1,19 +1,20 @@
 //! This module provides render target types and options for controlling transfer
 //! of data to the GPU, including the format of color and depth data to be rendered.
 
-use std::cell::RefMut;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
+use std::{cell::RefMut, ops::Range};
 
 use citro3d_sys::{C3D_DEPTHTYPE, C3D_RenderTargetCreate, C3D_RenderTargetDelete};
+use ctru::linear::LinearAllocator;
 use ctru::services::gfx::Screen;
 use ctru::services::gspgpu::FramebufferFormat;
 use ctru_sys::{GPU_COLORBUF, GPU_DEPTHBUF};
 
 use crate::{
     Error, Instance, RenderQueue, Result, attrib,
-    buffer::{self, Index, Indices},
+    buffer::{self, Index},
     light::LightEnv,
     render, shader,
     texenv::{self, TexEnv},
@@ -285,23 +286,11 @@ impl<'instance> Frame<'instance> {
         }
     }
 
-    /// Get the buffer info being used, if it exists.
-    ///
-    /// # Notes
-    ///
-    /// The resulting [`buffer::Info`] is copied (and not taken) from the one currently in use.
-    #[doc(alias = "C3D_GetBufInfo")]
-    pub fn buffer_info(&self) -> Option<buffer::Info> {
-        let raw = unsafe { citro3d_sys::C3D_GetBufInfo() };
-        buffer::Info::copy_from(raw)
-    }
-
     /// Set the buffer info to use for for the following draw calls.
     #[doc(alias = "C3D_SetBufInfo")]
-    pub fn set_buffer_info(&mut self, buffer_info: &buffer::Info) {
-        let raw: *const _ = &buffer_info.0;
-        // LIFETIME SAFETY: C3D_SetBufInfo actually copies the pointee instead of mutating it.
-        unsafe { citro3d_sys::C3D_SetBufInfo(raw.cast_mut()) };
+    pub fn set_buffer_info(&mut self, buffer_info: &'instance buffer::Info) {
+        // LIFETIME SAFETY: The internal buffers of `buffer_info` must be kept alive
+        unsafe { citro3d_sys::C3D_SetBufInfo(buffer_info.as_raw()) };
     }
 
     /// Get the attribute info being used, if it exists.
@@ -324,19 +313,42 @@ impl<'instance> Frame<'instance> {
     }
 
     /// Render primitives from the current vertex array buffer.
+    /// An optional `range` parameter can be provided to use a contiguous sub-
+    /// array of vertices, if none is provided the entire range will be used.
     ///
     /// # Panics
     ///
-    /// Panics if no shader program was bound (see [`Frame::bind_program`]).
+    /// * If no shader program was bound (see [`Frame::bind_program`]).
+    /// * If there are no buffers registered with this [`buffer::Info`].
     #[doc(alias = "C3D_DrawArrays")]
     pub fn draw_arrays(
         &mut self,
         primitive: buffer::Primitive,
-        vbo_data: buffer::Slice<'instance>,
-    ) {
+        buffers: &'instance buffer::Info,
+        range: Option<Range<u16>>,
+    ) -> Result<()> {
         // TODO: Decide whether it's worth returning an `Error` instead of panicking.
         if !self.is_program_bound {
             panic!("Tried to draw arrays when no shader program is bound");
+        }
+
+        let len = buffers.len();
+
+        let start = range.as_ref().map(|r| r.start).unwrap_or(0);
+        if start >= len {
+            return Err(Error::IndexOutOfBounds {
+                idx: start as _,
+                len: len as _,
+            });
+        }
+
+        // len is verified to be >0 from checking the starting index
+        let end = range.as_ref().map(|r| r.end).unwrap_or(len - 1);
+        if end >= len {
+            return Err(Error::IndexOutOfBounds {
+                idx: end as _,
+                len: len as _,
+            });
         }
 
         // Ensure that any textures being referenced by the texture environment
@@ -357,16 +369,18 @@ impl<'instance> Frame<'instance> {
             }
         }
 
-        self.set_buffer_info(vbo_data.info());
+        self.set_buffer_info(buffers);
 
         // TODO: should we also require the attrib info directly here?
         unsafe {
             citro3d_sys::C3D_DrawArrays(
                 primitive as ctru_sys::GPU_Primitive_t,
-                vbo_data.index(),
-                vbo_data.len(),
+                start as _,
+                (end - start + 1) as _,
             );
         }
+
+        Ok(())
     }
 
     /// Draws the vertices in `buf` indexed by `indices`.
@@ -378,8 +392,8 @@ impl<'instance> Frame<'instance> {
     pub fn draw_elements<I: Index>(
         &mut self,
         primitive: buffer::Primitive,
-        vbo_data: buffer::Slice<'instance>,
-        indices: &Indices<'instance, I>,
+        vbo_data: &'instance buffer::Info,
+        indices: &'instance Vec<I, LinearAllocator>,
     ) {
         if !self.is_program_bound {
             panic!("tried to draw elements when no shader program is bound");
@@ -402,9 +416,8 @@ impl<'instance> Frame<'instance> {
             }
         }
 
-        self.set_buffer_info(vbo_data.info());
+        self.set_buffer_info(vbo_data);
 
-        let indices = &indices.buffer;
         let elements = indices.as_ptr().cast();
 
         unsafe {

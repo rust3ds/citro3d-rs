@@ -43,12 +43,6 @@ pub mod macros {
     pub use citro3d_macros::*;
 }
 
-mod private {
-    pub trait Sealed {}
-    impl Sealed for u8 {}
-    impl Sealed for u16 {}
-}
-
 /// Representation of `citro3d`'s internal render queue. This is something that
 /// lives in the global context, but it keeps references to resources that are
 /// used for rendering, so it's useful for us to have something to represent its
