@@ -142,7 +142,7 @@ impl Uniform<'_> {
                 }
                 Self::Float4Array(arr) => {
                     set_float_uniforms(
-                        arr.iter().map(|m| m.rows_wzyx()).flatten(),
+                        arr.iter().flat_map(|m| m.rows_wzyx()),
                         self.len(),
                         ty,
                         index,

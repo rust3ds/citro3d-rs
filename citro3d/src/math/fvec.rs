@@ -149,9 +149,9 @@ impl FVec4 {
     }
 }
 
-impl Into<[f32; 4]> for FVec4 {
-    fn into(self) -> [f32; 4] {
-        [self.x(), self.y(), self.z(), self.w()]
+impl From<FVec4> for [f32; 4] {
+    fn from(value: FVec4) -> Self {
+        [value.x(), value.y(), value.z(), value.w()]
     }
 }
 

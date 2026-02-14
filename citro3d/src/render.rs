@@ -526,7 +526,7 @@ impl<'instance> Frame<'instance> {
         }
     }
 
-    /// Bind the given [`Texture`] to the specified [`texture::Unit`], which should
+    /// Bind the given [`texture::Texture`] to the specified [`texture::Unit`], which should
     /// correspond to a source or destination texture configured in the [`TexEnv`].
     pub fn bind_texture(&mut self, index: texture::Index, texture: &'instance texture::Texture) {
         unsafe { texture.bind(index) };
