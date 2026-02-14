@@ -10,6 +10,12 @@ use crate::{Frame, shader};
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Index(u8);
 
+impl Index {
+    pub fn inner(&self) -> u8 {
+        self.0
+    }
+}
+
 impl From<u8> for Index {
     fn from(value: u8) -> Self {
         Self(value)
