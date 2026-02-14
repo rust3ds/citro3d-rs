@@ -92,7 +92,7 @@ impl Permutation {
 
         let mut perm: u64 = 0;
 
-        for (i, l) in layout.into_iter().enumerate() {
+        for (i, l) in layout.iter().enumerate() {
             perm |= (*l as u64) << (i * 4);
         }
 

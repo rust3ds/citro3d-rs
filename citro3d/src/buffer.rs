@@ -113,15 +113,15 @@ impl Buffer {
     ///
     /// # Errors
     /// * If the length of `data` is not a mutliple of `stride`
-    pub fn new_with_stride(data: &[u8], stride: usize) -> Result<Buffer, ()> {
-        if data.len() % stride != 0 {
-            return Err(());
+    pub fn new_with_stride(data: &[u8], stride: usize) -> Option<Buffer> {
+        if !data.len().is_multiple_of(stride) {
+            return None;
         }
 
         let mut linear_data = Vec::with_capacity_in(data.len(), LinearAllocator);
         linear_data.extend_from_slice(data);
 
-        Ok(Buffer {
+        Some(Buffer {
             data_ptr: linear_data.as_ptr() as _,
             len: linear_data.len() / stride,
             stride: stride as isize,
@@ -130,7 +130,7 @@ impl Buffer {
     }
 
     /// Convert an existing buffer allocated in Linear memory to a `Buffer` to be used
-    /// with [`buffer::Info`]. Each element in `data` should correspond with data for
+    /// with [`Info`]. Each element in `data` should correspond with data for
     /// a single vertex.
     pub fn new_in_linear<B: BufferData>(data: B) -> Buffer {
         Buffer {
@@ -146,17 +146,17 @@ impl Buffer {
     }
 
     /// Convert an existing buffer of unstructured data allocated in Linear memory
-    /// e.g. `Vec<u8, LinearAllocator>` to a `Buffer` to be used with [`buffer::Info`].
+    /// e.g. `Vec<u8, LinearAllocator>` to a `Buffer` to be used with [`Info`].
     /// Each element in `data` should correspond with data for a single vertex.
     ///
     /// # Errors
     /// * If the length of `data` is not a mutliple of `stride`
-    pub fn new_in_linear_with_stride(data: impl BufferData, stride: usize) -> Result<Buffer, ()> {
-        if data.buf_len() % stride != 0 {
-            return Err(());
+    pub fn new_in_linear_with_stride(data: impl BufferData, stride: usize) -> Option<Buffer> {
+        if !data.buf_len().is_multiple_of(stride) {
+            return None;
         }
 
-        Ok(Buffer {
+        Some(Buffer {
             data_ptr: data.buf_ptr() as _,
             stride: stride
                 .try_into()
@@ -177,6 +177,10 @@ impl Buffer {
 
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 
@@ -248,16 +252,19 @@ impl Info {
         self.buffers.first().map(|b| b.len() as _).unwrap_or(0)
     }
 
-    /// Register vertex buffer object data. The resulting [`Slice`] will have its
-    /// lifetime tied to both this [`Info`] and the passed-in VBO. `vbo_data` is
-    /// assumed to use one `T` per drawn primitive, and its layout is assumed to
-    /// match the given `attrib_info`
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Register vertex buffer object data with this [`Info`].
+    /// `vbo_buffer` is assumed to use one `T` per drawn primitive,
+    /// and its layout is assumed to match the given `permutation`.
     ///
     /// # Errors
     ///
     /// Registering VBO data may fail:
     ///
-    /// * if `vbo_data` is not allocated with the [`ctru::linear`] allocator
+    /// * if `vbo_data` is (somehow) not allocated with the [`ctru::linear`] allocator
     /// * if the maximum number (12) of VBOs are already registered
     #[doc(alias = "BufInfo_Add")]
     pub fn add<'this, 'idx>(

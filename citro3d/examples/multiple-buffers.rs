@@ -142,8 +142,8 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(
-    buf_info: &'a mut buffer::Info,
+fn prepare_vbos(
+    buf_info: &mut buffer::Info,
     positions: buffer::Buffer,
     cols: buffer::Buffer,
 ) -> attrib::Info {

@@ -231,7 +231,7 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(buf_info: &'a mut buffer::Info, vbo_data: buffer::Buffer) -> attrib::Info {
+fn prepare_vbos(buf_info: &mut buffer::Info, vbo_data: buffer::Buffer) -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 

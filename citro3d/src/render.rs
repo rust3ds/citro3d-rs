@@ -389,6 +389,7 @@ impl<'instance> Frame<'instance> {
     ///
     /// Panics if no shader program was bound (see [`Frame::bind_program`]).
     #[doc(alias = "C3D_DrawElements")]
+    #[allow(clippy::ptr_arg)] // `&Vec<I, LinearAllocator>` is required to ensure it's allocated in the correct memory space, however clippy insists we use `&[I]`
     pub fn draw_elements<I: Index>(
         &mut self,
         primitive: buffer::Primitive,
@@ -531,7 +532,7 @@ impl<'instance> Frame<'instance> {
         }
     }
 
-    /// Bind the given [`Texture`] to the specified [`texture::Unit`], which should
+    /// Bind the given [`texture::Texture`] to the specified [`texture::Unit`], which should
     /// correspond to a source or destination texture configured in the [`TexEnv`].
     pub fn bind_texture(&mut self, index: texture::Index, texture: &'instance texture::Texture) {
         unsafe { texture.bind(index) };
