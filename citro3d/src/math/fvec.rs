@@ -149,6 +149,12 @@ impl FVec4 {
     }
 }
 
+impl From<FVec4> for [f32; 4] {
+    fn from(value: FVec4) -> Self {
+        [value.x(), value.y(), value.z(), value.w()]
+    }
+}
+
 impl FVec3 {
     /// Create a new [`FVec3`] from its components.
     ///
