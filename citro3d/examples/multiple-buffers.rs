@@ -25,26 +25,16 @@ impl Vec3 {
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct Vertex {
-    pos: Vec3,
-    color: Vec3,
-}
+static VERTEX_POSITIONS: &[Vec3] = &[
+    Vec3::new(0.0, 0.5, -3.0),
+    Vec3::new(-0.5, -0.5, -3.0),
+    Vec3::new(0.5, -0.5, -3.0),
+];
 
-static VERTICES: &[Vertex] = &[
-    Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(-0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
-    },
+static VERTEX_COLS: &[Vec3] = &[
+    Vec3::new(1.0, 0.0, 0.0),
+    Vec3::new(0.0, 1.0, 0.0),
+    Vec3::new(0.0, 0.0, 1.0),
 ];
 
 static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
@@ -87,10 +77,11 @@ fn main() {
     let program = shader::Program::new(vertex_shader).unwrap();
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
-    let vbo_data = buffer::Buffer::new(VERTICES);
+    let vbo_pos = buffer::Buffer::new(VERTEX_POSITIONS);
+    let vbo_col = buffer::Buffer::new(VERTEX_COLS);
 
     let mut buf_info = buffer::Info::new();
-    let attr_info = prepare_vbos(&mut buf_info, vbo_data);
+    let attr_info = prepare_vbos(&mut buf_info, vbo_pos, vbo_col);
 
     let stage0 = texenv::TexEnv::new()
         .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
@@ -151,19 +142,29 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(buf_info: &'a mut buffer::Info, vbo_data: buffer::Buffer) -> attrib::Info {
+fn prepare_vbos<'a>(
+    buf_info: &'a mut buffer::Info,
+    positions: buffer::Buffer,
+    cols: buffer::Buffer,
+) -> attrib::Info {
+    use attrib::{Format, Info, Permutation, Register};
+
+    const REG_POS: Register = Register::V0;
+    const REG_COL: Register = Register::V1;
+
     // Configure attributes for use with the vertex shader
-    let mut attr_info = attrib::Info::new();
+    let mut attr_info = Info::new();
 
-    attr_info
-        .add_loader(attrib::Register::V0, attrib::Format::Float, 3)
+    attr_info.add_loader(REG_POS, Format::Float, 3).unwrap();
+
+    attr_info.add_loader(REG_COL, Format::Float, 3).unwrap();
+
+    buf_info
+        .add(positions, Permutation::from_layout(&[REG_POS]).unwrap())
         .unwrap();
-
-    attr_info
-        .add_loader(attrib::Register::V1, attrib::Format::Float, 3)
+    buf_info
+        .add(cols, Permutation::from_layout(&[REG_COL]).unwrap())
         .unwrap();
-
-    buf_info.add(vbo_data, attr_info.permutation()).unwrap();
 
     attr_info
 }

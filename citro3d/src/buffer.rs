@@ -263,7 +263,7 @@ impl Info {
     pub fn add<'this, 'idx>(
         &'this mut self,
         vbo_buffer: Buffer,
-        attrib_info: &attrib::Info,
+        permutation: attrib::Permutation,
     ) -> Result<(), Error>
     where
         'this: 'idx,
@@ -278,8 +278,8 @@ impl Info {
                 &mut self.info,
                 vbo_buffer.as_ptr().cast(),
                 vbo_buffer.stride(),
-                attrib_info.attr_count(),
-                attrib_info.permutation(),
+                permutation.attrib_count as _,
+                permutation.permutation,
             )
         };
 

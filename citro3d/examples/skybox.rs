@@ -235,13 +235,11 @@ fn prepare_vbos<'a>(buf_info: &'a mut buffer::Info, vbo_data: buffer::Buffer) ->
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
-    let reg0 = attrib::Register::new(0).unwrap();
-
     attr_info
-        .add_loader(reg0, attrib::Format::Float, 3)
+        .add_loader(attrib::Register::V0, attrib::Format::Float, 3)
         .unwrap();
 
-    buf_info.add(vbo_data, &attr_info).unwrap();
+    buf_info.add(vbo_data, attr_info.permutation()).unwrap();
 
     attr_info
 }

@@ -126,7 +126,7 @@ fn main() {
     let attr_info = build_attrib_info();
 
     let mut buf_info = buffer::Info::new();
-    buf_info.add(vbo_data, &attr_info).unwrap();
+    buf_info.add(vbo_data, attr_info.permutation()).unwrap();
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
     let camera_transform = Matrix4::looking_at(
@@ -203,15 +203,12 @@ fn build_attrib_info() -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
-    let reg0 = attrib::Register::new(0).unwrap();
-    let reg1 = attrib::Register::new(1).unwrap();
-
     attr_info
-        .add_loader(reg0, attrib::Format::Float, 3)
+        .add_loader(attrib::Register::V0, attrib::Format::Float, 3)
         .unwrap();
 
     attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
+        .add_loader(attrib::Register::V1, attrib::Format::Float, 3)
         .unwrap();
 
     attr_info
