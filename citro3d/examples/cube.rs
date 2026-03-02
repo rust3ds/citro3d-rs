@@ -8,6 +8,7 @@ use citro3d::math::{
 };
 use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
 use citro3d::{attrib, buffer, shader, texenv};
+use ctru::linear::LinearAllocator;
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -120,11 +121,12 @@ fn main() {
     }) {
         vbo_data.push(vert);
     }
+    let vbo_data = buffer::Buffer::new_in_linear(vbo_data);
 
     let attr_info = build_attrib_info();
 
     let mut buf_info = buffer::Info::new();
-    let vbo_slice = buf_info.add(&vbo_data, &attr_info).unwrap();
+    buf_info.add(vbo_data, attr_info.permutation()).unwrap();
 
     let projection_uniform_idx = program.get_uniform("projection").unwrap();
     let camera_transform = Matrix4::looking_at(
@@ -141,7 +143,9 @@ fn main() {
         16, 19, 17, 17, 19, 18, // back (+z)
         20, 21, 23, 21, 22, 23, // forward (-z)
     ];
-    let index_buffer = vbo_slice.index_buffer(indices).unwrap();
+    let mut index_buffer: Vec<u8, LinearAllocator> =
+        Vec::with_capacity_in(indices.len(), LinearAllocator);
+    index_buffer.extend_from_slice(indices);
 
     let stage0 = texenv::TexEnv::new()
         .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
@@ -173,7 +177,7 @@ fn main() {
 
                 frame.set_attr_info(&attr_info);
 
-                frame.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
+                frame.draw_elements(buffer::Primitive::Triangles, &buf_info, &index_buffer);
             });
 
             frame.bind_program(&program);
@@ -199,15 +203,12 @@ fn build_attrib_info() -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
-    let reg0 = attrib::Register::new(0).unwrap();
-    let reg1 = attrib::Register::new(1).unwrap();
-
     attr_info
-        .add_loader(reg0, attrib::Format::Float, 3)
+        .add_loader(attrib::Register::V0, attrib::Format::Float, 3)
         .unwrap();
 
     attr_info
-        .add_loader(reg1, attrib::Format::Float, 3)
+        .add_loader(attrib::Register::V1, attrib::Format::Float, 3)
         .unwrap();
 
     attr_info
