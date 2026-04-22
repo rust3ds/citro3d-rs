@@ -6,6 +6,7 @@
 
 use std::error::Error;
 use std::ffi::CString;
+use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
 use crate::uniform;
@@ -18,11 +19,12 @@ use crate::uniform;
 /// The PICA200 does not support user-programmable fragment shaders.
 #[doc(alias = "shaderProgram_s")]
 #[must_use]
-pub struct Program {
+pub struct Program<'lib> {
     program: ctru_sys::shaderProgram_s,
+    _lib: PhantomData<&'lib Library>,
 }
 
-impl Program {
+impl<'lib> Program<'lib> {
     /// Create a new shader program from a vertex shader.
     ///
     /// # Errors
@@ -32,7 +34,7 @@ impl Program {
     /// * the input shader is not a vertex shader or is otherwise invalid
     #[doc(alias = "shaderProgramInit")]
     #[doc(alias = "shaderProgramSetVsh")]
-    pub fn new(vertex_shader: Entrypoint) -> Result<Self, ctru::Error> {
+    pub fn new(vertex_shader: Entrypoint<'lib>) -> Result<Self, ctru::Error> {
         let mut program = unsafe {
             let mut program = MaybeUninit::uninit();
             let result = ctru_sys::shaderProgramInit(program.as_mut_ptr());
@@ -45,7 +47,10 @@ impl Program {
         let ret = unsafe { ctru_sys::shaderProgramSetVsh(&mut program, vertex_shader.as_raw()) };
 
         if ret == 0 {
-            Ok(Self { program })
+            Ok(Self {
+                program,
+                _lib: PhantomData,
+            })
         } else {
             Err(ctru::Error::from(ret))
         }
@@ -60,7 +65,7 @@ impl Program {
     #[doc(alias = "shaderProgramSetGsh")]
     pub fn set_geometry_shader(
         &mut self,
-        geometry_shader: Entrypoint,
+        geometry_shader: Entrypoint<'lib>,
         stride: u8,
     ) -> Result<(), ctru::Error> {
         let ret = unsafe {
@@ -105,7 +110,7 @@ impl Program {
     }
 }
 
-impl Drop for Program {
+impl<'lib> Drop for Program<'lib> {
     #[doc(alias = "shaderProgramFree")]
     fn drop(&mut self) {
         unsafe {

@@ -433,7 +433,7 @@ impl<'instance> Frame<'instance> {
     }
 
     /// Use the given [`shader::Program`] for the following draw calls.
-    pub fn bind_program(&mut self, program: &'instance shader::Program) {
+    pub fn bind_program(&mut self, program: &'instance shader::Program<'_>) {
         // SAFETY: AFAICT C3D_BindProgram just copies pointers from the given program,
         // instead of mutating the pointee in any way that would cause UB
         unsafe {
